@@ -132,7 +132,7 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
       focusDate(dateInMonth(activeMonth, daysInMonth(activeMonth)));
       return;
     }
-    if (event.key === 'PageUp' || event.key === 'PageDown') {
+    if (!compact && (event.key === 'PageUp' || event.key === 'PageDown')) {
       event.preventDefault();
       const next = addMonths(activeMonth, event.key === 'PageUp' ? -1 : 1);
       pendingFocus.current = dateInMonth(next, dayOfMonth(date));
@@ -165,27 +165,29 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            aria-label="Previous month"
-            onClick={() => showMonth(addMonths(activeMonth, -1))}
-            className={NAV_BUTTON}
-          >
-            <span aria-hidden="true">‹</span>
-          </button>
-          <button type="button" onClick={goToToday} className={NAV_BUTTON}>
-            Today
-          </button>
-          <button
-            type="button"
-            aria-label="Next month"
-            onClick={() => showMonth(addMonths(activeMonth, 1))}
-            className={NAV_BUTTON}
-          >
-            <span aria-hidden="true">›</span>
-          </button>
-        </div>
+        {compact ? null : (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              aria-label="Previous month"
+              onClick={() => showMonth(addMonths(activeMonth, -1))}
+              className={NAV_BUTTON}
+            >
+              <span aria-hidden="true">‹</span>
+            </button>
+            <button type="button" onClick={goToToday} className={NAV_BUTTON}>
+              Today
+            </button>
+            <button
+              type="button"
+              aria-label="Next month"
+              onClick={() => showMonth(addMonths(activeMonth, 1))}
+              className={NAV_BUTTON}
+            >
+              <span aria-hidden="true">›</span>
+            </button>
+          </div>
+        )}
       </header>
 
       <div className={compact ? '' : 'card p-2 sm:p-3'}>
