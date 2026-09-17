@@ -87,5 +87,8 @@ export type PersistedState = {
   settings: Settings;
 };
 
-/** Views are switched in app state; there is no router (GitHub Pages has no rewrites). */
-export type ViewName = 'calendar' | 'day' | 'library' | 'graphs' | 'settings';
+/**
+ * Views are switched in app state; there is no router (GitHub Pages has no rewrites).
+ * `day` is reachable by opening a calendar cell, not from the header nav.
+ */
+export type ViewName = 'home' | 'calendar' | 'day' | 'library' | 'settings';

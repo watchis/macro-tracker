@@ -8,24 +8,23 @@ Live at **https://watchis.github.io/macro-tracker/**
 
 ## Using it
 
-Five views, switched from the header — they are app state rather than routes, so GitHub Pages
-never has to serve a deep link.
+Four header views — they are app state rather than routes, so GitHub Pages never has to serve a
+deep link. Opening a day from the calendar is a fifth screen that is not in the nav.
 
-**Calendar** shows the month as a grid. A logged day reports its remaining calories, a depleting
+**Home** is the landing dashboard: today and last-7-day snapshots, latest weight, a compact month
+calendar (tap a day to log), and charts for weight over time (trend + average), calorie intake, and
+calorie overages/underages. Toggle lb/kg and a 30 / 90 / all-time chart range from the page header.
+
+**Calendar** shows the full month as a grid. A logged day reports its remaining calories, a depleting
 bar and totals for the macros you have switched on; an untouched day stays quiet. Today is circled
 in the accent color, and clicking any day opens it. Arrow keys walk the grid, `Home`/`End` jump to
 the first and last of the month, and `PageUp`/`PageDown` page between months.
 
-**Day** is the log itself: a table with a column per visible macro, an inline row to add food, and
-Edit/Delete on every entry. `Enter` submits a row and `Escape` cancels it; only the name is
-required. The footer totals each column against its goal, and `Quick add` logs a food from your
-library scaled from its reference weight to the grams you enter. Editing an entry keeps the values
-of macros that are currently hidden, so switching a macro off never silently drops data. An optional
-**weight** field (lb or kg) records a daily weigh-in for the Graphs page.
-
-**Graphs** charts weight over time (with a trendline and average), daily calorie consumption, and
-calorie overages/underages against your goal. Toggle lb/kg and a 30 / 90 / all-time range from the
-page header.
+**Day** (opened from Home or Calendar, not from the header) is the log itself: a table with a column
+per visible macro, an inline row to add food, and Edit/Delete on every entry. `Enter` submits a row
+and `Escape` cancels it; only the name is required. The footer totals each column against its goal,
+and `Quick add` logs a food from your library scaled from its reference weight to the grams you
+enter. An optional **weight** field (lb or kg) records a daily weigh-in for Home's charts.
 
 **Food library** is a searchable USDA catalog plus your custom foods; Day's quick-add scales
 them by grams when you log.
@@ -76,11 +75,11 @@ src/
   App.tsx              app shell: header, active view, budget bar
   components/          AppHeader, BudgetBar, MacroChip
   components/settings/ settings form controls, accent picker, import/export, data retention
-  views/               CalendarView, DayView, GraphsView, FoodLibraryView, SettingsView
+  views/               HomeView, CalendarView, DayView, FoodLibraryView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
   data/                USDA food catalog (lazy category JSON under starter/)
   lib/                 date keys, macro metadata, totals, weight conversion, chart series
-  components/charts/   SVG line and bar charts for the Graphs view
+  components/charts/   SVG line and bar charts for the Home view
   theme/               data-theme + accent application, color helpers
   index.css            palette custom properties and Tailwind theme mapping
 ```

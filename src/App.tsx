@@ -3,7 +3,7 @@ import { BudgetBar } from './components/BudgetBar';
 import { CalendarView } from './views/CalendarView';
 import { DayView } from './views/DayView';
 import { FoodLibraryView } from './views/FoodLibraryView';
-import { GraphsView } from './views/GraphsView';
+import { HomeView } from './views/HomeView';
 import { SettingsView } from './views/SettingsView';
 import { useView } from './store/selectors';
 import { useTheme } from './theme/useTheme';
@@ -18,9 +18,9 @@ export default function App() {
       {/* Bottom padding clears the fixed budget bar, which publishes its own
           measured height so a wrapped chip row still never covers content. */}
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-[calc(var(--budget-bar-height,7rem)+1.5rem)]">
+        {view === 'home' ? <HomeView /> : null}
         {view === 'calendar' ? <CalendarView /> : null}
         {view === 'day' ? <DayView /> : null}
-        {view === 'graphs' ? <GraphsView /> : null}
         {view === 'library' ? <FoodLibraryView /> : null}
         {view === 'settings' ? <SettingsView /> : null}
       </main>

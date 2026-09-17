@@ -196,6 +196,9 @@ export function DayView({ date }: DayViewProps) {
           >
             <span aria-hidden="true">›</span>
           </button>
+          <button type="button" onClick={() => setView('home')} className={NAV_BUTTON}>
+            Home
+          </button>
           <button type="button" onClick={() => setView('calendar')} className={NAV_BUTTON}>
             Calendar
           </button>

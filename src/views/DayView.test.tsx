@@ -360,6 +360,15 @@ describe('DayView navigation', () => {
     expect(useAppStore.getState().view).toBe('calendar');
   });
 
+  it('goes back to home', async () => {
+    const user = userEvent.setup();
+    useAppStore.getState().openDay(DATE);
+    render(<DayView />);
+
+    await user.click(screen.getByRole('button', { name: 'Home' }));
+    expect(useAppStore.getState().view).toBe('home');
+  });
+
   it('logs against the day it navigates to', async () => {
     const user = userEvent.setup();
     useAppStore.getState().setSelectedDate(DATE);

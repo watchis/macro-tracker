@@ -89,7 +89,7 @@ export type AppActions = {
 export type AppStore = PersistedState & UiState & AppActions;
 
 function initialUiState(): UiState {
-  return { view: 'calendar', selectedDate: todayKey() };
+  return { view: 'home', selectedDate: todayKey() };
 }
 
 function sanitizeEntryInput(input: FoodEntryInput): FoodEntryInput {

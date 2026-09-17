@@ -31,7 +31,7 @@ describe('defaults', () => {
     expect(state.settings.dataRetention).toBe('forever');
     expect(state.settings.weightUnit).toBe('lb');
     expect(state.weights).toEqual({});
-    expect(state.view).toBe('calendar');
+    expect(state.view).toBe('home');
   });
 });
 
