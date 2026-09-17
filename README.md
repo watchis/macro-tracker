@@ -74,17 +74,16 @@ src/
   components/settings/ settings form controls, accent picker, import/export, data retention
   views/               CalendarView, DayView, FoodLibraryView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
-  data/                USDA FoodData Central–sourced starter food library JSON
+  data/                USDA starter catalog (lazy category JSON under starter/)
   lib/                 date keys, macro metadata, totals and budget math
   theme/               data-theme + accent application, color helpers
   index.css            palette custom properties and Tailwind theme mapping
 ```
 
-The default food library is a large **starter catalog** (~1,000 common foods) read from
-[USDA FoodData Central](https://fdc.nal.usda.gov/) and bundled at
-`src/data/food-library-usda.json`. It loads with the app and is not stored in
-`localStorage`. Custom foods you add in the Food library view are persisted separately
-and appear first in quick-add; both lists are searchable.
+The default food library is a large **starter catalog** (5,000+ common foods from
+[USDA FoodData Central](https://fdc.nal.usda.gov/)), split into category JSON files under
+`src/data/starter/` and **lazy-loaded** as you browse or search. Custom foods you add in the
+Food library view are persisted separately and appear first in quick-add.
 
 ## Theming
 

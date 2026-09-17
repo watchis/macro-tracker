@@ -1,35 +1,31 @@
 import type { FoodLibraryItem } from '../types';
-import usdaFoodLibrary from './food-library-usda.json';
+import { isLegacyStarterName, STARTER_FOOD_COUNT } from './starterCatalog';
+
+export { isLegacyStarterName, STARTER_FOOD_COUNT };
+export {
+  LEGACY_STARTER_NAMES,
+  STARTER_MANIFEST,
+  loadAllStarterFoods,
+  loadStarterCategory,
+  mergeCustomWithStarter,
+  queryStarterFoods,
+} from './starterCatalog';
+export type {
+  StarterCategoryMeta,
+  StarterFood,
+  StarterManifest,
+  StarterPage,
+  StarterQuery,
+} from './starterCatalog';
 
 /**
- * Immutable starter catalog shipped with the app (USDA FoodData Central).
- * Always available on load; not stored in localStorage. User-added foods live
- * separately in the persisted `foodLibrary` array.
+ * @deprecated The full catalog is lazy-loaded via `queryStarterFoods`. Kept as an
+ * empty array so sync call sites that only need "customs + optional starter"
+ * do not pull the whole catalog into the initial bundle.
  */
-export const STARTER_FOOD_LIBRARY: readonly FoodLibraryItem[] = usdaFoodLibrary.foodLibrary.map(
-  (item) => ({
-    name: item.name,
-    grams: item.grams,
-    calories: item.calories,
-    macros: { ...item.macros },
-  }),
-);
+export const STARTER_FOOD_LIBRARY: readonly FoodLibraryItem[] = [];
 
-/**
- * Names from the original five-item localStorage seed. Migrations drop these so
- * they are not duplicated once the bundled catalog replaced them.
- */
-export const LEGACY_STARTER_NAMES = new Set(
-  ['Chicken breast', 'White rice, cooked', 'Rolled oats', 'Whole egg', 'Greek yogurt, 2%'].map(
-    (name) => name.toLowerCase(),
-  ),
-);
-
-export function isLegacyStarterName(name: string): boolean {
-  return LEGACY_STARTER_NAMES.has(name.trim().toLowerCase());
-}
-
-/** Custom foods first, then the starter catalog (for quick-add and search). */
+/** @deprecated Prefer `mergeCustomWithStarter` with an explicitly loaded page. */
 export function mergeFoodLibraries(
   custom: readonly FoodLibraryItem[],
   starter: readonly FoodLibraryItem[] = STARTER_FOOD_LIBRARY,

@@ -1,17 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { addDays, formatLongDate, isToday, todayKey } from '../lib/dates';
 import { MACROS, formatMacro, macroLabel, macroUnit } from '../lib/macros';
 import { formatCalories, scaleFood } from '../lib/totals';
+import { STARTER_FOOD_COUNT, queryStarterFoods } from '../data/starterCatalog';
 import { useAppStore } from '../store/useAppStore';
 import {
+  useCustomFoods,
   useDayBudget,
   useDayEntries,
-  useFoodLibrary,
   useSelectedDate,
   useVisibleMacros,
 } from '../store/selectors';
 import type { KeyboardEvent } from 'react';
-import type { DateKey, FoodEntry, FoodEntryInput, MacroKey } from '../types';
+import type { DateKey, FoodEntry, FoodEntryInput, FoodLibraryItem, MacroKey } from '../types';
 
 export type DayViewProps = {
   /** Day to log against; defaults to the selected date. */
@@ -516,31 +517,59 @@ function DraftCells({ draft, onChange, visibleMacros, context, autoFocus }: Draf
 
 /** Logs a library food scaled from its reference weight to the grams entered. */
 function QuickAdd({ day }: { day: DateKey }) {
-  const library = useFoodLibrary();
+  const customFoods = useCustomFoods();
   const visibleMacros = useVisibleMacros();
   const addEntry = useAppStore((state) => state.addEntry);
   const [query, setQuery] = useState('');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [grams, setGrams] = useState('100');
+  const normalizedQuery = query.trim().toLowerCase();
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return library;
-    return library.filter((food) => food.name.toLowerCase().includes(needle));
-  }, [library, query]);
+  const customMatches = useMemo(() => {
+    if (!normalizedQuery) return customFoods.slice(0, 20);
+    return customFoods.filter((food) => food.name.toLowerCase().includes(normalizedQuery));
+  }, [customFoods, normalizedQuery]);
 
-  const selected =
-    filtered.find((food, index) => `${food.name}::${index}` === selectedKey) ?? filtered[0] ?? null;
+  const [starterResult, setStarterResult] = useState<{
+    query: string;
+    items: FoodLibraryItem[];
+  }>({ query: '', items: [] });
 
-  const scaled = selected ? scaleFood(selected, parseNumber(grams) ?? 0) : null;
+  useEffect(() => {
+    if (!normalizedQuery) return;
+    let cancelled = false;
+    const handle = window.setTimeout(() => {
+      queryStarterFoods({ query: normalizedQuery, limit: 40, offset: 0 })
+        .then((page) => {
+          if (!cancelled) setStarterResult({ query: normalizedQuery, items: page.items });
+        })
+        .catch(() => {
+          if (!cancelled) setStarterResult({ query: normalizedQuery, items: [] });
+        });
+    }, 150);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [normalizedQuery]);
 
-  if (library.length === 0) {
-    return (
-      <div className="card p-4 text-sm text-muted">
-        The food library is empty. Add reusable foods in settings to quick-add them here.
-      </div>
-    );
-  }
+  const loading = Boolean(normalizedQuery) && starterResult.query !== normalizedQuery;
+
+  const options = useMemo(() => {
+    const starterMatches =
+      normalizedQuery && starterResult.query === normalizedQuery ? starterResult.items : [];
+    const rows: Array<{ key: string; food: FoodLibraryItem; source: 'custom' | 'starter' }> = [];
+    customMatches.forEach((food, index) => {
+      rows.push({ key: `custom:${index}:${food.name}`, food, source: 'custom' });
+    });
+    starterMatches.forEach((food, index) => {
+      rows.push({ key: `starter:${index}:${food.name}`, food, source: 'starter' });
+    });
+    return rows;
+  }, [customMatches, normalizedQuery, starterResult]);
+
+  const selected = options.find((row) => row.key === selectedKey) ?? options[0] ?? null;
+  const scaled = selected ? scaleFood(selected.food, parseNumber(grams) ?? 0) : null;
 
   return (
     <form
@@ -563,7 +592,7 @@ function QuickAdd({ day }: { day: DateKey }) {
             setQuery(event.target.value);
             setSelectedKey(null);
           }}
-          placeholder={`${library.length} foods`}
+          placeholder={`Search ${STARTER_FOOD_COUNT.toLocaleString()} foods`}
           className={`${INPUT} h-8`}
         />
       </label>
@@ -573,18 +602,26 @@ function QuickAdd({ day }: { day: DateKey }) {
         <select
           name="quick-add-food"
           data-testid="quick-add-food"
-          value={
-            selected ? `${selected.name}::${filtered.findIndex((food) => food === selected)}` : ''
-          }
+          value={selected?.key ?? ''}
           onChange={(event) => setSelectedKey(event.target.value)}
           className={`${INPUT} h-8 py-0`}
         >
-          {filtered.length === 0 ? (
-            <option value="">No matches</option>
+          {options.length === 0 ? (
+            <option value="">
+              {loading
+                ? 'Searching…'
+                : normalizedQuery
+                  ? 'No matches'
+                  : customFoods.length > 0
+                    ? 'Type to search starter foods'
+                    : 'Type to search the starter library'}
+            </option>
           ) : (
-            filtered.map((food, foodIndex) => (
-              <option key={`${food.name}-${foodIndex}`} value={`${food.name}::${foodIndex}`}>
-                {food.name} · {formatCalories(food.calories)} kcal / {Math.round(food.grams)} g
+            options.map((row) => (
+              <option key={row.key} value={row.key}>
+                {row.source === 'custom' ? '★ ' : ''}
+                {row.food.name} · {formatCalories(row.food.calories)} kcal /{' '}
+                {Math.round(row.food.grams)} g
               </option>
             ))
           )}
@@ -624,7 +661,15 @@ function QuickAdd({ day }: { day: DateKey }) {
                 .join(' · ')}`
             : ''}
         </p>
-      ) : null}
+      ) : (
+        <p className="text-xs text-muted sm:col-span-4">
+          {normalizedQuery
+            ? loading
+              ? 'Searching the USDA starter library…'
+              : null
+            : 'Type a food name to search the USDA starter library, or pick one of your custom foods.'}
+        </p>
+      )}
     </form>
   );
 }

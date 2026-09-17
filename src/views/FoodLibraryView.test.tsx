@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FoodLibraryView } from './FoodLibraryView';
-import { STARTER_FOOD_LIBRARY } from '../data/starterFoodLibrary';
+import { STARTER_FOOD_COUNT, STARTER_MANIFEST } from '../data/starterCatalog';
 import { useAppStore } from '../store/useAppStore';
 
 function state() {
@@ -89,18 +89,43 @@ describe('FoodLibraryView', () => {
     expect(state().foodLibrary[0]?.name).toBe(before[1]?.name);
   });
 
-  it('searches the bundled USDA starter catalog', async () => {
+  it('browses starter foods by category and paginates', async () => {
     const user = userEvent.setup();
     render(<FoodLibraryView />);
 
-    expect(STARTER_FOOD_LIBRARY.length).toBeGreaterThan(100);
-    expect(screen.getByTestId('starter-food-count')).toHaveTextContent(
-      new RegExp(`of ${STARTER_FOOD_LIBRARY.length}`),
-    );
+    expect(STARTER_FOOD_COUNT).toBeGreaterThan(3000);
+    expect(STARTER_MANIFEST.categories.length).toBeGreaterThan(10);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('starter-food-list').textContent).not.toMatch(/Loading/);
+    });
+
+    const category = screen.getByTestId('starter-category');
+    expect(category).toBeInTheDocument();
+
+    // Pick a large category if available
+    const beef = STARTER_MANIFEST.categories.find((c) => c.id.includes('beef'));
+    if (beef) {
+      await user.selectOptions(category, beef.id);
+      await waitFor(() => {
+        expect(screen.getByTestId('starter-food-count')).toHaveTextContent(/of/);
+      });
+    }
+
+    await waitFor(() => {
+      const count = screen.getByTestId('starter-food-count').textContent ?? '';
+      expect(count).toMatch(/Showing/);
+    });
+  });
+
+  it('searches across the starter catalog', async () => {
+    const user = userEvent.setup();
+    render(<FoodLibraryView />);
 
     await user.type(screen.getByTestId('food-library-search'), 'banana');
-    expect(screen.getByTestId('starter-food-list')).toHaveTextContent(/Banana/i);
-    expect(screen.getByTestId('starter-food-count')).toHaveTextContent(/Showing \d+ of/);
+    await waitFor(() => {
+      expect(screen.getByTestId('starter-food-list')).toHaveTextContent(/[Bb]anana/);
+    });
   });
 
   it('filters custom foods with the same search box', async () => {

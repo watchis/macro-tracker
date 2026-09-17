@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { mergeFoodLibraries, STARTER_FOOD_LIBRARY } from '../data/starterFoodLibrary';
 import { computeDayBudget, sumEntries } from '../lib/totals';
 import { useAppStore } from './useAppStore';
 import type { DayBudget, DayTotals } from '../lib/totals';
@@ -26,9 +25,11 @@ export const selectVisibleMacros = (state: AppStore): MacroKey[] => state.settin
 /** User-added custom foods only (persisted). */
 export const selectCustomFoods = (state: AppStore): FoodLibraryItem[] => state.foodLibrary;
 
-/** Starter catalog + custom foods, for quick-add and search. */
-export const selectFoodLibrary = (state: AppStore): FoodLibraryItem[] =>
-  mergeFoodLibraries(state.foodLibrary, STARTER_FOOD_LIBRARY);
+/**
+ * @deprecated Prefer `useCustomFoods` plus `queryStarterFoods`. Returns customs only —
+ * the USDA catalog is lazy-loaded and no longer merged synchronously.
+ */
+export const selectFoodLibrary = selectCustomFoods;
 
 export const selectDayEntries =
   (date: DateKey) =>
@@ -55,19 +56,17 @@ export function useVisibleMacros(): MacroKey[] {
   return useAppStore(selectVisibleMacros);
 }
 
-/** Combined starter + custom library. */
-export function useFoodLibrary(): FoodLibraryItem[] {
-  const custom = useAppStore(selectCustomFoods);
-  return useMemo(() => mergeFoodLibraries(custom, STARTER_FOOD_LIBRARY), [custom]);
-}
-
 /** Persisted custom foods only. */
 export function useCustomFoods(): FoodLibraryItem[] {
   return useAppStore(selectCustomFoods);
 }
 
-export function useStarterFoods(): readonly FoodLibraryItem[] {
-  return STARTER_FOOD_LIBRARY;
+/**
+ * @deprecated Alias of `useCustomFoods`. Starter foods are loaded asynchronously
+ * via `queryStarterFoods` so the initial bundle stays small.
+ */
+export function useFoodLibrary(): FoodLibraryItem[] {
+  return useCustomFoods();
 }
 
 export function useDayEntries(date: DateKey): readonly FoodEntry[] {

@@ -1,4 +1,3 @@
-import { STARTER_FOOD_LIBRARY } from '../data/starterFoodLibrary';
 import type { FoodLibraryItem, PersistedState, Settings } from '../types';
 
 /** localStorage key for the whole persisted store. Bump with a migration, never in place. */
@@ -22,10 +21,10 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /**
- * Bundled USDA starter catalog. Always available at runtime; not copied into
- * localStorage. Prefer `mergeFoodLibraries` / selectors for the combined list.
+ * Historical export alias. The USDA starter catalog is lazy-loaded from
+ * `src/data/starter/` (thousands of foods); persisted `foodLibrary` is customs only.
  */
-export const DEFAULT_FOOD_LIBRARY: readonly FoodLibraryItem[] = STARTER_FOOD_LIBRARY;
+export const DEFAULT_FOOD_LIBRARY: readonly FoodLibraryItem[] = [];
 
 /**
  * Persisted `foodLibrary` holds only user-added custom foods. The starter

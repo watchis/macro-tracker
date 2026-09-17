@@ -1,0 +1,129 @@
+{
+  "source": "USDA FoodData Central",
+  "license": "Public domain (USDA)",
+  "portal": "https://fdc.nal.usda.gov/",
+  "basis": "Amounts per 100 g edible portion. Category JSON files are lazy-loaded.",
+  "total": 5330,
+  "categories": [
+    {
+      "id": "american-indian-alaska-native-foods",
+      "label": "American Indian/Alaska Native Foods",
+      "count": 57
+    },
+    {
+      "id": "baked-products",
+      "label": "Baked Products",
+      "count": 225
+    },
+    {
+      "id": "beef-products",
+      "label": "Beef Products",
+      "count": 696
+    },
+    {
+      "id": "beverages",
+      "label": "Beverages",
+      "count": 353
+    },
+    {
+      "id": "breakfast-cereals",
+      "label": "Breakfast Cereals",
+      "count": 193
+    },
+    {
+      "id": "cereal-grains-and-pasta",
+      "label": "Cereal Grains and Pasta",
+      "count": 163
+    },
+    {
+      "id": "dairy-and-egg-products",
+      "label": "Dairy and Egg Products",
+      "count": 286
+    },
+    {
+      "id": "fast-foods",
+      "label": "Fast Foods",
+      "count": 120
+    },
+    {
+      "id": "fats-and-oils",
+      "label": "Fats and Oils",
+      "count": 184
+    },
+    {
+      "id": "finfish-and-shellfish-products",
+      "label": "Finfish and Shellfish Products",
+      "count": 267
+    },
+    {
+      "id": "fruits-and-fruit-juices",
+      "label": "Fruits and Fruit Juices",
+      "count": 262
+    },
+    {
+      "id": "lamb-veal-and-game-products",
+      "label": "Lamb, Veal, and Game Products",
+      "count": 387
+    },
+    {
+      "id": "legumes-and-legume-products",
+      "label": "Legumes and Legume Products",
+      "count": 178
+    },
+    {
+      "id": "meals-entrees-and-side-dishes",
+      "label": "Meals, Entrees, and Side Dishes",
+      "count": 32
+    },
+    {
+      "id": "nut-and-seed-products",
+      "label": "Nut and Seed Products",
+      "count": 153
+    },
+    {
+      "id": "pork-products",
+      "label": "Pork Products",
+      "count": 316
+    },
+    {
+      "id": "poultry-products",
+      "label": "Poultry Products",
+      "count": 287
+    },
+    {
+      "id": "restaurant-foods",
+      "label": "Restaurant Foods",
+      "count": 4
+    },
+    {
+      "id": "sausages-and-luncheon-meats",
+      "label": "Sausages and Luncheon Meats",
+      "count": 117
+    },
+    {
+      "id": "snacks",
+      "label": "Snacks",
+      "count": 153
+    },
+    {
+      "id": "soups-sauces-and-gravies",
+      "label": "Soups, Sauces, and Gravies",
+      "count": 214
+    },
+    {
+      "id": "spices-and-herbs",
+      "label": "Spices and Herbs",
+      "count": 10
+    },
+    {
+      "id": "sweets",
+      "label": "Sweets",
+      "count": 66
+    },
+    {
+      "id": "vegetables-and-vegetable-products",
+      "label": "Vegetables and Vegetable Products",
+      "count": 607
+    }
+  ]
+}
