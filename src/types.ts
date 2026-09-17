@@ -69,6 +69,10 @@ export type PersistedState = {
   version: 1;
   /** Food entries keyed by `YYYY-MM-DD`. */
   days: Record<DateKey, FoodEntry[]>;
+  /**
+   * User-added custom foods only. The USDA starter catalog is bundled with the
+   * app and merged in at read time (see `mergeFoodLibraries`).
+   */
   foodLibrary: FoodLibraryItem[];
   settings: Settings;
 };

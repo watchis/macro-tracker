@@ -21,7 +21,15 @@ export const selectSelectedDate = (state: AppStore): DateKey => state.selectedDa
 export const selectSettings = (state: AppStore): Settings => state.settings;
 export const selectGoals = (state: AppStore): Goals => state.settings.goals;
 export const selectVisibleMacros = (state: AppStore): MacroKey[] => state.settings.visibleMacros;
-export const selectFoodLibrary = (state: AppStore): FoodLibraryItem[] => state.foodLibrary;
+
+/** User-added custom foods only (persisted). */
+export const selectCustomFoods = (state: AppStore): FoodLibraryItem[] => state.foodLibrary;
+
+/**
+ * @deprecated Prefer `useCustomFoods` plus `queryStarterFoods`. Returns customs only —
+ * the USDA catalog is lazy-loaded and no longer merged synchronously.
+ */
+export const selectFoodLibrary = selectCustomFoods;
 
 export const selectDayEntries =
   (date: DateKey) =>
@@ -48,8 +56,17 @@ export function useVisibleMacros(): MacroKey[] {
   return useAppStore(selectVisibleMacros);
 }
 
+/** Persisted custom foods only. */
+export function useCustomFoods(): FoodLibraryItem[] {
+  return useAppStore(selectCustomFoods);
+}
+
+/**
+ * @deprecated Alias of `useCustomFoods`. Starter foods are loaded asynchronously
+ * via `queryStarterFoods` so the initial bundle stays small.
+ */
 export function useFoodLibrary(): FoodLibraryItem[] {
-  return useAppStore(selectFoodLibrary);
+  return useCustomFoods();
 }
 
 export function useDayEntries(date: DateKey): readonly FoodEntry[] {

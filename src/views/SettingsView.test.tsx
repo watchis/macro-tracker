@@ -258,7 +258,7 @@ describe('SettingsView data', () => {
     await confirmAction('reset-confirm', 'Yes, reset all data');
 
     expect(state().settings.goals.calories).toBe(2000);
-    expect(state().foodLibrary).toHaveLength(5);
+    expect(state().foodLibrary).toHaveLength(0);
     expect(screen.getByTestId('calorie-goal-input')).toHaveValue('2000');
     expect(screen.getByTestId('data-status')).toHaveTextContent('Everything is back');
   });

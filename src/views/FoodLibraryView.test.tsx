@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FoodLibraryView } from './FoodLibraryView';
+import { STARTER_FOOD_COUNT, STARTER_MANIFEST } from '../data/starterCatalog';
 import { useAppStore } from '../store/useAppStore';
 
 function state() {
@@ -17,13 +18,13 @@ async function confirmAction(testId: string, label: string) {
 }
 
 describe('FoodLibraryView', () => {
-  it('adds a food stated for its reference weight', async () => {
+  it('adds a custom food stated for its reference weight', async () => {
     const user = userEvent.setup();
     render(<FoodLibraryView />);
     const before = state().foodLibrary.length;
 
     await user.click(screen.getByTestId('food-add-open'));
-    await user.type(screen.getByTestId('food-add-form-name'), 'Almonds');
+    await user.type(screen.getByTestId('food-add-form-name'), 'Almond Butter');
     await user.clear(screen.getByTestId('food-add-form-grams'));
     await user.type(screen.getByTestId('food-add-form-grams'), '28');
     await user.type(screen.getByTestId('food-add-form-calories'), '164');
@@ -33,7 +34,7 @@ describe('FoodLibraryView', () => {
     const library = state().foodLibrary;
     expect(library).toHaveLength(before + 1);
     expect(library.at(-1)).toEqual({
-      name: 'Almonds',
+      name: 'Almond Butter',
       grams: 28,
       calories: 164,
       macros: { protein: 6 },
@@ -53,23 +54,26 @@ describe('FoodLibraryView', () => {
     expect(state().foodLibrary).toHaveLength(before);
   });
 
-  it('edits a food by its array index', async () => {
+  it('edits a custom food by its array index', async () => {
     const user = userEvent.setup();
+    state().addFood({ name: 'Protein bar', grams: 60, calories: 200, macros: { protein: 20 } });
     render(<FoodLibraryView />);
 
     await user.click(screen.getByTestId('food-edit-0'));
     const calories = screen.getByTestId('food-edit-form-calories');
     await user.clear(calories);
-    await user.type(calories, '170');
+    await user.type(calories, '210');
     await user.click(screen.getByRole('button', { name: 'Save food' }));
 
-    expect(state().foodLibrary[0]?.calories).toBe(170);
-    expect(state().foodLibrary[0]?.name).toBe('Chicken breast');
+    expect(state().foodLibrary[0]?.calories).toBe(210);
+    expect(state().foodLibrary[0]?.name).toBe('Protein bar');
     expect(screen.queryByTestId('food-edit-form')).not.toBeInTheDocument();
   });
 
-  it('deletes a food only after confirming', async () => {
+  it('deletes a custom food only after confirming', async () => {
     const user = userEvent.setup();
+    state().addFood({ name: 'Shake', grams: 250, calories: 180, macros: {} });
+    state().addFood({ name: 'Bar', grams: 40, calories: 150, macros: {} });
     render(<FoodLibraryView />);
     const before = state().foodLibrary;
 
@@ -83,5 +87,55 @@ describe('FoodLibraryView', () => {
 
     expect(state().foodLibrary).toHaveLength(before.length - 1);
     expect(state().foodLibrary[0]?.name).toBe(before[1]?.name);
+  });
+
+  it('browses starter foods by category and paginates', async () => {
+    const user = userEvent.setup();
+    render(<FoodLibraryView />);
+
+    expect(STARTER_FOOD_COUNT).toBeGreaterThan(3000);
+    expect(STARTER_MANIFEST.categories.length).toBeGreaterThan(10);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('starter-food-list').textContent).not.toMatch(/Loading/);
+    });
+
+    const category = screen.getByTestId('starter-category');
+    expect(category).toBeInTheDocument();
+
+    // Pick a large category if available
+    const beef = STARTER_MANIFEST.categories.find((c) => c.id.includes('beef'));
+    if (beef) {
+      await user.selectOptions(category, beef.id);
+      await waitFor(() => {
+        expect(screen.getByTestId('starter-food-count')).toHaveTextContent(/of/);
+      });
+    }
+
+    await waitFor(() => {
+      const count = screen.getByTestId('starter-food-count').textContent ?? '';
+      expect(count).toMatch(/Showing/);
+    });
+  });
+
+  it('searches across the starter catalog', async () => {
+    const user = userEvent.setup();
+    render(<FoodLibraryView />);
+
+    await user.type(screen.getByTestId('food-library-search'), 'banana');
+    await waitFor(() => {
+      expect(screen.getByTestId('starter-food-list')).toHaveTextContent(/[Bb]anana/);
+    });
+  });
+
+  it('filters custom foods with the same search box', async () => {
+    const user = userEvent.setup();
+    state().addFood({ name: 'Gym shake', grams: 300, calories: 220, macros: { protein: 40 } });
+    state().addFood({ name: 'Trail mix', grams: 40, calories: 180, macros: {} });
+    render(<FoodLibraryView />);
+
+    await user.type(screen.getByTestId('food-library-search'), 'shake');
+    expect(screen.getByTestId('food-library-list')).toHaveTextContent('Gym shake');
+    expect(screen.queryByText('Trail mix')).not.toBeInTheDocument();
   });
 });

@@ -1,17 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { addDays, formatLongDate, isToday, todayKey } from '../lib/dates';
 import { MACROS, formatMacro, macroLabel, macroUnit } from '../lib/macros';
 import { formatCalories, scaleFood } from '../lib/totals';
+import { STARTER_FOOD_COUNT, queryStarterFoods } from '../data/starterCatalog';
 import { useAppStore } from '../store/useAppStore';
 import {
+  useCustomFoods,
   useDayBudget,
   useDayEntries,
-  useFoodLibrary,
   useSelectedDate,
   useVisibleMacros,
 } from '../store/selectors';
 import type { KeyboardEvent } from 'react';
-import type { DateKey, FoodEntry, FoodEntryInput, MacroKey } from '../types';
+import type { DateKey, FoodEntry, FoodEntryInput, FoodLibraryItem, MacroKey } from '../types';
 
 export type DayViewProps = {
   /** Day to log against; defaults to the selected date. */
@@ -516,46 +517,114 @@ function DraftCells({ draft, onChange, visibleMacros, context, autoFocus }: Draf
 
 /** Logs a library food scaled from its reference weight to the grams entered. */
 function QuickAdd({ day }: { day: DateKey }) {
-  const library = useFoodLibrary();
+  const customFoods = useCustomFoods();
   const visibleMacros = useVisibleMacros();
   const addEntry = useAppStore((state) => state.addEntry);
-  const [index, setIndex] = useState(0);
+  const [query, setQuery] = useState('');
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [grams, setGrams] = useState('100');
+  const normalizedQuery = query.trim().toLowerCase();
 
-  const item = library[Math.min(index, Math.max(library.length - 1, 0))];
-  const scaled = item ? scaleFood(item, parseNumber(grams) ?? 0) : null;
+  const customMatches = useMemo(() => {
+    if (!normalizedQuery) return customFoods.slice(0, 20);
+    return customFoods.filter((food) => food.name.toLowerCase().includes(normalizedQuery));
+  }, [customFoods, normalizedQuery]);
 
-  if (library.length === 0) {
-    return (
-      <div className="card p-4 text-sm text-muted">
-        The food library is empty. Add reusable foods in settings to quick-add them here.
-      </div>
-    );
-  }
+  const [starterResult, setStarterResult] = useState<{
+    query: string;
+    items: FoodLibraryItem[];
+  }>({ query: '', items: [] });
+
+  useEffect(() => {
+    if (!normalizedQuery) return;
+    let cancelled = false;
+    const handle = window.setTimeout(() => {
+      queryStarterFoods({ query: normalizedQuery, limit: 40, offset: 0 })
+        .then((page) => {
+          if (!cancelled) setStarterResult({ query: normalizedQuery, items: page.items });
+        })
+        .catch(() => {
+          if (!cancelled) setStarterResult({ query: normalizedQuery, items: [] });
+        });
+    }, 150);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [normalizedQuery]);
+
+  const loading = Boolean(normalizedQuery) && starterResult.query !== normalizedQuery;
+
+  const options = useMemo(() => {
+    const starterMatches =
+      normalizedQuery && starterResult.query === normalizedQuery ? starterResult.items : [];
+    const rows: Array<{ key: string; food: FoodLibraryItem; source: 'custom' | 'starter' }> = [];
+    customMatches.forEach((food, index) => {
+      rows.push({ key: `custom:${index}:${food.name}`, food, source: 'custom' });
+    });
+    starterMatches.forEach((food, index) => {
+      rows.push({ key: `starter:${index}:${food.name}`, food, source: 'starter' });
+    });
+    return rows;
+  }, [customMatches, normalizedQuery, starterResult]);
+
+  const selected = options.find((row) => row.key === selectedKey) ?? options[0] ?? null;
+  const scaled = selected ? scaleFood(selected.food, parseNumber(grams) ?? 0) : null;
 
   return (
     <form
       data-testid="quick-add"
-      className="card grid gap-3 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-end"
+      className="card grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!item || !scaled) return;
+        if (!selected || !scaled) return;
         addEntry(day, scaled);
       }}
     >
       <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">
+        Search library
+        <input
+          type="search"
+          name="quick-add-search"
+          data-testid="quick-add-search"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setSelectedKey(null);
+          }}
+          placeholder={`Search ${STARTER_FOOD_COUNT.toLocaleString()} foods`}
+          className={`${INPUT} h-8`}
+        />
+      </label>
+
+      <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">
         Quick add from library
         <select
           name="quick-add-food"
-          value={index}
-          onChange={(event) => setIndex(Number(event.target.value))}
+          data-testid="quick-add-food"
+          value={selected?.key ?? ''}
+          onChange={(event) => setSelectedKey(event.target.value)}
           className={`${INPUT} h-8 py-0`}
         >
-          {library.map((food, foodIndex) => (
-            <option key={`${food.name}-${foodIndex}`} value={foodIndex}>
-              {food.name} · {formatCalories(food.calories)} kcal / {Math.round(food.grams)} g
+          {options.length === 0 ? (
+            <option value="">
+              {loading
+                ? 'Searching…'
+                : normalizedQuery
+                  ? 'No matches'
+                  : customFoods.length > 0
+                    ? 'Type to search starter foods'
+                    : 'Type to search the starter library'}
             </option>
-          ))}
+          ) : (
+            options.map((row) => (
+              <option key={row.key} value={row.key}>
+                {row.source === 'custom' ? '★ ' : ''}
+                {row.food.name} · {formatCalories(row.food.calories)} kcal /{' '}
+                {Math.round(row.food.grams)} g
+              </option>
+            ))
+          )}
         </select>
       </label>
 
@@ -580,7 +649,7 @@ function QuickAdd({ day }: { day: DateKey }) {
       {scaled ? (
         <p
           data-testid="quick-add-preview"
-          className="text-xs text-muted tabular-nums sm:col-span-3"
+          className="text-xs text-muted tabular-nums sm:col-span-4"
         >
           {scaled.name} · {Math.round(scaled.grams)} g · {formatCalories(scaled.calories)} kcal
           {visibleMacros.length > 0
@@ -592,7 +661,15 @@ function QuickAdd({ day }: { day: DateKey }) {
                 .join(' · ')}`
             : ''}
         </p>
-      ) : null}
+      ) : (
+        <p className="text-xs text-muted sm:col-span-4">
+          {normalizedQuery
+            ? loading
+              ? 'Searching the USDA starter library…'
+              : null
+            : 'Type a food name to search the USDA starter library, or pick one of your custom foods.'}
+        </p>
+      )}
     </form>
   );
 }

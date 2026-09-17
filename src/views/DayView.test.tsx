@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DayView } from './DayView';
 import { todayKey } from '../lib/dates';
@@ -283,35 +283,53 @@ describe('DayView edit and delete', () => {
 });
 
 describe('DayView quick add', () => {
-  it('logs a library food scaled to the grams entered', async () => {
+  it('logs a custom library food scaled to the grams entered', async () => {
     const user = userEvent.setup();
+    useAppStore.getState().addFood({
+      name: 'Test oats',
+      grams: 100,
+      calories: 379,
+      macros: { protein: 13 },
+    });
     render(<DayView date={DATE} />);
 
     await user.selectOptions(
       screen.getByLabelText(/quick add from library/i),
-      screen.getByRole('option', { name: /chicken breast/i }),
+      screen.getByRole('option', { name: /test oats/i }),
     );
     const grams = screen.getByLabelText('Grams');
     await user.clear(grams);
-    await user.type(grams, '200');
+    await user.type(grams, '50');
 
-    expect(screen.getByTestId('quick-add-preview')).toHaveTextContent('330 kcal');
+    expect(screen.getByTestId('quick-add-preview')).toHaveTextContent(/189\.5|190/);
     await user.click(screen.getByRole('button', { name: 'Quick add' }));
 
     expect(entries()[0]).toMatchObject({
-      name: 'Chicken breast',
-      grams: 200,
-      calories: 330,
+      name: 'Test oats',
+      grams: 50,
+      calories: 189.5,
     });
-    expect(entryAt().macros.protein).toBe(62);
+    expect(entryAt().macros.protein).toBe(6.5);
   });
 
-  it('explains itself when the library is empty', () => {
+  it('searches the USDA starter library asynchronously', async () => {
+    const user = userEvent.setup();
+    render(<DayView date={DATE} />);
+
+    await user.type(screen.getByTestId('quick-add-search'), 'banana');
+    await waitFor(() => {
+      expect(screen.getByTestId('quick-add-food')).toHaveTextContent(/banana/i);
+    });
+  });
+
+  it('keeps quick-add available when customs are empty', () => {
     useAppStore.setState({ foodLibrary: [] });
     render(<DayView date={DATE} />);
 
-    expect(screen.getByText(/food library is empty/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('quick-add')).not.toBeInTheDocument();
+    expect(screen.getByTestId('quick-add')).toBeInTheDocument();
+    expect(screen.getByTestId('quick-add-search').getAttribute('placeholder')).toMatch(
+      /Search [\d,]+ foods/,
+    );
   });
 });
 

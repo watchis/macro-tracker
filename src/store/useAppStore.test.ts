@@ -18,11 +18,11 @@ function readStorage(): { state: PersistedState; version: number } {
 }
 
 describe('defaults', () => {
-  it('starts with no logged days and sensible settings', () => {
+  it('starts with no logged days, no custom foods, and sensible settings', () => {
     const state = store();
     expect(state.version).toBe(STORE_VERSION);
     expect(state.days).toEqual({});
-    expect(state.foodLibrary.length).toBeGreaterThan(0);
+    expect(state.foodLibrary).toEqual([]);
     expect(state.settings.themeMode).toBe('system');
     expect(state.settings.accent).toBe(DEFAULT_ACCENT);
     expect(state.settings.visibleMacros).toEqual(['protein', 'carbs', 'fat']);
@@ -345,6 +345,26 @@ describe('mergePersistedState', () => {
     expect(merged.settings.goals.calories).toBe(2000);
     expect(merged.settings.weekStart).toBe('sunday');
     expect(merged.settings.dataRetention).toBe('forever');
+  });
+
+  it('strips the old five-item seed from persisted customs', () => {
+    const merged = mergePersistedState(
+      {
+        version: STORE_VERSION,
+        days: {},
+        foodLibrary: [
+          { name: 'Chicken breast', grams: 100, calories: 165, macros: {} },
+          { name: 'My shake', grams: 300, calories: 250, macros: { protein: 30 } },
+          { name: 'Whole egg', grams: 100, calories: 143, macros: {} },
+        ],
+        settings: defaultPersistedState().settings,
+      },
+      store(),
+    );
+
+    expect(merged.foodLibrary).toEqual([
+      { name: 'My shake', grams: 300, calories: 250, macros: { protein: 30 } },
+    ]);
   });
 
   it('leaves transient UI state alone', () => {

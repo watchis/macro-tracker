@@ -44,7 +44,10 @@ export type AppActions = {
   clearDay: (date: DateKey) => void;
 
   // --- food library --------------------------------------------------------
-  /** Library items have no id (see `PersistedState`), so edits address them by index. */
+  /**
+   * Custom foods only (persisted). The USDA starter catalog is bundled and
+   * merged via selectors; edits address custom items by index into `foodLibrary`.
+   */
   addFood: (item: FoodLibraryItem) => void;
   updateFood: (index: number, patch: Partial<FoodLibraryItem>) => void;
   removeFood: (index: number) => void;
