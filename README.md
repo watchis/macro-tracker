@@ -42,7 +42,8 @@ The dev server serves the app under `/macro-tracker/` because `vite.config.ts` s
 ```
 src/
   App.tsx              app shell: header, active view, budget bar
-  components/          AppHeader, BudgetBar, MacroChip, ViewPlaceholder
+  components/          AppHeader, BudgetBar, MacroChip
+  components/settings/ settings form controls, accent picker, food library, data export/import
   views/               CalendarView, DayView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
   lib/                 date keys, macro metadata, totals and budget math
