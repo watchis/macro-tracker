@@ -138,25 +138,29 @@ describe('SettingsView macro visibility', () => {
 });
 
 describe('SettingsView section order', () => {
-  it('lists goals before appearance, with no calendar or food library sections', () => {
+  it('lists goals, appearance, import/export, then data', () => {
     render(<SettingsView />);
 
     const goals = screen.getByTestId('settings-section-goals');
     const appearance = screen.getByTestId('settings-section-appearance');
+    const importExport = screen.getByTestId('settings-section-import-export');
     const data = screen.getByTestId('settings-section-data');
 
     expect(
       goals.compareDocumentPosition(appearance) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      appearance.compareDocumentPosition(data) & Node.DOCUMENT_POSITION_FOLLOWING,
+      appearance.compareDocumentPosition(importExport) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      importExport.compareDocumentPosition(data) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(screen.queryByTestId('settings-section-calendar')).not.toBeInTheDocument();
     expect(screen.queryByTestId('settings-section-library')).not.toBeInTheDocument();
   });
 });
 
-describe('SettingsView data management', () => {
+describe('SettingsView import/export', () => {
   it('exports the store as a JSON download', async () => {
     const user = userEvent.setup();
     const createObjectURL = vi.fn(() => 'blob:mock');
@@ -169,7 +173,7 @@ describe('SettingsView data management', () => {
 
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('data-status')).toHaveTextContent('Exported your data');
+    expect(screen.getByTestId('import-export-status')).toHaveTextContent('Exported your data');
 
     click.mockRestore();
     vi.unstubAllGlobals();
@@ -187,6 +191,7 @@ describe('SettingsView data management', () => {
         visibleMacros: ['protein'],
         goals: { calories: 2400, macros: { protein: 180 } },
         weekStart: 'monday',
+        dataRetention: 'retain-1-year',
       },
     });
 
@@ -198,7 +203,8 @@ describe('SettingsView data management', () => {
     ]);
     expect(state().settings.accent).toBe('#84cc16');
     expect(state().settings.goals.calories).toBe(2400);
-    expect(screen.getByTestId('data-status')).toHaveTextContent('Imported.');
+    expect(state().settings.dataRetention).toBe('retain-1-year');
+    expect(screen.getByTestId('import-export-status')).toHaveTextContent('Imported.');
   });
 
   it('reports why an import failed and changes nothing', async () => {
@@ -208,8 +214,33 @@ describe('SettingsView data management', () => {
     fireEvent.change(screen.getByTestId('import-input'), { target: { value: 'not json' } });
     await confirmAction('import-confirm', 'Yes, import');
 
-    expect(screen.getByTestId('data-status')).toHaveTextContent('not valid JSON');
+    expect(screen.getByTestId('import-export-status')).toHaveTextContent('not valid JSON');
     expect(state().foodLibrary).toHaveLength(before);
+  });
+});
+
+describe('SettingsView data', () => {
+  it('shows local storage usage and the retention policy', () => {
+    render(<SettingsView />);
+
+    expect(screen.getByTestId('storage-usage-summary')).toHaveTextContent(/used/);
+    expect(screen.getByTestId('storage-usage-bar')).toBeInTheDocument();
+    expect(screen.getByTestId('data-retention')).toHaveValue('forever');
+    expect(screen.getByTestId('data-retention-description')).toHaveTextContent('Never delete');
+  });
+
+  it('updates the retention policy and prunes old days', async () => {
+    const user = userEvent.setup();
+    state().addEntry('2024-01-15', { name: 'Old', grams: 100, calories: 100, macros: {} });
+    state().addEntry('2026-09-17', { name: 'New', grams: 100, calories: 100, macros: {} });
+    render(<SettingsView />);
+
+    await user.selectOptions(screen.getByTestId('data-retention'), 'retain-1-year');
+
+    expect(state().settings.dataRetention).toBe('retain-1-year');
+    expect(state().days['2024-01-15']).toBeUndefined();
+    expect(state().days['2026-09-17']?.[0]?.name).toBe('New');
+    expect(screen.getByTestId('data-retention-description')).toHaveTextContent('one year');
   });
 
   it('resets everything after confirming', async () => {
@@ -229,5 +260,6 @@ describe('SettingsView data management', () => {
     expect(state().settings.goals.calories).toBe(2000);
     expect(state().foodLibrary).toHaveLength(5);
     expect(screen.getByTestId('calorie-goal-input')).toHaveValue('2000');
+    expect(screen.getByTestId('data-status')).toHaveTextContent('Everything is back');
   });
 });

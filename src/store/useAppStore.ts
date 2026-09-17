@@ -3,10 +3,13 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { todayKey } from '../lib/dates';
 import { createId } from '../lib/id';
 import { normalizeMacros, sortMacros } from '../lib/macros';
+import { applyDataRetention, sameDayKeys } from '../lib/retention';
+import { measureLocalStorageUsage } from '../lib/storage';
 import { normalizeHex } from '../theme/color';
 import { STORAGE_KEY, STORE_VERSION, defaultPersistedState } from './defaults';
 import { migratePersistedState, parsePersistedState } from './migrate';
 import type {
+  DataRetentionPolicy,
   DateKey,
   FoodEntry,
   FoodEntryInput,
@@ -57,6 +60,9 @@ export type AppActions = {
   /** Pass `undefined` to clear a macro goal. */
   setMacroGoal: (macro: MacroKey, value: number | undefined) => void;
   setWeekStart: (weekStart: WeekStart) => void;
+  setDataRetention: (policy: DataRetentionPolicy) => void;
+  /** Re-runs the active retention policy against current days (e.g. after import). */
+  applyRetentionNow: () => void;
 
   // --- data management -----------------------------------------------------
   /** Pretty-printed `PersistedState` JSON, ready for a download. */
@@ -96,14 +102,36 @@ function withDay(
   return next;
 }
 
+function pruneDays(
+  days: Record<DateKey, FoodEntry[]>,
+  policy: DataRetentionPolicy,
+): Record<DateKey, FoodEntry[]> {
+  const usage = measureLocalStorageUsage(STORAGE_KEY);
+  return applyDataRetention(days, policy, { storageUsedBytes: usage.totalBytes });
+}
+
+function withRetention(
+  days: Record<DateKey, FoodEntry[]>,
+  policy: DataRetentionPolicy,
+): Record<DateKey, FoodEntry[]> {
+  const pruned = pruneDays(days, policy);
+  return sameDayKeys(days, pruned) ? days : pruned;
+}
+
 /**
  * Every rehydrated payload is re-parsed, not only the ones a version bump sends
  * through `migrate`: persist skips that hook when the stored version already
  * matches, so a hand-edited or half-written payload would otherwise land in the
- * store as-is and crash the first render.
+ * store as-is and crash the first render. Retention runs here too so a long
+ * absence still trims history on the next load.
  */
 export function mergePersistedState(persisted: unknown, current: AppStore): AppStore {
-  return { ...current, ...parsePersistedState(persisted) };
+  const parsed = parsePersistedState(persisted);
+  return {
+    ...current,
+    ...parsed,
+    days: withRetention(parsed.days, parsed.settings.dataRetention),
+  };
 }
 
 export const useAppStore = create<AppStore>()(
@@ -122,7 +150,12 @@ export const useAppStore = create<AppStore>()(
           createdAt: new Date().toISOString(),
           ...sanitizeEntryInput(input),
         };
-        set((state) => ({ days: withDay(state.days, date, [...(state.days[date] ?? []), entry]) }));
+        set((state) => ({
+          days: withRetention(
+            withDay(state.days, date, [...(state.days[date] ?? []), entry]),
+            state.settings.dataRetention,
+          ),
+        }));
         return entry.id;
       },
 
@@ -143,7 +176,9 @@ export const useAppStore = create<AppStore>()(
                 }
               : entry,
           );
-          return { days: withDay(state.days, date, next) };
+          return {
+            days: withRetention(withDay(state.days, date, next), state.settings.dataRetention),
+          };
         }),
 
       removeEntry: (date, id) =>
@@ -151,15 +186,21 @@ export const useAppStore = create<AppStore>()(
           const entries = state.days[date];
           if (!entries) return state;
           return {
-            days: withDay(
-              state.days,
-              date,
-              entries.filter((entry) => entry.id !== id),
+            days: withRetention(
+              withDay(
+                state.days,
+                date,
+                entries.filter((entry) => entry.id !== id),
+              ),
+              state.settings.dataRetention,
             ),
           };
         }),
 
-      clearDay: (date) => set((state) => ({ days: withDay(state.days, date, []) })),
+      clearDay: (date) =>
+        set((state) => ({
+          days: withRetention(withDay(state.days, date, []), state.settings.dataRetention),
+        })),
 
       addFood: (item) =>
         set((state) => ({
@@ -249,6 +290,18 @@ export const useAppStore = create<AppStore>()(
 
       setWeekStart: (weekStart) => get().updateSettings({ weekStart }),
 
+      setDataRetention: (dataRetention) => {
+        set((state) => ({
+          settings: { ...state.settings, dataRetention },
+          days: withRetention(state.days, dataRetention),
+        }));
+      },
+
+      applyRetentionNow: () =>
+        set((state) => ({
+          days: withRetention(state.days, state.settings.dataRetention),
+        })),
+
       exportJson: () => {
         const { version, days, foodLibrary, settings } = get();
         const snapshot: PersistedState = { version, days, foodLibrary, settings };
@@ -268,7 +321,7 @@ export const useAppStore = create<AppStore>()(
         const state = parsePersistedState(parsed);
         set({
           version: state.version,
-          days: state.days,
+          days: withRetention(state.days, state.settings.dataRetention),
           foodLibrary: state.foodLibrary,
           settings: state.settings,
         });
