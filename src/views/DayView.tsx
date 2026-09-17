@@ -519,11 +519,20 @@ function QuickAdd({ day }: { day: DateKey }) {
   const library = useFoodLibrary();
   const visibleMacros = useVisibleMacros();
   const addEntry = useAppStore((state) => state.addEntry);
-  const [index, setIndex] = useState(0);
+  const [query, setQuery] = useState('');
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [grams, setGrams] = useState('100');
 
-  const item = library[Math.min(index, Math.max(library.length - 1, 0))];
-  const scaled = item ? scaleFood(item, parseNumber(grams) ?? 0) : null;
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return library;
+    return library.filter((food) => food.name.toLowerCase().includes(needle));
+  }, [library, query]);
+
+  const selected =
+    filtered.find((food, index) => `${food.name}::${index}` === selectedKey) ?? filtered[0] ?? null;
+
+  const scaled = selected ? scaleFood(selected, parseNumber(grams) ?? 0) : null;
 
   if (library.length === 0) {
     return (
@@ -536,26 +545,49 @@ function QuickAdd({ day }: { day: DateKey }) {
   return (
     <form
       data-testid="quick-add"
-      className="card grid gap-3 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-end"
+      className="card grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!item || !scaled) return;
+        if (!selected || !scaled) return;
         addEntry(day, scaled);
       }}
     >
       <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">
+        Search library
+        <input
+          type="search"
+          name="quick-add-search"
+          data-testid="quick-add-search"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setSelectedKey(null);
+          }}
+          placeholder={`${library.length} foods`}
+          className={`${INPUT} h-8`}
+        />
+      </label>
+
+      <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">
         Quick add from library
         <select
           name="quick-add-food"
-          value={index}
-          onChange={(event) => setIndex(Number(event.target.value))}
+          data-testid="quick-add-food"
+          value={
+            selected ? `${selected.name}::${filtered.findIndex((food) => food === selected)}` : ''
+          }
+          onChange={(event) => setSelectedKey(event.target.value)}
           className={`${INPUT} h-8 py-0`}
         >
-          {library.map((food, foodIndex) => (
-            <option key={`${food.name}-${foodIndex}`} value={foodIndex}>
-              {food.name} · {formatCalories(food.calories)} kcal / {Math.round(food.grams)} g
-            </option>
-          ))}
+          {filtered.length === 0 ? (
+            <option value="">No matches</option>
+          ) : (
+            filtered.map((food, foodIndex) => (
+              <option key={`${food.name}-${foodIndex}`} value={`${food.name}::${foodIndex}`}>
+                {food.name} · {formatCalories(food.calories)} kcal / {Math.round(food.grams)} g
+              </option>
+            ))
+          )}
         </select>
       </label>
 
@@ -580,7 +612,7 @@ function QuickAdd({ day }: { day: DateKey }) {
       {scaled ? (
         <p
           data-testid="quick-add-preview"
-          className="text-xs text-muted tabular-nums sm:col-span-3"
+          className="text-xs text-muted tabular-nums sm:col-span-4"
         >
           {scaled.name} · {Math.round(scaled.grams)} g · {formatCalories(scaled.calories)} kcal
           {visibleMacros.length > 0

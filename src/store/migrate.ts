@@ -1,8 +1,9 @@
+import { isLegacyStarterName } from '../data/starterFoodLibrary';
+import { DEFAULT_SETTINGS, STORE_VERSION, defaultPersistedState } from './defaults';
 import { isDateKey } from '../lib/dates';
 import { createId } from '../lib/id';
 import { normalizeMacros, sortMacros } from '../lib/macros';
 import { normalizeHex } from '../theme/color';
-import { DEFAULT_SETTINGS, STORE_VERSION, defaultPersistedState } from './defaults';
 import type {
   DateKey,
   FoodEntry,
@@ -62,6 +63,9 @@ function parseLibrary(value: unknown): FoodLibraryItem[] {
     if (!isRecord(raw)) continue;
     const name = str(raw.name, '').trim();
     if (name === '') continue;
+    // Drop the original five seeded defaults so they do not duplicate the
+    // bundled USDA catalog after upgrade. True custom foods are kept.
+    if (isLegacyStarterName(name)) continue;
     const grams = num(raw.grams, 100);
     items.push({
       name,

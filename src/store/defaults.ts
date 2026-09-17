@@ -1,5 +1,5 @@
+import { STARTER_FOOD_LIBRARY } from '../data/starterFoodLibrary';
 import type { FoodLibraryItem, PersistedState, Settings } from '../types';
-import usdaFoodLibrary from '../data/food-library-usda.json';
 
 /** localStorage key for the whole persisted store. Bump with a migration, never in place. */
 export const STORAGE_KEY = 'macro-tracker/v1';
@@ -21,21 +21,20 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /**
- * Starter foods for quick-add on a fresh install.
- * Values come from USDA FoodData Central (see `src/data/food-library-usda.json`).
+ * Bundled USDA starter catalog. Always available at runtime; not copied into
+ * localStorage. Prefer `mergeFoodLibraries` / selectors for the combined list.
  */
-export const DEFAULT_FOOD_LIBRARY: FoodLibraryItem[] = usdaFoodLibrary.foodLibrary.map((item) => ({
-  name: item.name,
-  grams: item.grams,
-  calories: item.calories,
-  macros: { ...item.macros },
-}));
+export const DEFAULT_FOOD_LIBRARY: readonly FoodLibraryItem[] = STARTER_FOOD_LIBRARY;
 
+/**
+ * Persisted `foodLibrary` holds only user-added custom foods. The starter
+ * catalog is merged in at read time so a large library does not bloat storage.
+ */
 export function defaultPersistedState(): PersistedState {
   return {
     version: STORE_VERSION,
     days: {},
-    foodLibrary: DEFAULT_FOOD_LIBRARY.map((item) => ({ ...item, macros: { ...item.macros } })),
+    foodLibrary: [],
     settings: {
       ...DEFAULT_SETTINGS,
       visibleMacros: [...DEFAULT_SETTINGS.visibleMacros],

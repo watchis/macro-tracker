@@ -155,7 +155,7 @@ describe('SettingsView food library', () => {
     const before = state().foodLibrary.length;
 
     await user.click(screen.getByTestId('food-add-open'));
-    await user.type(screen.getByTestId('food-add-form-name'), 'Almonds');
+    await user.type(screen.getByTestId('food-add-form-name'), 'Almond Butter');
     await user.clear(screen.getByTestId('food-add-form-grams'));
     await user.type(screen.getByTestId('food-add-form-grams'), '28');
     await user.type(screen.getByTestId('food-add-form-calories'), '164');
@@ -165,7 +165,7 @@ describe('SettingsView food library', () => {
     const library = state().foodLibrary;
     expect(library).toHaveLength(before + 1);
     expect(library.at(-1)).toEqual({
-      name: 'Almonds',
+      name: 'Almond Butter',
       grams: 28,
       calories: 164,
       macros: { protein: 6 },
@@ -185,23 +185,26 @@ describe('SettingsView food library', () => {
     expect(state().foodLibrary).toHaveLength(before);
   });
 
-  it('edits a food by its array index', async () => {
+  it('edits a custom food by its array index', async () => {
     const user = userEvent.setup();
+    state().addFood({ name: 'Protein bar', grams: 60, calories: 200, macros: { protein: 20 } });
     render(<SettingsView />);
 
     await user.click(screen.getByTestId('food-edit-0'));
     const calories = screen.getByTestId('food-edit-form-calories');
     await user.clear(calories);
-    await user.type(calories, '170');
+    await user.type(calories, '210');
     await user.click(screen.getByRole('button', { name: 'Save food' }));
 
-    expect(state().foodLibrary[0]?.calories).toBe(170);
-    expect(state().foodLibrary[0]?.name).toBe('Chicken breast');
+    expect(state().foodLibrary[0]?.calories).toBe(210);
+    expect(state().foodLibrary[0]?.name).toBe('Protein bar');
     expect(screen.queryByTestId('food-edit-form')).not.toBeInTheDocument();
   });
 
-  it('deletes a food only after confirming', async () => {
+  it('deletes a custom food only after confirming', async () => {
     const user = userEvent.setup();
+    state().addFood({ name: 'Shake', grams: 250, calories: 180, macros: {} });
+    state().addFood({ name: 'Bar', grams: 40, calories: 150, macros: {} });
     render(<SettingsView />);
     const before = state().foodLibrary;
 
@@ -215,6 +218,19 @@ describe('SettingsView food library', () => {
 
     expect(state().foodLibrary).toHaveLength(before.length - 1);
     expect(state().foodLibrary[0]?.name).toBe(before[1]?.name);
+  });
+
+  it('lists the bundled USDA starter catalog with search', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    expect(screen.getByTestId('starter-food-count')).toHaveTextContent(/Showing \d+ of \d+/);
+    const countText = screen.getByTestId('starter-food-count').textContent ?? '';
+    const total = Number(countText.match(/of (\d+)/)?.[1]);
+    expect(total).toBeGreaterThan(100);
+
+    await user.type(screen.getByTestId('starter-food-search'), 'banana');
+    expect(screen.getByTestId('starter-food-list')).toHaveTextContent(/Banana/i);
   });
 });
 
@@ -289,7 +305,7 @@ describe('SettingsView data management', () => {
     await confirmAction('reset-confirm', 'Yes, reset all data');
 
     expect(state().settings.goals.calories).toBe(2000);
-    expect(state().foodLibrary).toHaveLength(5);
+    expect(state().foodLibrary).toHaveLength(0);
     expect(screen.getByTestId('calorie-goal-input')).toHaveValue('2000');
   });
 });

@@ -92,7 +92,7 @@ export function SettingsView() {
       <SettingsSection
         id="library"
         title="Food library"
-        description="Reusable foods, stated for a reference weight and scaled when you log them."
+        description="A large USDA starter catalog loads with the app. Add your own custom foods on top."
       >
         <FoodLibrarySettings />
       </SettingsSection>

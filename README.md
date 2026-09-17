@@ -77,9 +77,11 @@ src/
   index.css            palette custom properties and Tailwind theme mapping
 ```
 
-The default food library is seeded from [USDA FoodData Central](https://fdc.nal.usda.gov/)
-(Foundation Foods + SR Legacy download datasets). Amounts are per 100 g; see
-`src/data/food-library-usda.json` for FDC IDs and provenance.
+The default food library is a large **starter catalog** (~360 common foods) read from
+[USDA FoodData Central](https://fdc.nal.usda.gov/) and bundled at
+`src/data/food-library-usda.json`. It loads with the app and is not stored in
+`localStorage`. Custom foods you add in Settings are persisted separately and appear
+first in quick-add.
 
 ## Theming
 

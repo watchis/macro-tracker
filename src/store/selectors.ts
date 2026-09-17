@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { mergeFoodLibraries, STARTER_FOOD_LIBRARY } from '../data/starterFoodLibrary';
 import { computeDayBudget, sumEntries } from '../lib/totals';
 import { useAppStore } from './useAppStore';
 import type { DayBudget, DayTotals } from '../lib/totals';
@@ -21,7 +22,13 @@ export const selectSelectedDate = (state: AppStore): DateKey => state.selectedDa
 export const selectSettings = (state: AppStore): Settings => state.settings;
 export const selectGoals = (state: AppStore): Goals => state.settings.goals;
 export const selectVisibleMacros = (state: AppStore): MacroKey[] => state.settings.visibleMacros;
-export const selectFoodLibrary = (state: AppStore): FoodLibraryItem[] => state.foodLibrary;
+
+/** User-added custom foods only (persisted). */
+export const selectCustomFoods = (state: AppStore): FoodLibraryItem[] => state.foodLibrary;
+
+/** Starter catalog + custom foods, for quick-add and search. */
+export const selectFoodLibrary = (state: AppStore): FoodLibraryItem[] =>
+  mergeFoodLibraries(state.foodLibrary, STARTER_FOOD_LIBRARY);
 
 export const selectDayEntries =
   (date: DateKey) =>
@@ -48,8 +55,19 @@ export function useVisibleMacros(): MacroKey[] {
   return useAppStore(selectVisibleMacros);
 }
 
+/** Combined starter + custom library. */
 export function useFoodLibrary(): FoodLibraryItem[] {
-  return useAppStore(selectFoodLibrary);
+  const custom = useAppStore(selectCustomFoods);
+  return useMemo(() => mergeFoodLibraries(custom, STARTER_FOOD_LIBRARY), [custom]);
+}
+
+/** Persisted custom foods only. */
+export function useCustomFoods(): FoodLibraryItem[] {
+  return useAppStore(selectCustomFoods);
+}
+
+export function useStarterFoods(): readonly FoodLibraryItem[] {
+  return STARTER_FOOD_LIBRARY;
 }
 
 export function useDayEntries(date: DateKey): readonly FoodEntry[] {

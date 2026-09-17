@@ -287,9 +287,10 @@ describe('DayView quick add', () => {
     const user = userEvent.setup();
     render(<DayView date={DATE} />);
 
+    await user.type(screen.getByTestId('quick-add-search'), 'chicken breast, roasted');
     await user.selectOptions(
       screen.getByLabelText(/quick add from library/i),
-      screen.getByRole('option', { name: /chicken breast/i }),
+      screen.getByRole('option', { name: /chicken breast, roasted/i }),
     );
     const grams = screen.getByLabelText('Grams');
     await user.clear(grams);
@@ -299,19 +300,21 @@ describe('DayView quick add', () => {
     await user.click(screen.getByRole('button', { name: 'Quick add' }));
 
     expect(entries()[0]).toMatchObject({
-      name: 'Chicken breast',
+      name: 'Chicken breast, roasted',
       grams: 200,
       calories: 330,
     });
     expect(entryAt().macros.protein).toBe(62);
   });
 
-  it('explains itself when the library is empty', () => {
+  it('keeps the USDA starter library available when customs are empty', () => {
     useAppStore.setState({ foodLibrary: [] });
     render(<DayView date={DATE} />);
 
-    expect(screen.getByText(/food library is empty/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('quick-add')).not.toBeInTheDocument();
+    expect(screen.getByTestId('quick-add')).toBeInTheDocument();
+    expect(screen.getByTestId('quick-add-search').getAttribute('placeholder')).toMatch(
+      /^\d+ foods$/,
+    );
   });
 });
 
