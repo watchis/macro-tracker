@@ -65,4 +65,4 @@ export type PersistedState = {
 };
 
 /** Views are switched in app state; there is no router (GitHub Pages has no rewrites). */
-export type ViewName = 'calendar' | 'day' | 'settings';
+export type ViewName = 'calendar' | 'day' | 'library' | 'settings';

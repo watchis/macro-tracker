@@ -63,17 +63,6 @@ describe('SettingsView appearance', () => {
     // The rejected text stays on screen so it can be corrected.
     expect(input).toHaveValue('zzz');
   });
-
-  it('sets the week start', async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-
-    await user.click(
-      within(screen.getByTestId('week-start')).getByRole('radio', { name: 'Monday' }),
-    );
-
-    expect(state().settings.weekStart).toBe('monday');
-  });
 });
 
 describe('SettingsView goals', () => {
@@ -148,73 +137,22 @@ describe('SettingsView macro visibility', () => {
   });
 });
 
-describe('SettingsView food library', () => {
-  it('adds a food stated for its reference weight', async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-    const before = state().foodLibrary.length;
-
-    await user.click(screen.getByTestId('food-add-open'));
-    await user.type(screen.getByTestId('food-add-form-name'), 'Almonds');
-    await user.clear(screen.getByTestId('food-add-form-grams'));
-    await user.type(screen.getByTestId('food-add-form-grams'), '28');
-    await user.type(screen.getByTestId('food-add-form-calories'), '164');
-    await user.type(screen.getByTestId('food-add-form-protein'), '6');
-    await user.click(screen.getByRole('button', { name: 'Add food' }));
-
-    const library = state().foodLibrary;
-    expect(library).toHaveLength(before + 1);
-    expect(library.at(-1)).toEqual({
-      name: 'Almonds',
-      grams: 28,
-      calories: 164,
-      macros: { protein: 6 },
-    });
-  });
-
-  it('refuses to add a food without a name', async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-    const before = state().foodLibrary.length;
-
-    await user.click(screen.getByTestId('food-add-open'));
-    await user.type(screen.getByTestId('food-add-form-calories'), '100');
-    await user.click(screen.getByRole('button', { name: 'Add food' }));
-
-    expect(screen.getByRole('alert')).toHaveTextContent('Name this food.');
-    expect(state().foodLibrary).toHaveLength(before);
-  });
-
-  it('edits a food by its array index', async () => {
-    const user = userEvent.setup();
+describe('SettingsView section order', () => {
+  it('lists goals before appearance, with no calendar or food library sections', () => {
     render(<SettingsView />);
 
-    await user.click(screen.getByTestId('food-edit-0'));
-    const calories = screen.getByTestId('food-edit-form-calories');
-    await user.clear(calories);
-    await user.type(calories, '170');
-    await user.click(screen.getByRole('button', { name: 'Save food' }));
+    const goals = screen.getByTestId('settings-section-goals');
+    const appearance = screen.getByTestId('settings-section-appearance');
+    const data = screen.getByTestId('settings-section-data');
 
-    expect(state().foodLibrary[0]?.calories).toBe(170);
-    expect(state().foodLibrary[0]?.name).toBe('Chicken breast');
-    expect(screen.queryByTestId('food-edit-form')).not.toBeInTheDocument();
-  });
-
-  it('deletes a food only after confirming', async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-    const before = state().foodLibrary;
-
-    await user.click(screen.getByTestId('food-delete-0'));
-    await user.click(
-      within(screen.getByTestId('food-delete-0-confirm')).getByRole('button', { name: 'Cancel' }),
-    );
-    expect(state().foodLibrary).toHaveLength(before.length);
-
-    await confirmAction('food-delete-0', 'Yes, delete');
-
-    expect(state().foodLibrary).toHaveLength(before.length - 1);
-    expect(state().foodLibrary[0]?.name).toBe(before[1]?.name);
+    expect(
+      goals.compareDocumentPosition(appearance) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      appearance.compareDocumentPosition(data) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.queryByTestId('settings-section-calendar')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('settings-section-library')).not.toBeInTheDocument();
   });
 });
 
