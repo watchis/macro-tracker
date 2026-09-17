@@ -113,6 +113,27 @@ describe('DayView table', () => {
     expect(screen.getByTestId('totals-remaining-calories')).toHaveTextContent('-400');
     expect(screen.getByTestId('totals-remaining-protein')).toHaveTextContent('-50');
   });
+
+  it('keeps each macro remainder on its own goal when only some are over', () => {
+    log('Pizza', 1400, { protein: 60, carbs: 150, fat: 55 });
+    log('Ice cream', 900, { protein: 12, carbs: 100, fat: 45 });
+    render(<DayView date={DATE} />);
+
+    // 2,300 of 2,000 kcal and past the carb and fat goals, but protein is not.
+    expect(screen.getByTestId('totals-remaining-calories')).toHaveTextContent('-300');
+    expect(screen.getByTestId('totals-remaining-protein')).toHaveTextContent('78');
+    expect(screen.getByTestId('totals-remaining-protein').className).not.toContain('text-danger');
+    expect(screen.getByTestId('totals-remaining-carbs')).toHaveTextContent('-50');
+    expect(screen.getByTestId('totals-remaining-carbs').className).toContain('text-danger');
+  });
+
+  it('marks macros with no goal instead of inventing a remainder', () => {
+    useAppStore.getState().setVisibleMacros(['protein', 'fiber']);
+    log('Oats', 379, { protein: 13, fiber: 10 });
+    render(<DayView date={DATE} />);
+
+    expect(screen.getByTestId('totals-remaining-fiber')).toHaveTextContent('—');
+  });
 });
 
 describe('DayView add', () => {
