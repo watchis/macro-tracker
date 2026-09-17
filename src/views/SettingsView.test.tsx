@@ -1,0 +1,295 @@
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { SettingsView } from './SettingsView';
+import { BudgetBar } from '../components/BudgetBar';
+import { STORAGE_KEY } from '../store/defaults';
+import { useAppStore } from '../store/useAppStore';
+
+function state() {
+  return useAppStore.getState();
+}
+
+function persisted() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as {
+    state?: { settings?: { accent?: string } };
+  };
+}
+
+async function confirmAction(testId: string, label: string) {
+  const user = userEvent.setup();
+  await user.click(screen.getByTestId(testId));
+  await user.click(
+    within(screen.getByTestId(`${testId}-confirm`)).getByRole('button', { name: label }),
+  );
+}
+
+describe('SettingsView appearance', () => {
+  it('switches theme mode and applies it to the document', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    await user.click(within(screen.getByTestId('theme-mode')).getByRole('radio', { name: 'Dark' }));
+
+    expect(state().settings.themeMode).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+  });
+
+  it('applies a preset accent and persists it for the next load', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    await user.click(screen.getByTestId('accent-preset-10b981'));
+
+    expect(state().settings.accent).toBe('#10b981');
+    expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#10b981');
+    expect(persisted().state?.settings?.accent).toBe('#10b981');
+  });
+
+  it('previews a custom hex live and ignores unparsable input', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+    const input = screen.getByTestId('accent-hex-input');
+
+    await user.clear(input);
+    await user.type(input, '#ff0000');
+    expect(state().settings.accent).toBe('#ff0000');
+    expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#ff0000');
+
+    await user.clear(input);
+    await user.type(input, 'zzz');
+    expect(screen.getByRole('alert')).toHaveTextContent('Use a hex color');
+    expect(state().settings.accent).toBe('#ff0000');
+    // The rejected text stays on screen so it can be corrected.
+    expect(input).toHaveValue('zzz');
+  });
+
+  it('sets the week start', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    await user.click(
+      within(screen.getByTestId('week-start')).getByRole('radio', { name: 'Monday' }),
+    );
+
+    expect(state().settings.weekStart).toBe('monday');
+  });
+});
+
+describe('SettingsView goals', () => {
+  it('validates the calorie goal and keeps the last valid value', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+    const input = screen.getByTestId('calorie-goal-input');
+
+    await user.clear(input);
+    await user.type(input, '1800');
+    expect(state().settings.goals.calories).toBe(1800);
+
+    await user.clear(input);
+    await user.type(input, '-5');
+    expect(screen.getByRole('alert')).toHaveTextContent('Must be 0 or more.');
+    expect(state().settings.goals.calories).toBe(1800);
+  });
+
+  it('sets and clears per-macro goals', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    const fiber = screen.getByTestId('macro-goal-fiber');
+    await user.type(fiber, '30');
+    expect(state().settings.goals.macros.fiber).toBe(30);
+
+    await user.clear(screen.getByTestId('macro-goal-protein'));
+    expect(state().settings.goals.macros.protein).toBeUndefined();
+  });
+
+  it('rejects a macro goal that is not a number', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    await user.type(screen.getByTestId('macro-goal-carbs'), 'abc');
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a number.');
+    expect(state().settings.goals.macros.carbs).toBe(200);
+  });
+});
+
+describe('SettingsView macro visibility', () => {
+  it('shows and hides macros, in the canonical order', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    await user.click(screen.getByTestId('macro-toggle-fiber'));
+    expect(state().settings.visibleMacros).toEqual(['protein', 'carbs', 'fat', 'fiber']);
+
+    await user.click(screen.getByTestId('macro-toggle-carbs'));
+    expect(state().settings.visibleMacros).toEqual(['protein', 'fat', 'fiber']);
+    expect(screen.getByTestId('macro-toggle-carbs')).not.toBeChecked();
+  });
+
+  it('drives which chips the budget bar renders', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <SettingsView />
+        <BudgetBar date="2026-09-17" />
+      </>,
+    );
+
+    expect(screen.getByTestId('macro-chip-carbs')).toBeInTheDocument();
+    expect(screen.queryByTestId('macro-chip-sodium')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('macro-toggle-carbs'));
+    await user.click(screen.getByTestId('macro-toggle-sodium'));
+
+    expect(screen.queryByTestId('macro-chip-carbs')).not.toBeInTheDocument();
+    expect(screen.getByTestId('macro-chip-sodium')).toBeInTheDocument();
+  });
+});
+
+describe('SettingsView food library', () => {
+  it('adds a food stated for its reference weight', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+    const before = state().foodLibrary.length;
+
+    await user.click(screen.getByTestId('food-add-open'));
+    await user.type(screen.getByTestId('food-add-form-name'), 'Almonds');
+    await user.clear(screen.getByTestId('food-add-form-grams'));
+    await user.type(screen.getByTestId('food-add-form-grams'), '28');
+    await user.type(screen.getByTestId('food-add-form-calories'), '164');
+    await user.type(screen.getByTestId('food-add-form-protein'), '6');
+    await user.click(screen.getByRole('button', { name: 'Add food' }));
+
+    const library = state().foodLibrary;
+    expect(library).toHaveLength(before + 1);
+    expect(library.at(-1)).toEqual({
+      name: 'Almonds',
+      grams: 28,
+      calories: 164,
+      macros: { protein: 6 },
+    });
+  });
+
+  it('refuses to add a food without a name', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+    const before = state().foodLibrary.length;
+
+    await user.click(screen.getByTestId('food-add-open'));
+    await user.type(screen.getByTestId('food-add-form-calories'), '100');
+    await user.click(screen.getByRole('button', { name: 'Add food' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Name this food.');
+    expect(state().foodLibrary).toHaveLength(before);
+  });
+
+  it('edits a food by its array index', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    await user.click(screen.getByTestId('food-edit-0'));
+    const calories = screen.getByTestId('food-edit-form-calories');
+    await user.clear(calories);
+    await user.type(calories, '170');
+    await user.click(screen.getByRole('button', { name: 'Save food' }));
+
+    expect(state().foodLibrary[0]?.calories).toBe(170);
+    expect(state().foodLibrary[0]?.name).toBe('Chicken breast');
+    expect(screen.queryByTestId('food-edit-form')).not.toBeInTheDocument();
+  });
+
+  it('deletes a food only after confirming', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+    const before = state().foodLibrary;
+
+    await user.click(screen.getByTestId('food-delete-0'));
+    await user.click(
+      within(screen.getByTestId('food-delete-0-confirm')).getByRole('button', { name: 'Cancel' }),
+    );
+    expect(state().foodLibrary).toHaveLength(before.length);
+
+    await confirmAction('food-delete-0', 'Yes, delete');
+
+    expect(state().foodLibrary).toHaveLength(before.length - 1);
+    expect(state().foodLibrary[0]?.name).toBe(before[1]?.name);
+  });
+});
+
+describe('SettingsView data management', () => {
+  it('exports the store as a JSON download', async () => {
+    const user = userEvent.setup();
+    const createObjectURL = vi.fn(() => 'blob:mock');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    render(<SettingsView />);
+    await user.click(screen.getByTestId('export-download'));
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('data-status')).toHaveTextContent('Exported your data');
+
+    click.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it('imports an export after confirming', async () => {
+    render(<SettingsView />);
+    const json = JSON.stringify({
+      version: 1,
+      days: { '2026-09-17': [] },
+      foodLibrary: [{ name: 'Tofu', grams: 100, calories: 144, macros: { protein: 17 } }],
+      settings: {
+        themeMode: 'dark',
+        accent: '#84cc16',
+        visibleMacros: ['protein'],
+        goals: { calories: 2400, macros: { protein: 180 } },
+        weekStart: 'monday',
+      },
+    });
+
+    fireEvent.change(screen.getByTestId('import-input'), { target: { value: json } });
+    await confirmAction('import-confirm', 'Yes, import');
+
+    expect(state().foodLibrary).toEqual([
+      { name: 'Tofu', grams: 100, calories: 144, macros: { protein: 17 } },
+    ]);
+    expect(state().settings.accent).toBe('#84cc16');
+    expect(state().settings.goals.calories).toBe(2400);
+    expect(screen.getByTestId('data-status')).toHaveTextContent('Imported.');
+  });
+
+  it('reports why an import failed and changes nothing', async () => {
+    render(<SettingsView />);
+    const before = state().foodLibrary.length;
+
+    fireEvent.change(screen.getByTestId('import-input'), { target: { value: 'not json' } });
+    await confirmAction('import-confirm', 'Yes, import');
+
+    expect(screen.getByTestId('data-status')).toHaveTextContent('not valid JSON');
+    expect(state().foodLibrary).toHaveLength(before);
+  });
+
+  it('resets everything after confirming', async () => {
+    const user = userEvent.setup();
+    state().setCalorieGoal(1234);
+    state().removeFood(0);
+    render(<SettingsView />);
+
+    await user.click(screen.getByTestId('reset-confirm'));
+    await user.click(
+      within(screen.getByTestId('reset-confirm-confirm')).getByRole('button', { name: 'Cancel' }),
+    );
+    expect(state().settings.goals.calories).toBe(1234);
+
+    await confirmAction('reset-confirm', 'Yes, reset all data');
+
+    expect(state().settings.goals.calories).toBe(2000);
+    expect(state().foodLibrary).toHaveLength(5);
+    expect(screen.getByTestId('calorie-goal-input')).toHaveValue('2000');
+  });
+});
