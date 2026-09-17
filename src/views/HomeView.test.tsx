@@ -6,7 +6,7 @@ import { lbToKg } from '../lib/weight';
 import { useAppStore } from '../store/useAppStore';
 
 describe('HomeView', () => {
-  it('shows snapshot cards, mini calendar, and empty charts', () => {
+  it('shows snapshot cards, mini calendar, and a switchable empty chart', () => {
     render(<HomeView />);
 
     expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument();
@@ -15,12 +15,13 @@ describe('HomeView', () => {
     expect(screen.getByTestId('home-weight-card')).toBeInTheDocument();
     expect(screen.getByTestId('home-mini-calendar')).toBeInTheDocument();
     expect(screen.getByTestId('mini-calendar-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('home-chart')).toBeInTheDocument();
     expect(screen.getByTestId('weight-chart')).toHaveTextContent(/weigh-in/i);
-    expect(screen.getByTestId('calorie-chart')).toHaveTextContent(/Log food/i);
-    expect(screen.getByTestId('calorie-delta-chart')).toHaveTextContent(/Log food|calorie goal/i);
+    expect(screen.queryByTestId('calorie-chart')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('calorie-delta-chart')).not.toBeInTheDocument();
   });
 
-  it('opens today from the today card and charts once data exists', async () => {
+  it('switches charts and opens today from the today card', async () => {
     const user = userEvent.setup();
     const store = useAppStore.getState();
     store.setCalorieGoal(2000);
@@ -33,10 +34,19 @@ describe('HomeView', () => {
     render(<HomeView />);
 
     expect(screen.getByTestId('weight-chart').querySelector('circle')).toBeTruthy();
-    expect(screen.getByTestId('calorie-chart').querySelector('circle')).toBeTruthy();
-    expect(screen.getByTestId('calorie-delta-chart').querySelector('rect')).toBeTruthy();
     expect(screen.getByText(/Avg 179/i)).toBeInTheDocument();
-    expect(screen.getByTestId('home-week-card')).toHaveTextContent(/logged/i);
+
+    await user.click(
+      within(screen.getByTestId('home-chart-switch')).getByRole('radio', { name: 'Calories' }),
+    );
+    expect(screen.getByTestId('calorie-chart').querySelector('circle')).toBeTruthy();
+    expect(screen.queryByTestId('weight-chart')).not.toBeInTheDocument();
+
+    await user.click(
+      within(screen.getByTestId('home-chart-switch')).getByRole('radio', { name: 'Over / under' }),
+    );
+    expect(screen.getByTestId('calorie-delta-chart').querySelector('rect')).toBeTruthy();
+    expect(screen.queryByTestId('calorie-chart')).not.toBeInTheDocument();
 
     await user.click(
       within(screen.getByTestId('home-weight-unit')).getByRole('radio', { name: 'kg' }),

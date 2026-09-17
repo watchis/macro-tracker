@@ -24,7 +24,14 @@ const RANGE_OPTIONS = [
   { value: 'all', label: 'All' },
 ] as const;
 
+const CHART_OPTIONS = [
+  { value: 'weight', label: 'Weight' },
+  { value: 'calories', label: 'Calories' },
+  { value: 'delta', label: 'Over / under' },
+] as const;
+
 type RangeKey = (typeof RANGE_OPTIONS)[number]['value'];
+type ChartKey = (typeof CHART_OPTIONS)[number]['value'];
 
 function filterByRange<T extends { date: string }>(points: readonly T[], range: RangeKey): T[] {
   if (range === 'all' || points.length === 0) return [...points];
@@ -41,8 +48,8 @@ function formatDisplayWeight(value: number, unit: WeightUnit): string {
 }
 
 /**
- * Landing dashboard: today/week snapshot, a compact month calendar, and the
- * weight/calorie trend charts. Day logging opens from a calendar cell.
+ * Landing dashboard: today/week snapshot, a compact month calendar, and a
+ * single switchable trend chart. Day logging opens from a calendar cell.
  */
 export function HomeView() {
   const days = useAppStore((state) => state.days);
@@ -53,6 +60,7 @@ export function HomeView() {
   const setView = useAppStore((state) => state.setView);
   const openDay = useAppStore((state) => state.openDay);
   const [range, setRange] = useState<RangeKey>('90');
+  const [chart, setChart] = useState<ChartKey>('weight');
   const today = todayKey();
 
   const weightPoints = useMemo(() => {
@@ -83,6 +91,11 @@ export function HomeView() {
   ];
 
   const rangeOptions: ReadonlyArray<SegmentedOption<RangeKey>> = RANGE_OPTIONS.map((option) => ({
+    value: option.value,
+    label: option.label,
+  }));
+
+  const chartOptions: ReadonlyArray<SegmentedOption<ChartKey>> = CHART_OPTIONS.map((option) => ({
     value: option.value,
     label: option.label,
   }));
@@ -137,74 +150,86 @@ export function HomeView() {
         </div>
       </div>
 
-      <article className="card grid gap-3 p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold tracking-tight">Weight over time</h2>
-          {weightTrend ? (
-            <p className="text-xs text-muted tabular-nums">
-              Avg {formatDisplayWeight(weightTrend.mean, weightUnit)}
-              {' · '}
-              trend {weightTrend.slopePerDay >= 0 ? '+' : ''}
-              {roundWeight(weightTrend.slopePerDay, weightUnit).toLocaleString(undefined, {
-                maximumFractionDigits: 2,
-              })}{' '}
-              {weightUnitLabel(weightUnit)}/day
-            </p>
-          ) : null}
+      <article className="card grid gap-3 p-4" data-testid="home-chart">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-1">
+            <h2 className="text-sm font-semibold tracking-tight">Trends</h2>
+            {chart === 'weight' && weightTrend ? (
+              <p className="text-xs text-muted tabular-nums">
+                Avg {formatDisplayWeight(weightTrend.mean, weightUnit)}
+                {' · '}
+                trend {weightTrend.slopePerDay >= 0 ? '+' : ''}
+                {roundWeight(weightTrend.slopePerDay, weightUnit).toLocaleString(undefined, {
+                  maximumFractionDigits: 2,
+                })}{' '}
+                {weightUnitLabel(weightUnit)}/day
+              </p>
+            ) : null}
+            {chart === 'delta' && goals.calories > 0 ? (
+              <p className="text-xs text-muted tabular-nums">
+                Goal {formatCalories(goals.calories)} kcal
+                {deltaPoints.length > 0
+                  ? ` · latest ${formatShortDate(deltaPoints[deltaPoints.length - 1]!.date)}`
+                  : ''}
+              </p>
+            ) : null}
+          </div>
+          <SegmentedControl
+            label="Chart"
+            testId="home-chart-switch"
+            value={chart}
+            options={chartOptions}
+            onChange={setChart}
+          />
         </div>
-        <LineChart
-          testId="weight-chart"
-          points={weightPoints}
-          showTrendline
-          showAverage
-          valueLabel={(value) => formatDisplayWeight(value, weightUnit)}
-          emptyMessage="Log a weigh-in on a day to see weight over time."
-        />
-        <p className="text-xs text-subtle">
-          Solid line is daily weight. Dashed accent is the trend; dotted is the average.
-        </p>
-      </article>
 
-      <article className="card grid gap-3 p-4">
-        <h2 className="text-sm font-semibold tracking-tight">Calorie consumption</h2>
-        <LineChart
-          testId="calorie-chart"
-          points={caloriePoints}
-          valueLabel={(value) => `${formatCalories(value)} kcal`}
-          emptyMessage="Log food on a day to see calorie intake."
-        />
-      </article>
-
-      <article className="card grid gap-3 p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold tracking-tight">Calorie overages / underages</h2>
-          {goals.calories > 0 ? (
-            <p className="text-xs text-muted tabular-nums">
-              Goal {formatCalories(goals.calories)} kcal
+        {chart === 'weight' ? (
+          <>
+            <LineChart
+              testId="weight-chart"
+              points={weightPoints}
+              showTrendline
+              showAverage
+              valueLabel={(value) => formatDisplayWeight(value, weightUnit)}
+              emptyMessage="Log a weigh-in on a day to see weight over time."
+            />
+            <p className="text-xs text-subtle">
+              Solid line is daily weight. Dashed accent is the trend; dotted is the average.
             </p>
-          ) : null}
-        </div>
-        <BarChart
-          testId="calorie-delta-chart"
-          points={deltaPoints}
-          valueLabel={(value) => {
-            const abs = formatCalories(Math.abs(value));
-            if (value > 0) return `${abs} kcal over`;
-            if (value < 0) return `${abs} kcal under`;
-            return 'On goal';
-          }}
-          emptyMessage={
-            goals.calories > 0
-              ? 'Log food on a day to see overages and underages.'
-              : 'Set a calorie goal in Settings to chart overages and underages.'
-          }
-        />
-        <p className="text-xs text-subtle">
-          Bars above zero are over budget; bars below are under.
-          {deltaPoints.length > 0
-            ? ` Latest: ${formatShortDate(deltaPoints[deltaPoints.length - 1]!.date)}.`
-            : ''}
-        </p>
+          </>
+        ) : null}
+
+        {chart === 'calories' ? (
+          <LineChart
+            testId="calorie-chart"
+            points={caloriePoints}
+            valueLabel={(value) => `${formatCalories(value)} kcal`}
+            emptyMessage="Log food on a day to see calorie intake."
+          />
+        ) : null}
+
+        {chart === 'delta' ? (
+          <>
+            <BarChart
+              testId="calorie-delta-chart"
+              points={deltaPoints}
+              valueLabel={(value) => {
+                const abs = formatCalories(Math.abs(value));
+                if (value > 0) return `${abs} kcal over`;
+                if (value < 0) return `${abs} kcal under`;
+                return 'On goal';
+              }}
+              emptyMessage={
+                goals.calories > 0
+                  ? 'Log food on a day to see overages and underages.'
+                  : 'Set a calorie goal in Settings to chart overages and underages.'
+              }
+            />
+            <p className="text-xs text-subtle">
+              Bars above zero are over budget; bars below are under.
+            </p>
+          </>
+        ) : null}
       </article>
     </section>
   );

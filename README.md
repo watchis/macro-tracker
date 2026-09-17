@@ -12,8 +12,9 @@ Four header views — they are app state rather than routes, so GitHub Pages nev
 deep link. Opening a day from the calendar is a fifth screen that is not in the nav.
 
 **Home** is the landing dashboard: today and last-7-day snapshots, latest weight, a compact month
-calendar (tap a day to log), and charts for weight over time (trend + average), calorie intake, and
-calorie overages/underages. Toggle lb/kg and a 30 / 90 / all-time chart range from the page header.
+calendar (tap a day to log), and one Trends chart you can switch between weight over time
+(trend + average), calorie intake, and calorie overages/underages. Toggle lb/kg and a 30 / 90 /
+all-time chart range from the page header.
 
 **Calendar** shows the full month as a grid. A logged day reports its remaining calories, a depleting
 bar and totals for the macros you have switched on; an untouched day stays quiet. Today is circled
