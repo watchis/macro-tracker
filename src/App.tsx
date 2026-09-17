@@ -13,8 +13,9 @@ export default function App() {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-ink">
       <AppHeader />
-      {/* Bottom padding clears the fixed budget bar. */}
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-32">
+      {/* Bottom padding clears the fixed budget bar, which publishes its own
+          measured height so a wrapped chip row still never covers content. */}
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-[calc(var(--budget-bar-height,7rem)+1.5rem)]">
         {view === 'calendar' ? <CalendarView /> : null}
         {view === 'day' ? <DayView /> : null}
         {view === 'settings' ? <SettingsView /> : null}

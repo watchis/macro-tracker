@@ -63,6 +63,50 @@ describe('BudgetBar', () => {
     expect(fillWidth()).toBe('100%');
   });
 
+  it('depletes proportionally at every point of the day', () => {
+    log(500);
+    const { rerender } = render(<BudgetBar date={DATE} />);
+    expect(fillWidth()).toBe('75%');
+
+    log(500);
+    rerender(<BudgetBar date={DATE} />);
+    expect(fillWidth()).toBe('50%');
+    expect(screen.getByTestId('budget-headline')).toHaveTextContent('1,000 kcal left');
+
+    log(1000);
+    rerender(<BudgetBar date={DATE} />);
+    expect(fillWidth()).toBe('0%');
+    expect(screen.getByTestId('budget-headline')).toHaveTextContent('0 kcal left');
+    expect(screen.getByTestId('budget-bar')).toHaveAttribute('data-over-budget', 'false');
+  });
+
+  it('refills with the overshoot once past the goal', () => {
+    log(3000);
+    const { unmount } = render(<BudgetBar date={DATE} />);
+
+    // 1,000 kcal over a 2,000 kcal goal is half the budget again.
+    expect(fillWidth()).toBe('50%');
+    expect(screen.getByTestId('budget-over-badge')).toBeInTheDocument();
+    unmount();
+
+    useAppStore.getState().clearDay(DATE);
+    log(2050);
+    render(<BudgetBar date={DATE} />);
+
+    // A sliver stays visible even when barely over.
+    expect(fillWidth()).toBe('6%');
+    expect(screen.getByTestId('budget-headline')).toHaveTextContent('50 kcal over');
+  });
+
+  it('publishes its height so content can clear the fixed bar', () => {
+    const { unmount } = render(<BudgetBar date={DATE} />);
+
+    expect(document.documentElement.style.getPropertyValue('--budget-bar-height')).toMatch(/px$/);
+
+    unmount();
+    expect(document.documentElement.style.getPropertyValue('--budget-bar-height')).toBe('');
+  });
+
   it('follows the selected date when no date prop is given', () => {
     useAppStore.getState().openDay(DATE);
     log(1000);
