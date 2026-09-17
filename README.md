@@ -8,7 +8,7 @@ Live at **https://watchis.github.io/macro-tracker/**
 
 ## Using it
 
-Three views, switched from the header — they are app state rather than routes, so GitHub Pages
+Four views, switched from the header — they are app state rather than routes, so GitHub Pages
 never has to serve a deep link.
 
 **Calendar** shows the month as a grid. A logged day reports its remaining calories, a depleting
@@ -22,9 +22,12 @@ required. The footer totals each column against its goal, and `Quick add` logs a
 library scaled from its reference weight to the grams you enter. Editing an entry keeps the values
 of macros that are currently hidden, so switching a macro off never silently drops data.
 
+**Food library** manages reusable foods stated for a reference weight; Day's quick-add scales them
+when you log.
+
 **Settings** covers the theme (light, dark or follow the system), the accent color as presets or a
-custom hex, which macros are visible, the daily calorie and per-macro goals, the first day of the
-week, the food library, and JSON export/import/reset.
+custom hex, which macros are visible, the daily calorie and per-macro goals, and JSON
+export/import/reset.
 
 The **budget bar** is pinned to the bottom of every view. It starts full and depletes as the
 selected day is logged, showing the calories left plus a chip per visible macro. Past the goal it
@@ -69,7 +72,7 @@ src/
   App.tsx              app shell: header, active view, budget bar
   components/          AppHeader, BudgetBar, MacroChip
   components/settings/ settings form controls, accent picker, food library, data export/import
-  views/               CalendarView, DayView, SettingsView
+  views/               CalendarView, DayView, FoodLibraryView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
   lib/                 date keys, macro metadata, totals and budget math
   theme/               data-theme + accent application, color helpers

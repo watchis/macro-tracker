@@ -24,6 +24,10 @@ describe('App shell', () => {
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(useAppStore.getState().view).toBe('settings');
 
+    await user.click(screen.getByRole('button', { name: 'Food library' }));
+    expect(screen.getByRole('heading', { name: 'Food library' })).toBeInTheDocument();
+    expect(useAppStore.getState().view).toBe('library');
+
     await user.click(screen.getByRole('button', { name: 'Day' }));
     expect(useAppStore.getState().view).toBe('day');
   });
