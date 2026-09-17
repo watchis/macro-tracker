@@ -27,26 +27,13 @@ export function SettingsView() {
 
   return (
     <div className="grid gap-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-muted">
-          Everything is stored in this browser. Export a copy before clearing site data.
-        </p>
-      </div>
+      <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
 
-      <SettingsSection
-        id="goals"
-        title="Goals and macros"
-        description="Targets drive the budget bar, and hidden macros disappear from tables and chips."
-      >
+      <SettingsSection id="goals" title="Goals and macros">
         <MacroSettings />
       </SettingsSection>
 
-      <SettingsSection
-        id="appearance"
-        title="Appearance"
-        description="Neutral gray and white surfaces, with one accent color you choose."
-      >
+      <SettingsSection id="appearance" title="Appearance">
         <div className="grid gap-5">
           <div>
             <span className="block text-xs font-medium tracking-wide text-muted uppercase">
@@ -66,19 +53,11 @@ export function SettingsView() {
         </div>
       </SettingsSection>
 
-      <SettingsSection
-        id="import-export"
-        title="Import/Export"
-        description="Move your log between browsers."
-      >
+      <SettingsSection id="import-export" title="Import/Export">
         <ImportExportSettings />
       </SettingsSection>
 
-      <SettingsSection
-        id="data"
-        title="Data"
-        description="See how much space the log uses, and how long to keep it."
-      >
+      <SettingsSection id="data" title="Data">
         <DataSettings />
       </SettingsSection>
     </div>

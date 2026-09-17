@@ -130,12 +130,9 @@ export async function queryStarterFoods(options: StarterQuery = {}): Promise<Sta
   let pool: StarterFood[];
   if (categoryId) {
     pool = await loadStarterCategory(categoryId);
-  } else if (query) {
-    pool = await loadAllStarterFoods();
   } else {
-    // No category and no query: show first category page rather than loading everything.
-    const first = STARTER_MANIFEST.categories[0];
-    pool = first ? await loadStarterCategory(first.id) : [];
+    // No category = All (browse or search across every category file).
+    pool = await loadAllStarterFoods();
   }
 
   const filtered = query ? pool.filter((item) => matchesQuery(item, query)) : pool;

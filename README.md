@@ -22,12 +22,11 @@ required. The footer totals each column against its goal, and `Quick add` logs a
 library scaled from its reference weight to the grams you enter. Editing an entry keeps the values
 of macros that are currently hidden, so switching a macro off never silently drops data.
 
-**Food library** manages reusable foods stated for a reference weight; Day's quick-add scales them
-when you log.
+**Food library** is a searchable USDA catalog plus your custom foods; Day's quick-add scales
+them by grams when you log.
 
-**Settings** covers the theme (light, dark or follow the system), the accent color as presets or a
-custom hex, which macros are visible, the daily calorie and per-macro goals, JSON import/export,
-local storage usage, and a retention policy for old day logs.
+**Settings** covers theme, accent color, visible macros, calorie and macro goals, JSON
+import/export, local storage usage, and retention for old day logs.
 
 The **budget bar** is pinned to the bottom of every view. It starts full and depletes as the
 selected day is logged, showing the calories left plus a chip per visible macro. Past the goal it
@@ -74,13 +73,13 @@ src/
   components/settings/ settings form controls, accent picker, import/export, data retention
   views/               CalendarView, DayView, FoodLibraryView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
-  data/                USDA starter catalog (lazy category JSON under starter/)
+  data/                USDA food catalog (lazy category JSON under starter/)
   lib/                 date keys, macro metadata, totals and budget math
   theme/               data-theme + accent application, color helpers
   index.css            palette custom properties and Tailwind theme mapping
 ```
 
-The default food library is a large **starter catalog** (5,000+ common foods from
+The food library includes a large **USDA catalog** (5,000+ common foods from
 [USDA FoodData Central](https://fdc.nal.usda.gov/)), split into category JSON files under
 `src/data/starter/` and **lazy-loaded** as you browse or search. Custom foods you add in the
 Food library view are persisted separately and appear first in quick-add.

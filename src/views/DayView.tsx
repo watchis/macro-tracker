@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { addDays, formatLongDate, isToday, todayKey } from '../lib/dates';
 import { MACROS, formatMacro, macroLabel, macroUnit } from '../lib/macros';
 import { formatCalories, scaleFood } from '../lib/totals';
@@ -13,6 +13,12 @@ import {
 } from '../store/selectors';
 import type { KeyboardEvent } from 'react';
 import type { DateKey, FoodEntry, FoodEntryInput, FoodLibraryItem, MacroKey } from '../types';
+
+type QuickAddOption = {
+  key: string;
+  food: FoodLibraryItem;
+  source: 'custom' | 'starter';
+};
 
 export type DayViewProps = {
   /** Day to log against; defaults to the selected date. */
@@ -264,7 +270,7 @@ export function DayView({ date }: DayViewProps) {
             {entries.length === 0 ? (
               <tr>
                 <td colSpan={columnCount} className="px-2 py-6 text-center text-sm text-muted">
-                  No food logged yet — add the first entry below.
+                  No food logged yet.
                 </td>
               </tr>
             ) : null}
@@ -517,12 +523,16 @@ function DraftCells({ draft, onChange, visibleMacros, context, autoFocus }: Draf
 
 /** Logs a library food scaled from its reference weight to the grams entered. */
 function QuickAdd({ day }: { day: DateKey }) {
+  const listboxId = useId();
   const customFoods = useCustomFoods();
   const visibleMacros = useVisibleMacros();
   const addEntry = useAppStore((state) => state.addEntry);
   const [query, setQuery] = useState('');
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selected, setSelected] = useState<QuickAddOption | null>(null);
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
   const [grams, setGrams] = useState('100');
+  const blurTimer = useRef<number | null>(null);
   const normalizedQuery = query.trim().toLowerCase();
 
   const customMatches = useMemo(() => {
@@ -553,12 +563,18 @@ function QuickAdd({ day }: { day: DateKey }) {
     };
   }, [normalizedQuery]);
 
+  useEffect(() => {
+    return () => {
+      if (blurTimer.current !== null) window.clearTimeout(blurTimer.current);
+    };
+  }, []);
+
   const loading = Boolean(normalizedQuery) && starterResult.query !== normalizedQuery;
 
   const options = useMemo(() => {
     const starterMatches =
       normalizedQuery && starterResult.query === normalizedQuery ? starterResult.items : [];
-    const rows: Array<{ key: string; food: FoodLibraryItem; source: 'custom' | 'starter' }> = [];
+    const rows: QuickAddOption[] = [];
     customMatches.forEach((food, index) => {
       rows.push({ key: `custom:${index}:${food.name}`, food, source: 'custom' });
     });
@@ -568,65 +584,155 @@ function QuickAdd({ day }: { day: DateKey }) {
     return rows;
   }, [customMatches, normalizedQuery, starterResult]);
 
-  const selected = options.find((row) => row.key === selectedKey) ?? options[0] ?? null;
+  const activeIndex = options.length === 0 ? 0 : Math.min(highlight, options.length - 1);
   const scaled = selected ? scaleFood(selected.food, parseNumber(grams) ?? 0) : null;
+  const showMenu = open && !selected;
+  const activeOption = options[activeIndex] ?? null;
+
+  const pick = (row: QuickAddOption) => {
+    setSelected(row);
+    setQuery(row.food.name);
+    setOpen(false);
+    setHighlight(0);
+  };
+
+  const onQueryChange = (value: string) => {
+    setQuery(value);
+    setSelected(null);
+    setOpen(true);
+    setHighlight(0);
+  };
+
+  const onComboboxKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (selected) {
+        setSelected(null);
+        setOpen(true);
+        return;
+      }
+      setOpen(true);
+      if (options.length === 0) return;
+      setHighlight((index) => (Math.min(index, options.length - 1) + 1) % options.length);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (selected) {
+        setSelected(null);
+        setOpen(true);
+        return;
+      }
+      setOpen(true);
+      if (options.length === 0) return;
+      setHighlight(
+        (index) => (Math.min(index, options.length - 1) - 1 + options.length) % options.length,
+      );
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setOpen(false);
+      return;
+    }
+    if (event.key === 'Enter' && showMenu && activeOption) {
+      event.preventDefault();
+      pick(activeOption);
+    }
+  };
 
   return (
     <form
       data-testid="quick-add"
-      className="card grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end"
+      className="card grid gap-3 p-4 sm:grid-cols-[1fr_auto_auto] sm:items-end"
       onSubmit={(event) => {
         event.preventDefault();
         if (!selected || !scaled) return;
         addEntry(day, scaled);
       }}
     >
-      <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">
-        Search library
+      <div className="relative grid gap-1">
+        <label
+          htmlFor={`${listboxId}-input`}
+          className="text-xs tracking-wide text-subtle uppercase"
+        >
+          Quick add
+        </label>
         <input
-          type="search"
+          id={`${listboxId}-input`}
+          type="text"
+          role="combobox"
           name="quick-add-search"
           data-testid="quick-add-search"
+          autoComplete="off"
+          aria-autocomplete="list"
+          aria-expanded={showMenu}
+          aria-controls={listboxId}
+          aria-activedescendant={
+            showMenu && activeOption ? `${listboxId}-option-${activeIndex}` : undefined
+          }
           value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setSelectedKey(null);
+          onChange={(event) => onQueryChange(event.target.value)}
+          onFocus={() => {
+            if (blurTimer.current !== null) window.clearTimeout(blurTimer.current);
+            if (!selected) setOpen(true);
           }}
+          onBlur={() => {
+            blurTimer.current = window.setTimeout(() => setOpen(false), 120);
+          }}
+          onKeyDown={onComboboxKeyDown}
           placeholder={`Search ${STARTER_FOOD_COUNT.toLocaleString()} foods`}
           className={`${INPUT} h-8`}
         />
-      </label>
 
-      <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">
-        Quick add from library
-        <select
-          name="quick-add-food"
-          data-testid="quick-add-food"
-          value={selected?.key ?? ''}
-          onChange={(event) => setSelectedKey(event.target.value)}
-          className={`${INPUT} h-8 py-0`}
-        >
-          {options.length === 0 ? (
-            <option value="">
-              {loading
-                ? 'Searching…'
-                : normalizedQuery
-                  ? 'No matches'
-                  : customFoods.length > 0
-                    ? 'Type to search starter foods'
-                    : 'Type to search the starter library'}
-            </option>
-          ) : (
-            options.map((row) => (
-              <option key={row.key} value={row.key}>
-                {row.source === 'custom' ? '★ ' : ''}
-                {row.food.name} · {formatCalories(row.food.calories)} kcal /{' '}
-                {Math.round(row.food.grams)} g
-              </option>
-            ))
-          )}
-        </select>
-      </label>
+        {showMenu ? (
+          <ul
+            id={listboxId}
+            role="listbox"
+            data-testid="quick-add-suggestions"
+            className="absolute top-full z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-line bg-surface py-1 shadow-md"
+          >
+            {loading && options.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-muted">Searching…</li>
+            ) : options.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-muted">
+                {normalizedQuery ? 'No matches' : 'Type to search'}
+              </li>
+            ) : (
+              options.map((row, index) => {
+                const active = index === activeIndex;
+                return (
+                  <li
+                    key={row.key}
+                    id={`${listboxId}-option-${index}`}
+                    role="option"
+                    aria-selected={active}
+                    data-testid={`quick-add-option-${index}`}
+                    className={[
+                      'cursor-pointer px-3 py-2 text-sm',
+                      active ? 'bg-accent-soft text-ink' : 'text-ink hover:bg-raised',
+                    ].join(' ')}
+                    onMouseDown={(event) => {
+                      // Keep focus on the input so blur does not close before pick.
+                      event.preventDefault();
+                      pick(row);
+                    }}
+                    onMouseEnter={() => setHighlight(index)}
+                  >
+                    <span className="font-medium">
+                      {row.source === 'custom' ? '★ ' : ''}
+                      {row.food.name}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted tabular-nums">
+                      {formatCalories(row.food.calories)} kcal / {Math.round(row.food.grams)} g
+                    </span>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        ) : null}
+      </div>
 
       <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">
         Grams
@@ -649,7 +755,7 @@ function QuickAdd({ day }: { day: DateKey }) {
       {scaled ? (
         <p
           data-testid="quick-add-preview"
-          className="text-xs text-muted tabular-nums sm:col-span-4"
+          className="text-xs text-muted tabular-nums sm:col-span-3"
         >
           {scaled.name} · {Math.round(scaled.grams)} g · {formatCalories(scaled.calories)} kcal
           {visibleMacros.length > 0
@@ -661,15 +767,7 @@ function QuickAdd({ day }: { day: DateKey }) {
                 .join(' · ')}`
             : ''}
         </p>
-      ) : (
-        <p className="text-xs text-muted sm:col-span-4">
-          {normalizedQuery
-            ? loading
-              ? 'Searching the USDA starter library…'
-              : null
-            : 'Type a food name to search the USDA starter library, or pick one of your custom foods.'}
-        </p>
-      )}
+      ) : null}
     </form>
   );
 }

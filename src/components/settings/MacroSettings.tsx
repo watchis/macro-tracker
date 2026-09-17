@@ -27,9 +27,6 @@ export function MacroSettings() {
         onCommit={(value) => setCalorieGoal(value ?? 0)}
         className="max-w-48"
       />
-      <p className="-mt-3 text-xs text-subtle">
-        Set 0 to hide the budget and just count what you log.
-      </p>
 
       <div>
         <span className="block text-xs font-medium tracking-wide text-muted uppercase">

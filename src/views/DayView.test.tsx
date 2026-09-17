@@ -293,10 +293,10 @@ describe('DayView quick add', () => {
     });
     render(<DayView date={DATE} />);
 
-    await user.selectOptions(
-      screen.getByLabelText(/quick add from library/i),
-      screen.getByRole('option', { name: /test oats/i }),
-    );
+    const search = screen.getByTestId('quick-add-search');
+    await user.click(search);
+    await user.click(await screen.findByRole('option', { name: /test oats/i }));
+
     const grams = screen.getByLabelText('Grams');
     await user.clear(grams);
     await user.type(grams, '50');
@@ -312,13 +312,13 @@ describe('DayView quick add', () => {
     expect(entryAt().macros.protein).toBe(6.5);
   });
 
-  it('searches the USDA starter library asynchronously', async () => {
+  it('searches the USDA catalog asynchronously', async () => {
     const user = userEvent.setup();
     render(<DayView date={DATE} />);
 
     await user.type(screen.getByTestId('quick-add-search'), 'banana');
     await waitFor(() => {
-      expect(screen.getByTestId('quick-add-food')).toHaveTextContent(/banana/i);
+      expect(screen.getByTestId('quick-add-suggestions')).toHaveTextContent(/banana/i);
     });
   });
 

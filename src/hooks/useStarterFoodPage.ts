@@ -41,7 +41,7 @@ export function useStarterFoodPage(options: StarterQuery): {
           setResult({
             key: requestKey,
             page: null,
-            error: err instanceof Error ? err.message : 'Failed to load starter foods.',
+            error: err instanceof Error ? err.message : 'Failed to load foods.',
           });
         }
       });
