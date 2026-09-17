@@ -42,6 +42,13 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 
 export type WeekStart = 'sunday' | 'monday';
 
+/**
+ * Automatic cleanup for logged days. See `src/lib/retention.ts` for the preset
+ * catalog and prune behaviour.
+ */
+export type DataRetentionPolicy =
+  'forever' | 'retain-6-months' | 'retain-1-year' | 'pressure-90-drop-3-months';
+
 export type Goals = {
   calories: number;
   macros: MacroAmounts;
@@ -54,6 +61,8 @@ export type Settings = {
   visibleMacros: MacroKey[];
   goals: Goals;
   weekStart: WeekStart;
+  /** How long day logs are kept, or when storage pressure may trim them. */
+  dataRetention: DataRetentionPolicy;
 };
 
 export type PersistedState = {
@@ -69,4 +78,4 @@ export type PersistedState = {
 };
 
 /** Views are switched in app state; there is no router (GitHub Pages has no rewrites). */
-export type ViewName = 'calendar' | 'day' | 'settings';
+export type ViewName = 'calendar' | 'day' | 'library' | 'settings';

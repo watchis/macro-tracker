@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { ConfirmAction } from './ConfirmAction';
-import { FoodForm } from './FoodForm';
 import { STARTER_FOOD_LIBRARY } from '../../data/starterFoodLibrary';
 import { MACROS, formatMacro } from '../../lib/macros';
 import { formatCalories } from '../../lib/totals';
-import { useAppStore } from '../../store/useAppStore';
 import { useCustomFoods } from '../../store/selectors';
+import { useAppStore } from '../../store/useAppStore';
 import type { FoodLibraryItem } from '../../types';
+import { ConfirmAction } from './ConfirmAction';
+import { FoodForm } from './FoodForm';
 
 function macroSummary(item: FoodLibraryItem): string {
   const parts = MACROS.filter((macro) => typeof item.macros[macro.key] === 'number').map(
@@ -31,15 +31,37 @@ export function FoodLibrarySettings() {
   const removeFood = useAppStore((state) => state.removeFood);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
-  const [starterQuery, setStarterQuery] = useState('');
+  const [query, setQuery] = useState('');
 
-  const starterMatches = useMemo(() => {
-    const query = starterQuery.trim().toLowerCase();
-    return STARTER_FOOD_LIBRARY.filter((item) => matchesQuery(item, query));
-  }, [starterQuery]);
+  const normalizedQuery = query.trim().toLowerCase();
+
+  const customMatches = useMemo(
+    () =>
+      customFoods
+        .map((item, index) => ({ item, index }))
+        .filter(({ item }) => matchesQuery(item, normalizedQuery)),
+    [customFoods, normalizedQuery],
+  );
+
+  const starterMatches = useMemo(
+    () => STARTER_FOOD_LIBRARY.filter((item) => matchesQuery(item, normalizedQuery)),
+    [normalizedQuery],
+  );
 
   return (
     <div className="grid gap-6">
+      <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">
+        Search foods
+        <input
+          type="search"
+          data-testid="food-library-search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={`Search ${customFoods.length + STARTER_FOOD_LIBRARY.length} foods`}
+          className="w-full rounded-md border border-line bg-bg px-3 py-2 text-sm font-normal normal-case tracking-normal text-ink placeholder:text-subtle"
+        />
+      </label>
+
       <section className="grid gap-3" aria-labelledby="custom-foods-heading">
         <div>
           <h3 id="custom-foods-heading" className="text-sm font-semibold text-ink">
@@ -54,9 +76,13 @@ export function FoodLibrarySettings() {
           <p data-testid="food-library-empty" className="text-sm text-muted">
             No custom foods yet. The starter library below is always available.
           </p>
+        ) : customMatches.length === 0 ? (
+          <p data-testid="food-library-no-custom-matches" className="text-sm text-muted">
+            No custom foods match that search.
+          </p>
         ) : (
           <ul data-testid="food-library-list" className="grid gap-2">
-            {customFoods.map((item, index) => (
+            {customMatches.map(({ item, index }) => (
               <li
                 key={`custom-${item.name}-${index}`}
                 data-testid={`food-item-${index}`}
@@ -149,25 +175,13 @@ export function FoodLibrarySettings() {
           </p>
         </div>
 
-        <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">
-          Search starter foods
-          <input
-            type="search"
-            data-testid="starter-food-search"
-            value={starterQuery}
-            onChange={(event) => setStarterQuery(event.target.value)}
-            placeholder="e.g. chicken, banana, oats"
-            className="w-full rounded-md border border-line bg-bg px-3 py-2 text-sm font-normal normal-case tracking-normal text-ink placeholder:text-subtle"
-          />
-        </label>
-
         <p data-testid="starter-food-count" className="text-xs text-muted">
           Showing {starterMatches.length} of {STARTER_FOOD_LIBRARY.length}
         </p>
 
         <ul
           data-testid="starter-food-list"
-          className="grid max-h-80 gap-1 overflow-y-auto rounded-lg border border-line p-2"
+          className="grid max-h-96 gap-1 overflow-y-auto rounded-lg border border-line p-2"
         >
           {starterMatches.length === 0 ? (
             <li className="px-2 py-3 text-sm text-muted">No starter foods match that search.</li>

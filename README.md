@@ -8,7 +8,7 @@ Live at **https://watchis.github.io/macro-tracker/**
 
 ## Using it
 
-Three views, switched from the header — they are app state rather than routes, so GitHub Pages
+Four views, switched from the header — they are app state rather than routes, so GitHub Pages
 never has to serve a deep link.
 
 **Calendar** shows the month as a grid. A logged day reports its remaining calories, a depleting
@@ -22,9 +22,12 @@ required. The footer totals each column against its goal, and `Quick add` logs a
 library scaled from its reference weight to the grams you enter. Editing an entry keeps the values
 of macros that are currently hidden, so switching a macro off never silently drops data.
 
+**Food library** manages reusable foods stated for a reference weight; Day's quick-add scales them
+when you log.
+
 **Settings** covers the theme (light, dark or follow the system), the accent color as presets or a
-custom hex, which macros are visible, the daily calorie and per-macro goals, the first day of the
-week, the food library, and JSON export/import/reset.
+custom hex, which macros are visible, the daily calorie and per-macro goals, JSON import/export,
+local storage usage, and a retention policy for old day logs.
 
 The **budget bar** is pinned to the bottom of every view. It starts full and depletes as the
 selected day is logged, showing the calories left plus a chip per visible macro. Past the goal it
@@ -68,8 +71,8 @@ The dev server serves the app under `/macro-tracker/` because `vite.config.ts` s
 src/
   App.tsx              app shell: header, active view, budget bar
   components/          AppHeader, BudgetBar, MacroChip
-  components/settings/ settings form controls, accent picker, food library, data export/import
-  views/               CalendarView, DayView, SettingsView
+  components/settings/ settings form controls, accent picker, import/export, data retention
+  views/               CalendarView, DayView, FoodLibraryView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
   data/                USDA FoodData Central–sourced starter food library JSON
   lib/                 date keys, macro metadata, totals and budget math
@@ -77,11 +80,11 @@ src/
   index.css            palette custom properties and Tailwind theme mapping
 ```
 
-The default food library is a large **starter catalog** (~360 common foods) read from
+The default food library is a large **starter catalog** (~1,000 common foods) read from
 [USDA FoodData Central](https://fdc.nal.usda.gov/) and bundled at
 `src/data/food-library-usda.json`. It loads with the app and is not stored in
-`localStorage`. Custom foods you add in Settings are persisted separately and appear
-first in quick-add.
+`localStorage`. Custom foods you add in the Food library view are persisted separately
+and appear first in quick-add; both lists are searchable.
 
 ## Theming
 

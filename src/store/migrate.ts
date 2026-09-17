@@ -1,10 +1,12 @@
 import { isLegacyStarterName } from '../data/starterFoodLibrary';
-import { DEFAULT_SETTINGS, STORE_VERSION, defaultPersistedState } from './defaults';
+import { isDataRetentionPolicy } from '../lib/retention';
 import { isDateKey } from '../lib/dates';
 import { createId } from '../lib/id';
 import { normalizeMacros, sortMacros } from '../lib/macros';
 import { normalizeHex } from '../theme/color';
+import { DEFAULT_SETTINGS, STORE_VERSION, defaultPersistedState } from './defaults';
 import type {
+  DataRetentionPolicy,
   DateKey,
   FoodEntry,
   FoodLibraryItem,
@@ -101,6 +103,10 @@ function parseWeekStart(value: unknown): WeekStart {
   return value === 'monday' || value === 'sunday' ? value : DEFAULT_SETTINGS.weekStart;
 }
 
+function parseDataRetention(value: unknown): DataRetentionPolicy {
+  return isDataRetentionPolicy(value) ? value : DEFAULT_SETTINGS.dataRetention;
+}
+
 function parseVisibleMacros(value: unknown): MacroKey[] {
   if (!Array.isArray(value)) return [...DEFAULT_SETTINGS.visibleMacros];
   const sorted = sortMacros(value as MacroKey[]);
@@ -121,6 +127,7 @@ export function parseSettings(value: unknown): Settings {
     visibleMacros: parseVisibleMacros(value.visibleMacros),
     goals: parseGoals(value.goals),
     weekStart: parseWeekStart(value.weekStart),
+    dataRetention: parseDataRetention(value.dataRetention),
   };
 }
 
