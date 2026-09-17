@@ -96,6 +96,16 @@ function withDay(
   return next;
 }
 
+/**
+ * Every rehydrated payload is re-parsed, not only the ones a version bump sends
+ * through `migrate`: persist skips that hook when the stored version already
+ * matches, so a hand-edited or half-written payload would otherwise land in the
+ * store as-is and crash the first render.
+ */
+export function mergePersistedState(persisted: unknown, current: AppStore): AppStore {
+  return { ...current, ...parsePersistedState(persisted) };
+}
+
 export const useAppStore = create<AppStore>()(
   persist(
     (set, get) => ({
@@ -272,6 +282,7 @@ export const useAppStore = create<AppStore>()(
       version: STORE_VERSION,
       storage: createJSONStorage(() => localStorage),
       migrate: migratePersistedState,
+      merge: mergePersistedState,
       partialize: (state): PersistedState => ({
         version: state.version,
         days: state.days,

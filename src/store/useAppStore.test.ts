@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { useAppStore } from './useAppStore';
+import { mergePersistedState, useAppStore } from './useAppStore';
 import { DEFAULT_ACCENT, STORAGE_KEY, STORE_VERSION, defaultPersistedState } from './defaults';
 import { parsePersistedState } from './migrate';
 import { sumEntries } from '../lib/totals';
@@ -290,5 +290,56 @@ describe('parsePersistedState', () => {
     expect(parsed.days['2026-09-17']).toHaveLength(1);
     expect(parsed.days['2026-09-17']?.[0]?.name).toBe('Keep');
     expect(parsed.days['2026-09-17']?.[0]?.id).toBeTruthy();
+  });
+});
+
+describe('mergePersistedState', () => {
+  // persist only calls `migrate` when the stored version differs, so this is the
+  // only thing standing between a corrupt same-version payload and the render.
+  it('re-parses a payload that would otherwise rehydrate as-is', () => {
+    const merged = mergePersistedState(
+      { version: STORE_VERSION, days: 'nope', foodLibrary: 'nope', settings: 42 },
+      store(),
+    );
+
+    expect(merged.days).toEqual({});
+    expect(merged.foodLibrary).toEqual([]);
+    expect(merged.settings).toEqual(defaultPersistedState().settings);
+  });
+
+  it('drops junk entries and invalid settings but keeps what is usable', () => {
+    const merged = mergePersistedState(
+      {
+        version: STORE_VERSION,
+        days: { [DATE]: [{ name: 'Real food', grams: 100, calories: 200 }, 'junk', null] },
+        foodLibrary: [{ name: 'Oats', grams: 100, calories: 379 }, 'junk'],
+        settings: {
+          themeMode: 'sideways',
+          accent: 'not-a-hex',
+          visibleMacros: ['protein', 'bogus'],
+          goals: { calories: 'lots' },
+          weekStart: 'friday',
+        },
+      },
+      store(),
+    );
+
+    expect(merged.days[DATE]).toHaveLength(1);
+    expect(merged.days[DATE]?.[0]?.name).toBe('Real food');
+    expect(merged.foodLibrary).toHaveLength(1);
+    expect(merged.settings.themeMode).toBe('system');
+    expect(merged.settings.accent).toBe(DEFAULT_ACCENT);
+    expect(merged.settings.visibleMacros).toEqual(['protein']);
+    expect(merged.settings.goals.calories).toBe(2000);
+    expect(merged.settings.weekStart).toBe('sunday');
+  });
+
+  it('leaves transient UI state alone', () => {
+    const current = store();
+    const merged = mergePersistedState({ version: STORE_VERSION }, current);
+
+    expect(merged.view).toBe(current.view);
+    expect(merged.selectedDate).toBe(current.selectedDate);
+    expect(typeof merged.addEntry).toBe('function');
   });
 });
