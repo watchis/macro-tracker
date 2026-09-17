@@ -30,6 +30,10 @@ describe('App shell', () => {
 
     await user.click(screen.getByRole('button', { name: 'Day' }));
     expect(useAppStore.getState().view).toBe('day');
+
+    await user.click(screen.getByRole('button', { name: 'Graphs' }));
+    expect(screen.getByRole('heading', { name: 'Graphs' })).toBeInTheDocument();
+    expect(useAppStore.getState().view).toBe('graphs');
   });
 
   it('opens the day view from a calendar day cell', async () => {

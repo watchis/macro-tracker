@@ -6,6 +6,7 @@ import type { ViewName } from '../types';
 const NAV_ITEMS: ReadonlyArray<{ view: ViewName; label: string }> = [
   { view: 'calendar', label: 'Calendar' },
   { view: 'day', label: 'Day' },
+  { view: 'graphs', label: 'Graphs' },
   { view: 'library', label: 'Food library' },
   { view: 'settings', label: 'Settings' },
 ];

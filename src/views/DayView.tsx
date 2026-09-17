@@ -8,11 +8,24 @@ import {
   useCustomFoods,
   useDayBudget,
   useDayEntries,
+  useDayWeightKg,
   useSelectedDate,
   useVisibleMacros,
+  useWeightUnit,
 } from '../store/selectors';
 import type { KeyboardEvent } from 'react';
-import type { DateKey, FoodEntry, FoodEntryInput, FoodLibraryItem, MacroKey } from '../types';
+import type {
+  DateKey,
+  FoodEntry,
+  FoodEntryInput,
+  FoodLibraryItem,
+  MacroKey,
+  WeightUnit,
+} from '../types';
+import { fromCanonicalKg, roundWeight, weightUnitLabel } from '../lib/weight';
+import { SegmentedControl } from '../components/settings/SegmentedControl';
+import type { SegmentedOption } from '../components/settings/SegmentedControl';
+import { NumberField } from '../components/settings/NumberField';
 
 type QuickAddOption = {
   key: string;
@@ -105,6 +118,10 @@ export function DayView({ date }: DayViewProps) {
   const removeEntry = useAppStore((state) => state.removeEntry);
   const setSelectedDate = useAppStore((state) => state.setSelectedDate);
   const setView = useAppStore((state) => state.setView);
+  const weightKg = useDayWeightKg(day);
+  const weightUnit = useWeightUnit();
+  const setWeight = useAppStore((state) => state.setWeight);
+  const setWeightUnit = useAppStore((state) => state.setWeightUnit);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Draft>(emptyDraft);
@@ -237,6 +254,14 @@ export function DayView({ date }: DayViewProps) {
           </dl>
         ) : null}
       </div>
+
+      <WeightPanel
+        day={day}
+        weightKg={weightKg}
+        weightUnit={weightUnit}
+        onCommit={(value) => setWeight(day, value, weightUnit)}
+        onUnitChange={setWeightUnit}
+      />
 
       {/* `relative` keeps the table's visually-hidden caption and header text
           inside this scroll container; positioned against the viewport instead,
@@ -446,6 +471,66 @@ export function DayView({ date }: DayViewProps) {
 
       <QuickAdd day={day} />
     </section>
+  );
+}
+
+type WeightPanelProps = {
+  day: DateKey;
+  weightKg: number | undefined;
+  weightUnit: WeightUnit;
+  onCommit: (value: number | undefined) => void;
+  onUnitChange: (unit: WeightUnit) => void;
+};
+
+/** Body-weight weigh-in for the selected day; unit preference is shared app-wide. */
+function WeightPanel({ day, weightKg, weightUnit, onCommit, onUnitChange }: WeightPanelProps) {
+  const display =
+    weightKg === undefined
+      ? undefined
+      : roundWeight(fromCanonicalKg(weightKg, weightUnit), weightUnit);
+  const unitOptions: ReadonlyArray<SegmentedOption<WeightUnit>> = [
+    { value: 'lb', label: 'lb' },
+    { value: 'kg', label: 'kg' },
+  ];
+
+  return (
+    <div data-testid="day-weight" className="card flex flex-wrap items-end gap-4 p-4">
+      <NumberField
+        label="Weight"
+        testId="day-weight-input"
+        value={display}
+        min={0}
+        allowEmpty
+        unit={weightUnitLabel(weightUnit)}
+        placeholder="—"
+        onCommit={(value) => onCommit(value)}
+        className="w-36"
+      />
+      <div>
+        <span className="block text-xs font-medium tracking-wide text-muted uppercase">Unit</span>
+        <div className="mt-1">
+          <SegmentedControl
+            label="Weight unit"
+            testId="day-weight-unit"
+            value={weightUnit}
+            options={unitOptions}
+            onChange={onUnitChange}
+          />
+        </div>
+      </div>
+      {weightKg !== undefined ? (
+        <button
+          type="button"
+          aria-label={`Clear weight for ${day}`}
+          onClick={() => onCommit(undefined)}
+          className={ROW_BUTTON}
+        >
+          Clear
+        </button>
+      ) : (
+        <p className="text-xs text-muted">Optional daily weigh-in for the Graphs page.</p>
+      )}
+    </div>
   );
 }
 

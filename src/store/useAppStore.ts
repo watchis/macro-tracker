@@ -3,8 +3,9 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { todayKey } from '../lib/dates';
 import { createId } from '../lib/id';
 import { normalizeMacros, sortMacros } from '../lib/macros';
-import { applyDataRetention, sameDayKeys } from '../lib/retention';
+import { applyDataRetentionBundle, sameDayKeys } from '../lib/retention';
 import { measureLocalStorageUsage } from '../lib/storage';
+import { toCanonicalKg } from '../lib/weight';
 import { normalizeHex } from '../theme/color';
 import { STORAGE_KEY, STORE_VERSION, defaultPersistedState } from './defaults';
 import { migratePersistedState, parsePersistedState } from './migrate';
@@ -20,6 +21,7 @@ import type {
   ThemeMode,
   ViewName,
   WeekStart,
+  WeightUnit,
 } from '../types';
 
 /** Transient UI state. Deliberately excluded from persistence. */
@@ -42,6 +44,15 @@ export type AppActions = {
   updateEntry: (date: DateKey, id: string, patch: Partial<FoodEntryInput>) => void;
   removeEntry: (date: DateKey, id: string) => void;
   clearDay: (date: DateKey) => void;
+
+  // --- body weight ---------------------------------------------------------
+  /**
+   * Sets or clears the weigh-in for `date`. Pass `null`/`undefined` to remove.
+   * `value` is in the preferred display unit (`settings.weightUnit`); the store
+   * converts to kilograms before persisting.
+   */
+  setWeight: (date: DateKey, value: number | null | undefined, unit?: WeightUnit) => void;
+  setWeightUnit: (unit: WeightUnit) => void;
 
   // --- food library --------------------------------------------------------
   /**
@@ -105,20 +116,41 @@ function withDay(
   return next;
 }
 
-function pruneDays(
+function withWeight(
+  weights: Record<DateKey, number>,
+  date: DateKey,
+  kg: number | null,
+): Record<DateKey, number> {
+  const next = { ...weights };
+  if (kg === null || !Number.isFinite(kg) || kg <= 0) {
+    delete next[date];
+  } else {
+    next[date] = kg;
+  }
+  return next;
+}
+
+function pruneBundle(
   days: Record<DateKey, FoodEntry[]>,
+  weights: Record<DateKey, number>,
   policy: DataRetentionPolicy,
-): Record<DateKey, FoodEntry[]> {
+): { days: Record<DateKey, FoodEntry[]>; weights: Record<DateKey, number> } {
   const usage = measureLocalStorageUsage(STORAGE_KEY);
-  return applyDataRetention(days, policy, { storageUsedBytes: usage.totalBytes });
+  return applyDataRetentionBundle(days, weights, policy, { storageUsedBytes: usage.totalBytes });
 }
 
 function withRetention(
   days: Record<DateKey, FoodEntry[]>,
+  weights: Record<DateKey, number>,
   policy: DataRetentionPolicy,
-): Record<DateKey, FoodEntry[]> {
-  const pruned = pruneDays(days, policy);
-  return sameDayKeys(days, pruned) ? days : pruned;
+): { days: Record<DateKey, FoodEntry[]>; weights: Record<DateKey, number> } {
+  const pruned = pruneBundle(days, weights, policy);
+  const daysSame = sameDayKeys(days, pruned.days);
+  const weightsSame = sameDayKeys(weights, pruned.weights);
+  return {
+    days: daysSame ? days : pruned.days,
+    weights: weightsSame ? weights : pruned.weights,
+  };
 }
 
 /**
@@ -130,10 +162,12 @@ function withRetention(
  */
 export function mergePersistedState(persisted: unknown, current: AppStore): AppStore {
   const parsed = parsePersistedState(persisted);
+  const retained = withRetention(parsed.days, parsed.weights, parsed.settings.dataRetention);
   return {
     ...current,
     ...parsed,
-    days: withRetention(parsed.days, parsed.settings.dataRetention),
+    days: retained.days,
+    weights: retained.weights,
   };
 }
 
@@ -153,12 +187,14 @@ export const useAppStore = create<AppStore>()(
           createdAt: new Date().toISOString(),
           ...sanitizeEntryInput(input),
         };
-        set((state) => ({
-          days: withRetention(
+        set((state) => {
+          const retained = withRetention(
             withDay(state.days, date, [...(state.days[date] ?? []), entry]),
+            state.weights,
             state.settings.dataRetention,
-          ),
-        }));
+          );
+          return { days: retained.days, weights: retained.weights };
+        });
         return entry.id;
       },
 
@@ -179,31 +215,56 @@ export const useAppStore = create<AppStore>()(
                 }
               : entry,
           );
-          return {
-            days: withRetention(withDay(state.days, date, next), state.settings.dataRetention),
-          };
+          const retained = withRetention(
+            withDay(state.days, date, next),
+            state.weights,
+            state.settings.dataRetention,
+          );
+          return { days: retained.days, weights: retained.weights };
         }),
 
       removeEntry: (date, id) =>
         set((state) => {
           const entries = state.days[date];
           if (!entries) return state;
-          return {
-            days: withRetention(
-              withDay(
-                state.days,
-                date,
-                entries.filter((entry) => entry.id !== id),
-              ),
-              state.settings.dataRetention,
+          const retained = withRetention(
+            withDay(
+              state.days,
+              date,
+              entries.filter((entry) => entry.id !== id),
             ),
-          };
+            state.weights,
+            state.settings.dataRetention,
+          );
+          return { days: retained.days, weights: retained.weights };
         }),
 
       clearDay: (date) =>
-        set((state) => ({
-          days: withRetention(withDay(state.days, date, []), state.settings.dataRetention),
-        })),
+        set((state) => {
+          const retained = withRetention(
+            withDay(state.days, date, []),
+            state.weights,
+            state.settings.dataRetention,
+          );
+          return { days: retained.days, weights: retained.weights };
+        }),
+
+      setWeight: (date, value, unit) =>
+        set((state) => {
+          const displayUnit = unit ?? state.settings.weightUnit;
+          const kg =
+            value === null || value === undefined || !Number.isFinite(value) || value <= 0
+              ? null
+              : toCanonicalKg(value, displayUnit);
+          const retained = withRetention(
+            state.days,
+            withWeight(state.weights, date, kg),
+            state.settings.dataRetention,
+          );
+          return { days: retained.days, weights: retained.weights };
+        }),
+
+      setWeightUnit: (weightUnit) => get().updateSettings({ weightUnit }),
 
       addFood: (item) =>
         set((state) => ({
@@ -244,6 +305,7 @@ export const useAppStore = create<AppStore>()(
               ...merged,
               accent: normalizeHex(merged.accent) ?? state.settings.accent,
               visibleMacros: sortMacros(merged.visibleMacros),
+              weightUnit: merged.weightUnit === 'kg' ? 'kg' : 'lb',
               goals: {
                 calories: Math.max(0, merged.goals.calories),
                 macros: normalizeMacros(merged.goals.macros),
@@ -294,20 +356,25 @@ export const useAppStore = create<AppStore>()(
       setWeekStart: (weekStart) => get().updateSettings({ weekStart }),
 
       setDataRetention: (dataRetention) => {
-        set((state) => ({
-          settings: { ...state.settings, dataRetention },
-          days: withRetention(state.days, dataRetention),
-        }));
+        set((state) => {
+          const retained = withRetention(state.days, state.weights, dataRetention);
+          return {
+            settings: { ...state.settings, dataRetention },
+            days: retained.days,
+            weights: retained.weights,
+          };
+        });
       },
 
       applyRetentionNow: () =>
-        set((state) => ({
-          days: withRetention(state.days, state.settings.dataRetention),
-        })),
+        set((state) => {
+          const retained = withRetention(state.days, state.weights, state.settings.dataRetention);
+          return { days: retained.days, weights: retained.weights };
+        }),
 
       exportJson: () => {
-        const { version, days, foodLibrary, settings } = get();
-        const snapshot: PersistedState = { version, days, foodLibrary, settings };
+        const { version, days, weights, foodLibrary, settings } = get();
+        const snapshot: PersistedState = { version, days, weights, foodLibrary, settings };
         return JSON.stringify(snapshot, null, 2);
       },
 
@@ -322,9 +389,11 @@ export const useAppStore = create<AppStore>()(
           return { ok: false, error: 'Expected a Macro Tracker export object.' };
         }
         const state = parsePersistedState(parsed);
+        const retained = withRetention(state.days, state.weights, state.settings.dataRetention);
         set({
           version: state.version,
-          days: withRetention(state.days, state.settings.dataRetention),
+          days: retained.days,
+          weights: retained.weights,
           foodLibrary: state.foodLibrary,
           settings: state.settings,
         });
@@ -342,6 +411,7 @@ export const useAppStore = create<AppStore>()(
       partialize: (state): PersistedState => ({
         version: state.version,
         days: state.days,
+        weights: state.weights,
         foodLibrary: state.foodLibrary,
         settings: state.settings,
       }),

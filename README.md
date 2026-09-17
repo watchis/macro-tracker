@@ -8,7 +8,7 @@ Live at **https://watchis.github.io/macro-tracker/**
 
 ## Using it
 
-Four views, switched from the header — they are app state rather than routes, so GitHub Pages
+Five views, switched from the header — they are app state rather than routes, so GitHub Pages
 never has to serve a deep link.
 
 **Calendar** shows the month as a grid. A logged day reports its remaining calories, a depleting
@@ -20,12 +20,17 @@ the first and last of the month, and `PageUp`/`PageDown` page between months.
 Edit/Delete on every entry. `Enter` submits a row and `Escape` cancels it; only the name is
 required. The footer totals each column against its goal, and `Quick add` logs a food from your
 library scaled from its reference weight to the grams you enter. Editing an entry keeps the values
-of macros that are currently hidden, so switching a macro off never silently drops data.
+of macros that are currently hidden, so switching a macro off never silently drops data. An optional
+**weight** field (lb or kg) records a daily weigh-in for the Graphs page.
+
+**Graphs** charts weight over time (with a trendline and average), daily calorie consumption, and
+calorie overages/underages against your goal. Toggle lb/kg and a 30 / 90 / all-time range from the
+page header.
 
 **Food library** is a searchable USDA catalog plus your custom foods; Day's quick-add scales
 them by grams when you log.
 
-**Settings** covers theme, accent color, visible macros, calorie and macro goals, JSON
+**Settings** covers theme, accent color, weight unit, visible macros, calorie and macro goals, JSON
 import/export, local storage usage, and retention for old day logs.
 
 The **budget bar** is pinned to the bottom of every view. It starts full and depletes as the
@@ -71,10 +76,11 @@ src/
   App.tsx              app shell: header, active view, budget bar
   components/          AppHeader, BudgetBar, MacroChip
   components/settings/ settings form controls, accent picker, import/export, data retention
-  views/               CalendarView, DayView, FoodLibraryView, SettingsView
+  views/               CalendarView, DayView, GraphsView, FoodLibraryView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
   data/                USDA food catalog (lazy category JSON under starter/)
-  lib/                 date keys, macro metadata, totals and budget math
+  lib/                 date keys, macro metadata, totals, weight conversion, chart series
+  components/charts/   SVG line and bar charts for the Graphs view
   theme/               data-theme + accent application, color helpers
   index.css            palette custom properties and Tailwind theme mapping
 ```
