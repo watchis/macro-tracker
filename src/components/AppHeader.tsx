@@ -4,8 +4,8 @@ import { formatShortDate, isToday } from '../lib/dates';
 import type { ViewName } from '../types';
 
 const NAV_ITEMS: ReadonlyArray<{ view: ViewName; label: string }> = [
+  { view: 'home', label: 'Home' },
   { view: 'calendar', label: 'Calendar' },
-  { view: 'day', label: 'Day' },
   { view: 'library', label: 'Food library' },
   { view: 'settings', label: 'Settings' },
 ];

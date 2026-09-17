@@ -25,6 +25,11 @@ export type CalendarViewProps = {
   month?: MonthKey;
   /** Day cell click handler; defaults to the store's `openDay`. */
   onOpenDay?: (date: DateKey) => void;
+  /**
+   * Compact month strip for the Home dashboard: day numbers and a logged-state
+   * dot, without the full calorie/macro cell content.
+   */
+  compact?: boolean;
 };
 
 /** Arrow keys walk the grid the way a date picker does. */
@@ -48,7 +53,7 @@ function dateInMonth(month: MonthKey, day: number): DateKey {
  * readout plus totals for the macros currently switched on in settings, and
  * clicking one opens that day in the day view.
  */
-export function CalendarView({ month, onOpenDay }: CalendarViewProps) {
+export function CalendarView({ month, onOpenDay, compact = false }: CalendarViewProps) {
   const selectedDate = useSelectedDate();
   const settings = useSettings();
   const visibleMacros = useVisibleMacros();
@@ -135,18 +140,29 @@ export function CalendarView({ month, onOpenDay }: CalendarViewProps) {
     }
   };
 
+  const MonthHeading = compact ? 'h3' : 'h1';
+
   return (
-    <section className="grid gap-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+    <section className={compact ? 'grid gap-2' : 'grid gap-4'} data-compact={compact || undefined}>
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 data-testid="calendar-month" className="text-xl font-semibold tracking-tight">
+          <MonthHeading
+            data-testid="calendar-month"
+            className={
+              compact
+                ? 'text-sm font-semibold tracking-tight'
+                : 'text-xl font-semibold tracking-tight'
+            }
+          >
             {formatMonthYear(activeMonth)}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted">
-            {summary.logged === 0
-              ? 'Nothing logged this month yet.'
-              : `${summary.logged} ${summary.logged === 1 ? 'day' : 'days'} logged · ${formatCalories(summary.calories)} kcal total`}
-          </p>
+          </MonthHeading>
+          {compact ? null : (
+            <p className="mt-0.5 text-sm text-muted">
+              {summary.logged === 0
+                ? 'Nothing logged this month yet.'
+                : `${summary.logged} ${summary.logged === 1 ? 'day' : 'days'} logged · ${formatCalories(summary.calories)} kcal total`}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -172,32 +188,45 @@ export function CalendarView({ month, onOpenDay }: CalendarViewProps) {
         </div>
       </header>
 
-      <div className="card p-2 sm:p-3">
+      <div className={compact ? '' : 'card p-2 sm:p-3'}>
         <div
           aria-hidden="true"
-          className="grid grid-cols-7 gap-1 pb-1 text-center text-[11px] font-medium tracking-wide text-subtle uppercase sm:gap-1.5"
+          className={[
+            'grid grid-cols-7 text-center font-medium tracking-wide text-subtle uppercase',
+            compact ? 'gap-0.5 pb-0.5 text-[10px]' : 'gap-1 pb-1 text-[11px] sm:gap-1.5',
+          ].join(' ')}
         >
           {labels.map((label) => (
-            <span key={label}>{label}</span>
+            <span key={label}>{compact ? label.slice(0, 1) : label}</span>
           ))}
         </div>
 
         <div
           ref={gridRef}
-          data-testid="calendar-grid"
+          data-testid={compact ? 'mini-calendar-grid' : 'calendar-grid'}
           onKeyDown={handleGridKeyDown}
-          className="grid grid-cols-7 gap-1 sm:gap-1.5"
+          className={compact ? 'grid grid-cols-7 gap-0.5' : 'grid grid-cols-7 gap-1 sm:gap-1.5'}
         >
-          {grid.map((date) => (
-            <CalendarDayCell
-              key={date}
-              date={date}
-              month={activeMonth}
-              visibleMacros={visibleMacros}
-              selected={date === selectedDate}
-              onOpen={openDay}
-            />
-          ))}
+          {grid.map((date) =>
+            compact ? (
+              <CompactDayCell
+                key={date}
+                date={date}
+                month={activeMonth}
+                selected={date === selectedDate}
+                onOpen={openDay}
+              />
+            ) : (
+              <CalendarDayCell
+                key={date}
+                date={date}
+                month={activeMonth}
+                visibleMacros={visibleMacros}
+                selected={date === selectedDate}
+                onOpen={openDay}
+              />
+            ),
+          )}
         </div>
       </div>
     </section>
@@ -320,6 +349,69 @@ function CalendarDayCell({ date, month, visibleMacros, selected, onOpen }: Calen
           ) : null}
         </span>
       ) : null}
+    </button>
+  );
+}
+
+type CompactDayCellProps = {
+  date: DateKey;
+  month: MonthKey;
+  selected: boolean;
+  onOpen: (date: DateKey) => void;
+};
+
+/** Minified day cell for the Home dashboard: number + logged/over indicator. */
+function CompactDayCell({ date, month, selected, onOpen }: CompactDayCellProps) {
+  const { calories, totals } = useDayBudget(date);
+  const inMonth = isSameMonth(date, month);
+  const today = isToday(date);
+  const logged = totals.entryCount > 0;
+  const over = calories.isOver;
+
+  const label = [
+    formatLongDate(date),
+    logged
+      ? `${totals.entryCount} ${totals.entryCount === 1 ? 'entry' : 'entries'}, ${formatCalories(totals.calories)} kcal`
+      : 'nothing logged',
+  ].join(', ');
+
+  return (
+    <button
+      type="button"
+      data-date={date}
+      data-testid={`mini-calendar-day-${date}`}
+      data-logged={logged ? 'true' : 'false'}
+      aria-label={label}
+      aria-current={today ? 'date' : undefined}
+      onClick={() => onOpen(date)}
+      className={[
+        'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-md text-center transition-colors',
+        'hover:bg-accent-soft',
+        today ? 'bg-accent-faint' : '',
+        inMonth ? '' : 'opacity-40',
+        selected ? 'ring-2 ring-accent' : '',
+      ].join(' ')}
+    >
+      <span
+        aria-hidden="true"
+        className={[
+          'text-[11px] font-semibold tabular-nums leading-none',
+          today
+            ? 'inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent text-accent-contrast'
+            : logged
+              ? 'text-ink'
+              : 'text-subtle',
+        ].join(' ')}
+      >
+        {dayOfMonth(date)}
+      </span>
+      <span
+        aria-hidden="true"
+        className={[
+          'h-1 w-1 rounded-full',
+          logged ? (over ? 'bg-danger' : 'bg-accent') : 'bg-transparent',
+        ].join(' ')}
+      />
     </button>
   );
 }

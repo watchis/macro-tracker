@@ -135,7 +135,7 @@ describe('CalendarView grid', () => {
     await user.click(cell(DAY));
 
     expect(onOpenDay).toHaveBeenCalledWith(DAY);
-    expect(useAppStore.getState().view).toBe('calendar');
+    expect(useAppStore.getState().view).not.toBe('day');
   });
 });
 
@@ -159,7 +159,6 @@ describe('CalendarView navigation', () => {
       formatMonthYear(monthKeyOf(today)),
     );
     expect(useAppStore.getState().selectedDate).toBe(today);
-    expect(useAppStore.getState().view).toBe('calendar');
   });
 
   it('follows the selected date when it moves to another month', () => {

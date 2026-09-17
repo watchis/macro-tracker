@@ -18,6 +18,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   weekStart: 'sunday',
   dataRetention: 'forever',
+  weightUnit: 'lb',
 };
 
 /**
@@ -34,6 +35,7 @@ export function defaultPersistedState(): PersistedState {
   return {
     version: STORE_VERSION,
     days: {},
+    weights: {},
     foodLibrary: [],
     settings: {
       ...DEFAULT_SETTINGS,

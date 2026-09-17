@@ -42,6 +42,9 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 
 export type WeekStart = 'sunday' | 'monday';
 
+/** Preferred unit for entering and charting body weight. Stored weights are always kg. */
+export type WeightUnit = 'lb' | 'kg';
+
 /**
  * Automatic cleanup for logged days. See `src/lib/retention.ts` for the preset
  * catalog and prune behaviour.
@@ -63,12 +66,19 @@ export type Settings = {
   weekStart: WeekStart;
   /** How long day logs are kept, or when storage pressure may trim them. */
   dataRetention: DataRetentionPolicy;
+  /** Display/entry unit for body weight; persisted values stay in kilograms. */
+  weightUnit: WeightUnit;
 };
 
 export type PersistedState = {
   version: 1;
   /** Food entries keyed by `YYYY-MM-DD`. */
   days: Record<DateKey, FoodEntry[]>;
+  /**
+   * Body weight in kilograms keyed by `YYYY-MM-DD`. Independent of food
+   * entries — a weigh-in can exist on a day with nothing logged.
+   */
+  weights: Record<DateKey, number>;
   /**
    * User-added custom foods only. The USDA starter catalog is bundled with the
    * app and merged in at read time (see `mergeFoodLibraries`).
@@ -77,5 +87,8 @@ export type PersistedState = {
   settings: Settings;
 };
 
-/** Views are switched in app state; there is no router (GitHub Pages has no rewrites). */
-export type ViewName = 'calendar' | 'day' | 'library' | 'settings';
+/**
+ * Views are switched in app state; there is no router (GitHub Pages has no rewrites).
+ * `day` is reachable by opening a calendar cell, not from the header nav.
+ */
+export type ViewName = 'home' | 'calendar' | 'day' | 'library' | 'settings';

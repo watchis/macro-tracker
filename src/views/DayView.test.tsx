@@ -360,6 +360,15 @@ describe('DayView navigation', () => {
     expect(useAppStore.getState().view).toBe('calendar');
   });
 
+  it('goes back to home', async () => {
+    const user = userEvent.setup();
+    useAppStore.getState().openDay(DATE);
+    render(<DayView />);
+
+    await user.click(screen.getByRole('button', { name: 'Home' }));
+    expect(useAppStore.getState().view).toBe('home');
+  });
+
   it('logs against the day it navigates to', async () => {
     const user = userEvent.setup();
     useAppStore.getState().setSelectedDate(DATE);
@@ -371,5 +380,32 @@ describe('DayView navigation', () => {
 
     expect(useAppStore.getState().days['2026-03-06']).toHaveLength(1);
     expect(useAppStore.getState().days[DATE]).toBeUndefined();
+  });
+});
+
+describe('DayView weight', () => {
+  it('records a weigh-in in the preferred unit and can clear it', async () => {
+    const user = userEvent.setup();
+    useAppStore.getState().setWeightUnit('lb');
+    render(<DayView date={DATE} />);
+
+    const input = screen.getByTestId('day-weight-input');
+    await user.clear(input);
+    await user.type(input, '180');
+
+    expect(useAppStore.getState().weights[DATE]).toBeCloseTo(81.6466, 3);
+
+    await user.click(
+      within(screen.getByTestId('day-weight-unit')).getByRole('radio', { name: 'kg' }),
+    );
+    expect(useAppStore.getState().settings.weightUnit).toBe('kg');
+    // Stored kg is unchanged; the field should now show the kilogram equivalent.
+    expect(Number(screen.getByTestId('day-weight-input').getAttribute('value'))).toBeCloseTo(
+      81.65,
+      1,
+    );
+
+    await user.click(screen.getByRole('button', { name: `Clear weight for ${DATE}` }));
+    expect(useAppStore.getState().weights[DATE]).toBeUndefined();
   });
 });

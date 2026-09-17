@@ -10,6 +10,7 @@ import type {
   MacroKey,
   Settings,
   ViewName,
+  WeightUnit,
 } from '../types';
 import type { AppStore } from './useAppStore';
 
@@ -21,6 +22,8 @@ export const selectSelectedDate = (state: AppStore): DateKey => state.selectedDa
 export const selectSettings = (state: AppStore): Settings => state.settings;
 export const selectGoals = (state: AppStore): Goals => state.settings.goals;
 export const selectVisibleMacros = (state: AppStore): MacroKey[] => state.settings.visibleMacros;
+export const selectWeightUnit = (state: AppStore): WeightUnit => state.settings.weightUnit;
+export const selectWeights = (state: AppStore): Record<DateKey, number> => state.weights;
 
 /** User-added custom foods only (persisted). */
 export const selectCustomFoods = (state: AppStore): FoodLibraryItem[] => state.foodLibrary;
@@ -56,6 +59,14 @@ export function useVisibleMacros(): MacroKey[] {
   return useAppStore(selectVisibleMacros);
 }
 
+export function useWeightUnit(): WeightUnit {
+  return useAppStore(selectWeightUnit);
+}
+
+export function useWeights(): Record<DateKey, number> {
+  return useAppStore(selectWeights);
+}
+
 /** Persisted custom foods only. */
 export function useCustomFoods(): FoodLibraryItem[] {
   return useAppStore(selectCustomFoods);
@@ -71,6 +82,11 @@ export function useFoodLibrary(): FoodLibraryItem[] {
 
 export function useDayEntries(date: DateKey): readonly FoodEntry[] {
   return useAppStore(selectDayEntries(date));
+}
+
+/** Body weight in kilograms for one day, or `undefined` when unset. */
+export function useDayWeightKg(date: DateKey): number | undefined {
+  return useAppStore((state) => state.weights[date]);
 }
 
 /** Calorie and macro sums for one day. */

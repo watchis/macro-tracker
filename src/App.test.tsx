@@ -6,14 +6,14 @@ import { todayKey } from './lib/dates';
 import { useAppStore } from './store/useAppStore';
 
 describe('App shell', () => {
-  it('renders the calendar view, the header and the budget bar', () => {
+  it('renders Home by default with the header and budget bar', () => {
     render(<App />);
 
-    expect(screen.getByRole('button', { name: 'Calendar' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    expect(screen.getByRole('button', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument();
     expect(screen.getByTestId('budget-bar')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Day' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Graphs' })).not.toBeInTheDocument();
   });
 
   it('switches views from the header nav', async () => {
@@ -28,17 +28,22 @@ describe('App shell', () => {
     expect(screen.getByRole('heading', { name: 'Food library' })).toBeInTheDocument();
     expect(useAppStore.getState().view).toBe('library');
 
-    await user.click(screen.getByRole('button', { name: 'Day' }));
-    expect(useAppStore.getState().view).toBe('day');
+    await user.click(screen.getByRole('button', { name: 'Calendar' }));
+    expect(useAppStore.getState().view).toBe('calendar');
+
+    await user.click(screen.getByRole('button', { name: 'Home' }));
+    expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    expect(useAppStore.getState().view).toBe('home');
   });
 
   it('opens the day view from a calendar day cell', async () => {
     const user = userEvent.setup();
     render(<App />);
 
+    await user.click(screen.getByRole('button', { name: 'Calendar' }));
     await user.click(screen.getByTestId(`calendar-day-${todayKey()}`));
     expect(useAppStore.getState().view).toBe('day');
-    expect(screen.getByRole('button', { name: 'Day' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
   it('applies the theme and accent to the document element', () => {

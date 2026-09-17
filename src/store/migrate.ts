@@ -3,6 +3,7 @@ import { isDataRetentionPolicy } from '../lib/retention';
 import { isDateKey } from '../lib/dates';
 import { createId } from '../lib/id';
 import { normalizeMacros, sortMacros } from '../lib/macros';
+import { isWeightUnit } from '../lib/weight';
 import { normalizeHex } from '../theme/color';
 import { DEFAULT_SETTINGS, STORE_VERSION, defaultPersistedState } from './defaults';
 import type {
@@ -16,6 +17,7 @@ import type {
   Settings,
   ThemeMode,
   WeekStart,
+  WeightUnit,
 } from '../types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -56,6 +58,19 @@ function parseDays(value: unknown): Record<DateKey, FoodEntry[]> {
     if (entries.length > 0) days[key] = entries;
   }
   return days;
+}
+
+/** Body weight map; values are kilograms. Non-positive or non-finite numbers are dropped. */
+function parseWeights(value: unknown): Record<DateKey, number> {
+  const weights: Record<DateKey, number> = {};
+  if (!isRecord(value)) return weights;
+  for (const [key, raw] of Object.entries(value)) {
+    if (!isDateKey(key)) continue;
+    const kg = num(raw, Number.NaN);
+    if (!Number.isFinite(kg) || kg <= 0) continue;
+    weights[key] = kg;
+  }
+  return weights;
 }
 
 function parseLibrary(value: unknown): FoodLibraryItem[] {
@@ -103,6 +118,10 @@ function parseWeekStart(value: unknown): WeekStart {
   return value === 'monday' || value === 'sunday' ? value : DEFAULT_SETTINGS.weekStart;
 }
 
+function parseWeightUnit(value: unknown): WeightUnit {
+  return isWeightUnit(value) ? value : DEFAULT_SETTINGS.weightUnit;
+}
+
 function parseDataRetention(value: unknown): DataRetentionPolicy {
   return isDataRetentionPolicy(value) ? value : DEFAULT_SETTINGS.dataRetention;
 }
@@ -128,6 +147,7 @@ export function parseSettings(value: unknown): Settings {
     goals: parseGoals(value.goals),
     weekStart: parseWeekStart(value.weekStart),
     dataRetention: parseDataRetention(value.dataRetention),
+    weightUnit: parseWeightUnit(value.weightUnit),
   };
 }
 
@@ -142,6 +162,7 @@ export function parsePersistedState(value: unknown): PersistedState {
   return {
     version: STORE_VERSION,
     days: parseDays(value.days),
+    weights: parseWeights(value.weights),
     foodLibrary: parseLibrary(value.foodLibrary),
     settings: parseSettings(value.settings),
   };

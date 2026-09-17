@@ -29,7 +29,9 @@ describe('defaults', () => {
     expect(state.settings.goals.calories).toBe(2000);
     expect(state.settings.weekStart).toBe('sunday');
     expect(state.settings.dataRetention).toBe('forever');
-    expect(state.view).toBe('calendar');
+    expect(state.settings.weightUnit).toBe('lb');
+    expect(state.weights).toEqual({});
+    expect(state.view).toBe('home');
   });
 });
 
@@ -193,8 +195,33 @@ describe('persistence', () => {
       'foodLibrary',
       'settings',
       'version',
+      'weights',
     ]);
     expect(persisted.state.days[DATE]?.[0]?.name).toBe('Rice');
+  });
+});
+
+describe('body weight', () => {
+  it('stores weigh-ins in kilograms and converts from the display unit', () => {
+    store().setWeightUnit('lb');
+    store().setWeight(DATE, 180, 'lb');
+
+    expect(store().weights[DATE]).toBeCloseTo(81.6466, 3);
+
+    store().setWeightUnit('kg');
+    expect(store().settings.weightUnit).toBe('kg');
+
+    store().setWeight(DATE, null);
+    expect(store().weights[DATE]).toBeUndefined();
+  });
+
+  it('prunes old weigh-ins with the retention policy', () => {
+    store().setWeight('2024-02-01', 80, 'kg');
+    store().setWeight(DATE, 81, 'kg');
+    store().setDataRetention('retain-6-months');
+
+    expect(store().weights['2024-02-01']).toBeUndefined();
+    expect(store().weights[DATE]).toBe(81);
   });
 });
 

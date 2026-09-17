@@ -52,36 +52,48 @@ export function retainCutoffKey(months: number, now: Date = new Date()): DateKey
   return toDateKey(today);
 }
 
-function dropDaysBefore(
-  days: Record<DateKey, FoodEntry[]>,
-  cutoff: DateKey,
-): Record<DateKey, FoodEntry[]> {
-  const next: Record<DateKey, FoodEntry[]> = {};
-  for (const [key, entries] of Object.entries(days)) {
-    if (key >= cutoff) next[key] = entries;
+function dropKeysBefore<T>(record: Record<DateKey, T>, cutoff: DateKey): Record<DateKey, T> {
+  const next: Record<DateKey, T> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (key >= cutoff) next[key] = value;
   }
   return next;
 }
 
-/** Oldest calendar months that still have at least one logged day, ascending. */
-export function oldestLoggedMonths(days: Record<DateKey, FoodEntry[]>): MonthKey[] {
+/** @deprecated Prefer `dropKeysBefore`; kept as the days-specific alias used by tests. */
+function dropDaysBefore(
+  days: Record<DateKey, FoodEntry[]>,
+  cutoff: DateKey,
+): Record<DateKey, FoodEntry[]> {
+  return dropKeysBefore(days, cutoff);
+}
+
+/** Oldest calendar months that still have at least one keyed day, ascending. */
+export function oldestLoggedMonths(
+  days: Record<DateKey, unknown>,
+  extraKeys: Iterable<DateKey> = [],
+): MonthKey[] {
   const months = new Set<MonthKey>();
   for (const key of Object.keys(days)) {
+    months.add(monthKeyOf(key));
+  }
+  for (const key of extraKeys) {
     months.add(monthKeyOf(key));
   }
   return [...months].sort();
 }
 
-function dropOldestMonths(
-  days: Record<DateKey, FoodEntry[]>,
+function dropOldestMonths<T>(
+  record: Record<DateKey, T>,
   monthCount: number,
-): Record<DateKey, FoodEntry[]> {
-  if (monthCount <= 0) return days;
-  const drop = new Set(oldestLoggedMonths(days).slice(0, monthCount));
-  if (drop.size === 0) return days;
-  const next: Record<DateKey, FoodEntry[]> = {};
-  for (const [key, entries] of Object.entries(days)) {
-    if (!drop.has(monthKeyOf(key))) next[key] = entries;
+  monthSource: MonthKey[] = oldestLoggedMonths(record),
+): Record<DateKey, T> {
+  if (monthCount <= 0) return record;
+  const drop = new Set(monthSource.slice(0, monthCount));
+  if (drop.size === 0) return record;
+  const next: Record<DateKey, T> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (!drop.has(monthKeyOf(key))) next[key] = value;
   }
   return next;
 }
@@ -109,43 +121,65 @@ export function applyDataRetention(
   policy: DataRetentionPolicy,
   context: RetentionContext,
 ): Record<DateKey, FoodEntry[]> {
+  return applyDataRetentionBundle(days, {}, policy, context).days;
+}
+
+export type RetentionBundle = {
+  days: Record<DateKey, FoodEntry[]>;
+  weights: Record<DateKey, number>;
+};
+
+/**
+ * Prunes food days and weigh-ins together so a weight-only history still obeys
+ * the same retention window (and pressure drops months present in either map).
+ */
+export function applyDataRetentionBundle(
+  days: Record<DateKey, FoodEntry[]>,
+  weights: Record<DateKey, number>,
+  policy: DataRetentionPolicy,
+  context: RetentionContext,
+): RetentionBundle {
   const now = context.now ?? new Date();
   const quotaBytes = context.quotaBytes ?? LOCAL_STORAGE_QUOTA_BYTES;
   const estimate = context.estimateDaysBytes ?? defaultEstimateDaysBytes;
 
-  if (policy === 'forever') return days;
+  if (policy === 'forever') return { days, weights };
 
-  if (policy === 'retain-6-months') {
-    return dropDaysBefore(days, retainCutoffKey(6, now));
-  }
-
-  if (policy === 'retain-1-year') {
-    return dropDaysBefore(days, retainCutoffKey(12, now));
+  if (policy === 'retain-6-months' || policy === 'retain-1-year') {
+    const cutoff = retainCutoffKey(policy === 'retain-6-months' ? 6 : 12, now);
+    return {
+      days: dropDaysBefore(days, cutoff),
+      weights: dropKeysBefore(weights, cutoff),
+    };
   }
 
   // pressure-90-drop-3-months
   const threshold = quotaBytes * 0.9;
-  let current = days;
+  let currentDays = days;
+  let currentWeights = weights;
   let used = context.storageUsedBytes;
-  // Cap iterations so a pathological estimate cannot loop forever.
   for (let step = 0; step < 48 && used >= threshold; step += 1) {
-    const months = oldestLoggedMonths(current);
+    const months = oldestLoggedMonths(currentDays, Object.keys(currentWeights));
     if (months.length === 0) break;
-    const beforeBytes = estimate(current);
-    const next = dropOldestMonths(current, 3);
-    if (next === current || Object.keys(next).length === Object.keys(current).length) break;
-    const afterBytes = estimate(next);
+    const beforeBytes = estimate(currentDays) + stringStorageBytes(JSON.stringify(currentWeights));
+    const nextDays = dropOldestMonths(currentDays, 3, months);
+    const nextWeights = dropOldestMonths(currentWeights, 3, months);
+    if (
+      Object.keys(nextDays).length === Object.keys(currentDays).length &&
+      Object.keys(nextWeights).length === Object.keys(currentWeights).length
+    ) {
+      break;
+    }
+    const afterBytes = estimate(nextDays) + stringStorageBytes(JSON.stringify(nextWeights));
     used = Math.max(0, used - (beforeBytes - afterBytes));
-    current = next;
+    currentDays = nextDays;
+    currentWeights = nextWeights;
   }
-  return current;
+  return { days: currentDays, weights: currentWeights };
 }
 
 /** True when two day maps share the same keys (entries assumed unchanged). */
-export function sameDayKeys(
-  a: Record<DateKey, FoodEntry[]>,
-  b: Record<DateKey, FoodEntry[]>,
-): boolean {
+export function sameDayKeys(a: Record<DateKey, unknown>, b: Record<DateKey, unknown>): boolean {
   const keysA = Object.keys(a);
   const keysB = Object.keys(b);
   if (keysA.length !== keysB.length) return false;
