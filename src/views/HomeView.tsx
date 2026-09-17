@@ -184,19 +184,14 @@ export function HomeView() {
         </div>
 
         {chart === 'weight' ? (
-          <>
-            <LineChart
-              testId="weight-chart"
-              points={weightPoints}
-              showTrendline
-              showAverage
-              valueLabel={(value) => formatDisplayWeight(value, weightUnit)}
-              emptyMessage="Log a weigh-in on a day to see weight over time."
-            />
-            <p className="text-xs text-subtle">
-              Solid line is daily weight. Dashed accent is the trend; dotted is the average.
-            </p>
-          </>
+          <LineChart
+            testId="weight-chart"
+            points={weightPoints}
+            showTrendline
+            showAverage
+            valueLabel={(value) => formatDisplayWeight(value, weightUnit)}
+            emptyMessage="Log a weigh-in on a day to see weight over time."
+          />
         ) : null}
 
         {chart === 'calories' ? (
@@ -326,7 +321,7 @@ function TodayCard({
       </p>
       <p className="text-xs text-muted tabular-nums">
         {budget.totals.entryCount === 0
-          ? 'Nothing logged yet — tap to open today'
+          ? 'Nothing logged yet'
           : `${budget.totals.entryCount} ${budget.totals.entryCount === 1 ? 'entry' : 'entries'} · ${formatCalories(budget.totals.calories)} kcal`}
         {weightKg !== undefined
           ? ` · ${formatDisplayWeight(fromCanonicalKg(weightKg, weightUnit), weightUnit)}`
