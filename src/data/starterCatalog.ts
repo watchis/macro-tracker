@@ -36,7 +36,7 @@ export type StarterPage = {
   limit: number;
 };
 
-/** Eager manifest only (~3 KB). Category JSON is loaded on demand. */
+/** Eager manifest only (~1 KB). Category JSON is loaded on demand. */
 export const STARTER_MANIFEST: StarterManifest = manifestJson as StarterManifest;
 
 export const STARTER_FOOD_COUNT = STARTER_MANIFEST.total;

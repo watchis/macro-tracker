@@ -10,7 +10,7 @@ import { ConfirmAction } from './ConfirmAction';
 import { FoodForm } from './FoodForm';
 
 const PAGE_SIZE = 40;
-/** Sentinel for the category select: browse every USDA category. */
+/** Sentinel for the category select: browse every catalog category. */
 const ALL_CATEGORY = '';
 
 function macroSummary(item: FoodLibraryItem): string {
@@ -26,7 +26,7 @@ function matchesQuery(item: FoodLibraryItem, query: string): boolean {
 }
 
 /**
- * Custom foods (editable, persisted) plus the bundled USDA catalog
+ * Custom foods (editable, persisted) plus the bundled whole-foods catalog
  * (read-only, category-filtered, searchable, paginated).
  */
 export function FoodLibrarySettings() {

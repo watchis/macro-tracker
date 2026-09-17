@@ -81,7 +81,7 @@ function parseLibrary(value: unknown): FoodLibraryItem[] {
     const name = str(raw.name, '').trim();
     if (name === '') continue;
     // Drop the original five seeded defaults so they do not duplicate the
-    // bundled USDA catalog after upgrade. True custom foods are kept.
+    // bundled starter catalog after upgrade. True custom foods are kept.
     if (isLegacyStarterName(name)) continue;
     const grams = num(raw.grams, 100);
     items.push({

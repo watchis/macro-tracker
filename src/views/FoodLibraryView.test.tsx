@@ -93,8 +93,8 @@ describe('FoodLibraryView', () => {
     const user = userEvent.setup();
     render(<FoodLibraryView />);
 
-    expect(STARTER_FOOD_COUNT).toBeGreaterThan(3000);
-    expect(STARTER_MANIFEST.categories.length).toBeGreaterThan(10);
+    expect(STARTER_FOOD_COUNT).toBeGreaterThan(200);
+    expect(STARTER_MANIFEST.categories.length).toBeGreaterThan(5);
 
     const category = screen.getByTestId('starter-category');
     expect(category).toHaveValue('');
@@ -112,14 +112,15 @@ describe('FoodLibraryView', () => {
       );
     });
 
-    const beef = STARTER_MANIFEST.categories.find((c) => c.id.includes('beef'));
-    if (beef) {
-      await user.selectOptions(category, beef.id);
+    const poultry = STARTER_MANIFEST.categories.find((c) => c.id === 'poultry');
+    if (poultry) {
+      await user.selectOptions(category, poultry.id);
       await waitFor(() => {
         expect(screen.getByTestId('starter-food-count')).toHaveTextContent(
-          new RegExp(`of ${beef.count}`),
+          new RegExp(`of ${poultry.count}`),
         );
       });
+      expect(screen.getByTestId('starter-food-list')).toHaveTextContent(/Chicken breast/);
     }
 
     await waitFor(() => {

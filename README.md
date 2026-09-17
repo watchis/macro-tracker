@@ -27,8 +27,8 @@ and `Escape` cancels it; only the name is required. The footer totals each colum
 and `Quick add` logs a food from your library scaled from its reference weight to the grams you
 enter. An optional **weight** field (lb or kg) records a daily weigh-in for Home's charts.
 
-**Food library** is a searchable USDA catalog plus your custom foods; Day's quick-add scales
-them by grams when you log.
+**Food library** is a searchable whole-foods catalog plus your custom foods; Day's quick-add
+scales them by grams when you log.
 
 **Settings** covers theme, accent color, weight unit, visible macros, calorie and macro goals, JSON
 import/export, local storage usage, and retention for old day logs.
@@ -78,17 +78,18 @@ src/
   components/settings/ settings form controls, accent picker, import/export, data retention
   views/               HomeView, CalendarView, DayView, FoodLibraryView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
-  data/                USDA food catalog (lazy category JSON under starter/)
+  data/                whole-foods catalog (lazy category JSON under starter/)
   lib/                 date keys, macro metadata, totals, weight conversion, chart series
   components/charts/   SVG line and bar charts for the Home view
   theme/               data-theme + accent application, color helpers
   index.css            palette custom properties and Tailwind theme mapping
 ```
 
-The food library includes a large **USDA catalog** (5,000+ common foods from
-[USDA FoodData Central](https://fdc.nal.usda.gov/)), split into category JSON files under
-`src/data/starter/` and **lazy-loaded** as you browse or search. Custom foods you add in the
-Food library view are persisted separately and appear first in quick-add.
+The food library ships a curated **whole-foods catalog** (~300 everyday foods with clean names;
+nutrition values primarily from [USDA FoodData Central](https://fdc.nal.usda.gov/)), split into
+category JSON files under `src/data/starter/` and **lazy-loaded** as you browse or search.
+Regenerate with `python3 scripts/build-whole-foods-catalog.py`. Custom foods you add in the Food
+library view are persisted separately and appear first in quick-add.
 
 ## Theming
 
