@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
+import { todayKey } from './lib/dates';
 import { useAppStore } from './store/useAppStore';
 
 describe('App shell', () => {
@@ -27,11 +28,11 @@ describe('App shell', () => {
     expect(useAppStore.getState().view).toBe('day');
   });
 
-  it('opens the day view from the calendar seam', async () => {
+  it('opens the day view from a calendar day cell', async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole('button', { name: 'Open today' }));
+    await user.click(screen.getByTestId(`calendar-day-${todayKey()}`));
     expect(useAppStore.getState().view).toBe('day');
     expect(screen.getByRole('button', { name: 'Day' })).toHaveAttribute('aria-current', 'page');
   });
