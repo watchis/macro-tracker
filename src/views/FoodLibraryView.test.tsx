@@ -89,26 +89,36 @@ describe('FoodLibraryView', () => {
     expect(state().foodLibrary[0]?.name).toBe(before[1]?.name);
   });
 
-  it('browses starter foods by category and paginates', async () => {
+  it('defaults to All and browses by category with pagination', async () => {
     const user = userEvent.setup();
     render(<FoodLibraryView />);
 
     expect(STARTER_FOOD_COUNT).toBeGreaterThan(3000);
     expect(STARTER_MANIFEST.categories.length).toBeGreaterThan(10);
 
+    const category = screen.getByTestId('starter-category');
+    expect(category).toHaveValue('');
+    expect(
+      within(category).getByRole('option', { name: new RegExp(`All \\(${STARTER_FOOD_COUNT}\\)`) }),
+    ).toBeInTheDocument();
+
     await waitFor(() => {
       expect(screen.getByTestId('starter-food-list').textContent).not.toMatch(/Loading/);
     });
 
-    const category = screen.getByTestId('starter-category');
-    expect(category).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('starter-food-count')).toHaveTextContent(
+        new RegExp(`of ${STARTER_FOOD_COUNT}`),
+      );
+    });
 
-    // Pick a large category if available
     const beef = STARTER_MANIFEST.categories.find((c) => c.id.includes('beef'));
     if (beef) {
       await user.selectOptions(category, beef.id);
       await waitFor(() => {
-        expect(screen.getByTestId('starter-food-count')).toHaveTextContent(/of/);
+        expect(screen.getByTestId('starter-food-count')).toHaveTextContent(
+          new RegExp(`of ${beef.count}`),
+        );
       });
     }
 
@@ -118,7 +128,7 @@ describe('FoodLibraryView', () => {
     });
   });
 
-  it('searches across the starter catalog', async () => {
+  it('searches across the catalog', async () => {
     const user = userEvent.setup();
     render(<FoodLibraryView />);
 

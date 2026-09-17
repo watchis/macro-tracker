@@ -10,6 +10,8 @@ import { ConfirmAction } from './ConfirmAction';
 import { FoodForm } from './FoodForm';
 
 const PAGE_SIZE = 40;
+/** Sentinel for the category select: browse every USDA category. */
+const ALL_CATEGORY = '';
 
 function macroSummary(item: FoodLibraryItem): string {
   const parts = MACROS.filter((macro) => typeof item.macros[macro.key] === 'number').map(
@@ -24,7 +26,7 @@ function matchesQuery(item: FoodLibraryItem, query: string): boolean {
 }
 
 /**
- * Custom foods (editable, persisted) plus the bundled USDA starter catalog
+ * Custom foods (editable, persisted) plus the bundled USDA catalog
  * (read-only, category-filtered, searchable, paginated).
  */
 export function FoodLibrarySettings() {
@@ -35,7 +37,7 @@ export function FoodLibrarySettings() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
-  const [categoryId, setCategoryId] = useState<string>(STARTER_MANIFEST.categories[0]?.id ?? '');
+  const [categoryId, setCategoryId] = useState<string>(ALL_CATEGORY);
   const [offset, setOffset] = useState(0);
 
   const normalizedQuery = query.trim().toLowerCase();
@@ -51,7 +53,7 @@ export function FoodLibrarySettings() {
 
   const { page, loading, error } = useStarterFoodPage({
     query: normalizedQuery,
-    // Cross-category search ignores the category chip; browsing uses it.
+    // Cross-category search ignores the category chip; browsing uses it (All = null).
     categoryId: searching ? null : categoryId || null,
     offset,
     limit: PAGE_SIZE,
@@ -78,22 +80,17 @@ export function FoodLibrarySettings() {
       </label>
 
       <section className="grid gap-3" aria-labelledby="custom-foods-heading">
-        <div>
-          <h3 id="custom-foods-heading" className="text-sm font-semibold text-ink">
-            Your foods
-          </h3>
-          <p className="mt-0.5 text-xs text-muted">
-            Custom foods you add here are saved in this browser and show up first in quick-add.
-          </p>
-        </div>
+        <h3 id="custom-foods-heading" className="text-sm font-semibold text-ink">
+          Your foods
+        </h3>
 
         {customFoods.length === 0 ? (
           <p data-testid="food-library-empty" className="text-sm text-muted">
-            No custom foods yet. The starter library below is always available.
+            No custom foods yet.
           </p>
         ) : customMatches.length === 0 ? (
           <p data-testid="food-library-no-custom-matches" className="text-sm text-muted">
-            No custom foods match that search.
+            No matches.
           </p>
         ) : (
           <ul data-testid="food-library-list" className="grid gap-2">
@@ -179,17 +176,10 @@ export function FoodLibrarySettings() {
         )}
       </section>
 
-      <section className="grid gap-3" aria-labelledby="starter-foods-heading">
-        <div>
-          <h3 id="starter-foods-heading" className="text-sm font-semibold text-ink">
-            Starter library
-          </h3>
-          <p className="mt-0.5 text-xs text-muted">
-            {STARTER_FOOD_COUNT.toLocaleString()} foods from USDA FoodData Central (per 100 g),
-            split into {STARTER_MANIFEST.categories.length} categories and loaded as you browse or
-            search.
-          </p>
-        </div>
+      <section className="grid gap-3" aria-labelledby="catalog-foods-heading">
+        <h3 id="catalog-foods-heading" className="text-sm font-semibold text-ink">
+          Catalog
+        </h3>
 
         {!searching ? (
           <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">
@@ -203,6 +193,7 @@ export function FoodLibrarySettings() {
               }}
               className="w-full rounded-md border border-line bg-bg px-3 py-2 text-sm font-normal normal-case tracking-normal text-ink"
             >
+              <option value={ALL_CATEGORY}>All ({STARTER_FOOD_COUNT})</option>
               {STARTER_MANIFEST.categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.label} ({category.count})
@@ -227,11 +218,11 @@ export function FoodLibrarySettings() {
           className="grid max-h-96 gap-1 overflow-y-auto rounded-lg border border-line p-2"
         >
           {loading ? (
-            <li className="px-2 py-3 text-sm text-muted">Loading starter foods…</li>
+            <li className="px-2 py-3 text-sm text-muted">Loading…</li>
           ) : error ? (
             <li className="px-2 py-3 text-sm text-danger">{error}</li>
           ) : !page || page.items.length === 0 ? (
-            <li className="px-2 py-3 text-sm text-muted">No starter foods match that search.</li>
+            <li className="px-2 py-3 text-sm text-muted">No matches.</li>
           ) : (
             page.items.map((item) => (
               <li
@@ -241,7 +232,7 @@ export function FoodLibrarySettings() {
                 <p className="font-medium text-ink">{item.name}</p>
                 <p className="text-xs text-muted">
                   {formatCalories(item.calories)} kcal / {item.grams} g · {macroSummary(item)}
-                  {searching ? ` · ${item.categoryLabel}` : ''}
+                  {searching || !categoryId ? ` · ${item.categoryLabel}` : ''}
                 </p>
               </li>
             ))

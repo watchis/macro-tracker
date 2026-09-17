@@ -54,7 +54,7 @@ export function DataSettings() {
           />
         </div>
         <p className="mt-1.5 text-xs text-subtle" data-testid="storage-usage-detail">
-          Macro Tracker is {formatBytes(usage.appBytes)}. Quota is an estimate for this browser.
+          App data: {formatBytes(usage.appBytes)}
         </p>
       </div>
 

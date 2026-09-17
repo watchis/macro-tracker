@@ -312,7 +312,7 @@ describe('DayView quick add', () => {
     expect(entryAt().macros.protein).toBe(6.5);
   });
 
-  it('searches the USDA starter library asynchronously', async () => {
+  it('searches the USDA catalog asynchronously', async () => {
     const user = userEvent.setup();
     render(<DayView date={DATE} />);
 

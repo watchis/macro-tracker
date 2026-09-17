@@ -264,7 +264,7 @@ export function DayView({ date }: DayViewProps) {
             {entries.length === 0 ? (
               <tr>
                 <td colSpan={columnCount} className="px-2 py-6 text-center text-sm text-muted">
-                  No food logged yet — add the first entry below.
+                  No food logged yet.
                 </td>
               </tr>
             ) : null}
@@ -608,13 +608,7 @@ function QuickAdd({ day }: { day: DateKey }) {
         >
           {options.length === 0 ? (
             <option value="">
-              {loading
-                ? 'Searching…'
-                : normalizedQuery
-                  ? 'No matches'
-                  : customFoods.length > 0
-                    ? 'Type to search starter foods'
-                    : 'Type to search the starter library'}
+              {loading ? 'Searching…' : normalizedQuery ? 'No matches' : 'Type to search'}
             </option>
           ) : (
             options.map((row) => (
@@ -661,15 +655,9 @@ function QuickAdd({ day }: { day: DateKey }) {
                 .join(' · ')}`
             : ''}
         </p>
-      ) : (
-        <p className="text-xs text-muted sm:col-span-4">
-          {normalizedQuery
-            ? loading
-              ? 'Searching the USDA starter library…'
-              : null
-            : 'Type a food name to search the USDA starter library, or pick one of your custom foods.'}
-        </p>
-      )}
+      ) : loading ? (
+        <p className="text-xs text-muted sm:col-span-4">Searching…</p>
+      ) : null}
     </form>
   );
 }
