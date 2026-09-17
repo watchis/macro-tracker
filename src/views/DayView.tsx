@@ -117,7 +117,6 @@ export function DayView({ date }: DayViewProps) {
   const updateEntry = useAppStore((state) => state.updateEntry);
   const removeEntry = useAppStore((state) => state.removeEntry);
   const setSelectedDate = useAppStore((state) => state.setSelectedDate);
-  const setView = useAppStore((state) => state.setView);
   const weightKg = useDayWeightKg(day);
   const weightUnit = useWeightUnit();
   const setWeight = useAppStore((state) => state.setWeight);
@@ -195,12 +194,6 @@ export function DayView({ date }: DayViewProps) {
             className={NAV_BUTTON}
           >
             <span aria-hidden="true">›</span>
-          </button>
-          <button type="button" onClick={() => setView('home')} className={NAV_BUTTON}>
-            Home
-          </button>
-          <button type="button" onClick={() => setView('calendar')} className={NAV_BUTTON}>
-            Calendar
           </button>
         </div>
       </header>
@@ -530,9 +523,7 @@ function WeightPanel({ day, weightKg, weightUnit, onCommit, onUnitChange }: Weig
         >
           Clear
         </button>
-      ) : (
-        <p className="text-xs text-muted">Optional daily weigh-in for the Graphs page.</p>
-      )}
+      ) : null}
     </div>
   );
 }
