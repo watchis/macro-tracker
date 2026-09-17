@@ -192,16 +192,29 @@ describe('CalendarView navigation', () => {
     expect(document.activeElement).toBe(cell('2026-03-31'));
   });
 
-  it('pages months with PageUp and PageDown', async () => {
+  it('pages months with PageUp and PageDown, carrying the focus along', async () => {
     const user = userEvent.setup();
     render(<CalendarView month={MONTH} />);
 
     cell(DAY).focus();
     await user.keyboard('{PageUp}');
     expect(screen.getByTestId('calendar-month')).toHaveTextContent(formatMonthYear('2026-02'));
+    expect(document.activeElement).toBe(cell('2026-02-05'));
 
-    cell('2026-02-05').focus();
+    // Only works if the paged-in grid takes the focus back; otherwise the
+    // handler has nothing to read the current date from.
+    await user.keyboard('{PageDown}{PageDown}');
+    expect(screen.getByTestId('calendar-month')).toHaveTextContent(formatMonthYear('2026-04'));
+    expect(document.activeElement).toBe(cell('2026-04-05'));
+  });
+
+  it('clamps the paged focus to the length of the shorter month', async () => {
+    const user = userEvent.setup();
+    render(<CalendarView month={MONTH} />);
+
+    cell('2026-03-31').focus();
     await user.keyboard('{PageDown}');
-    expect(screen.getByTestId('calendar-month')).toHaveTextContent(formatMonthYear(MONTH));
+
+    expect(document.activeElement).toBe(cell('2026-04-30'));
   });
 });

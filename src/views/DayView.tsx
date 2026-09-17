@@ -178,7 +178,10 @@ export function DayView({ date }: DayViewProps) {
         </div>
       </header>
 
-      <div data-testid="day-summary" className="card grid gap-3 p-4 sm:grid-cols-[auto_1fr]">
+      <div
+        data-testid="day-summary"
+        className="card flex flex-wrap items-end justify-between gap-x-8 gap-y-4 p-4"
+      >
         <div>
           <p className="text-xs tracking-wide text-subtle uppercase">
             {budget.calories.hasGoal
@@ -206,11 +209,11 @@ export function DayView({ date }: DayViewProps) {
         </div>
 
         {visibleMacros.length > 0 ? (
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 self-center sm:grid-cols-3">
+          <dl className="flex flex-wrap gap-x-6 gap-y-3">
             {visibleMacros.map((macro) => {
               const slice = budget.macros[macro];
               return (
-                <div key={macro} className="flex items-baseline justify-between gap-2">
+                <div key={macro} className="min-w-20">
                   <dt className="text-xs text-muted">{macroLabel(macro)}</dt>
                   <dd className="text-sm font-medium tabular-nums">
                     {formatMacro(macro, totals.macros[macro])}
@@ -540,6 +543,7 @@ function QuickAdd({ day }: { day: DateKey }) {
       <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">
         Quick add from library
         <select
+          name="quick-add-food"
           value={index}
           onChange={(event) => setIndex(Number(event.target.value))}
           className={`${INPUT} h-8 py-0`}
@@ -556,6 +560,7 @@ function QuickAdd({ day }: { day: DateKey }) {
         Grams
         <input
           type="number"
+          name="quick-add-grams"
           min={0}
           step="any"
           inputMode="decimal"

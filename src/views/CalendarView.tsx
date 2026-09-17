@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addDays,
   addMonths,
@@ -38,8 +38,9 @@ const ARROW_STEPS: Record<string, number> = {
 const NAV_BUTTON =
   'inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-line bg-raised px-2 text-sm font-medium text-muted transition-colors hover:border-accent-border hover:bg-accent-soft hover:text-ink';
 
-function lastDateOfMonth(month: MonthKey): DateKey {
-  return `${month}-${String(daysInMonth(month)).padStart(2, '0')}`;
+function dateInMonth(month: MonthKey, day: number): DateKey {
+  const clamped = Math.min(Math.max(day, 1), daysInMonth(month));
+  return `${month}-${String(clamped).padStart(2, '0')}`;
 }
 
 /**
@@ -70,6 +71,9 @@ export function CalendarView({ month, onOpenDay }: CalendarViewProps) {
   const showMonth = (next: MonthKey) => setVisible({ month: next, syncedFrom: selectedMonth });
 
   const gridRef = useRef<HTMLDivElement | null>(null);
+  // Paging the month unmounts the focused cell, so the next grid has to be told
+  // where to put focus back once it has rendered.
+  const pendingFocus = useRef<DateKey | null>(null);
   const grid = useMemo(
     () => buildMonthGrid(activeMonth, settings.weekStart),
     [activeMonth, settings.weekStart],
@@ -97,6 +101,13 @@ export function CalendarView({ month, onOpenDay }: CalendarViewProps) {
     gridRef.current?.querySelector<HTMLButtonElement>(`[data-date="${date}"]`)?.focus();
   };
 
+  useEffect(() => {
+    const target = pendingFocus.current;
+    if (!target) return;
+    pendingFocus.current = null;
+    gridRef.current?.querySelector<HTMLButtonElement>(`[data-date="${target}"]`)?.focus();
+  }, [activeMonth]);
+
   const handleGridKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const date = (event.target as HTMLElement).dataset?.date;
     if (!date) return;
@@ -108,17 +119,19 @@ export function CalendarView({ month, onOpenDay }: CalendarViewProps) {
     }
     if (event.key === 'Home') {
       event.preventDefault();
-      focusDate(`${activeMonth}-01`);
+      focusDate(dateInMonth(activeMonth, 1));
       return;
     }
     if (event.key === 'End') {
       event.preventDefault();
-      focusDate(lastDateOfMonth(activeMonth));
+      focusDate(dateInMonth(activeMonth, daysInMonth(activeMonth)));
       return;
     }
     if (event.key === 'PageUp' || event.key === 'PageDown') {
       event.preventDefault();
-      showMonth(addMonths(activeMonth, event.key === 'PageUp' ? -1 : 1));
+      const next = addMonths(activeMonth, event.key === 'PageUp' ? -1 : 1);
+      pendingFocus.current = dateInMonth(next, dayOfMonth(date));
+      showMonth(next);
     }
   };
 
