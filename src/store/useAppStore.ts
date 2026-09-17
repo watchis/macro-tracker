@@ -56,7 +56,7 @@ export type AppActions = {
 
   // --- food library --------------------------------------------------------
   /**
-   * Custom foods only (persisted). The USDA starter catalog is bundled and
+   * Custom foods only (persisted). The whole-foods starter catalog is bundled and
    * merged via selectors; edits address custom items by index into `foodLibrary`.
    */
   addFood: (item: FoodLibraryItem) => void;

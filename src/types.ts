@@ -80,8 +80,8 @@ export type PersistedState = {
    */
   weights: Record<DateKey, number>;
   /**
-   * User-added custom foods only. The USDA starter catalog is bundled with the
-   * app and merged in at read time (see `mergeFoodLibraries`).
+   * User-added custom foods only. The whole-foods starter catalog is bundled with
+   * the app and merged in at read time (see `mergeFoodLibraries`).
    */
   foodLibrary: FoodLibraryItem[];
   settings: Settings;

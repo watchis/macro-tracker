@@ -22,8 +22,8 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /**
- * Historical export alias. The USDA starter catalog is lazy-loaded from
- * `src/data/starter/` (thousands of foods); persisted `foodLibrary` is customs only.
+ * Historical export alias. The whole-foods starter catalog is lazy-loaded from
+ * `src/data/starter/`; persisted `foodLibrary` is customs only.
  */
 export const DEFAULT_FOOD_LIBRARY: readonly FoodLibraryItem[] = [];
 

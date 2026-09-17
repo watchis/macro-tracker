@@ -9,7 +9,7 @@ import {
 const DEFAULT_LIMIT = 40;
 
 /**
- * Loads a paginated / filtered slice of the USDA starter catalog.
+ * Loads a paginated / filtered slice of the whole-foods starter catalog.
  * Category files are fetched on demand and cached in memory.
  */
 export function useStarterFoodPage(options: StarterQuery): {

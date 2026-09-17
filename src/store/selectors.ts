@@ -30,7 +30,7 @@ export const selectCustomFoods = (state: AppStore): FoodLibraryItem[] => state.f
 
 /**
  * @deprecated Prefer `useCustomFoods` plus `queryStarterFoods`. Returns customs only —
- * the USDA catalog is lazy-loaded and no longer merged synchronously.
+ * the starter catalog is lazy-loaded and no longer merged synchronously.
  */
 export const selectFoodLibrary = selectCustomFoods;
 

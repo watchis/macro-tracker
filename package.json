@@ -10,7 +10,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "catalog:build": "python3 scripts/build-whole-foods-catalog.py"
   },
   "dependencies": {
     "react": "^19.3.0",
