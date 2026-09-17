@@ -71,10 +71,15 @@ src/
   components/settings/ settings form controls, accent picker, food library, data export/import
   views/               CalendarView, DayView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
+  data/                USDA FoodData Central–sourced starter food library JSON
   lib/                 date keys, macro metadata, totals and budget math
   theme/               data-theme + accent application, color helpers
   index.css            palette custom properties and Tailwind theme mapping
 ```
+
+The default food library is seeded from [USDA FoodData Central](https://fdc.nal.usda.gov/)
+(Foundation Foods + SR Legacy download datasets). Amounts are per 100 g; see
+`src/data/food-library-usda.json` for FDC IDs and provenance.
 
 ## Theming
 

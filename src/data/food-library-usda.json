@@ -1,0 +1,274 @@
+{
+  "source": "USDA FoodData Central",
+  "license": "Public domain (USDA)",
+  "portal": "https://fdc.nal.usda.gov/",
+  "downloads": {
+    "foundationFoodsJson": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_json_2025-04-24.zip",
+    "srLegacyJson": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_json_2018-04.zip",
+    "downloadPage": "https://fdc.nal.usda.gov/download-datasets/"
+  },
+  "basis": "Amounts per 100 g edible portion. FoodLibraryItem.grams is 100 so day-view scaling stays correct.",
+  "selectionNotes": [
+    "Chicken breast uses SR Legacy roasted meat-only (fdcId 171477), the usual cooked reference (~165 kcal/100 g), not raw Foundation.",
+    "Greek yogurt, 2% maps to SR Legacy 'Yogurt, Greek, plain, lowfat' (fdcId 170903); USDA has no exact 2% Greek entry.",
+    "Rolled oats calories use Atwater Specific Factors (nutrient 958) when present; fiber uses Total dietary fiber AOAC 2011.25 (293) from Foundation."
+  ],
+  "foods": [
+    {
+      "libraryName": "Chicken breast",
+      "fdcId": 171477,
+      "description": "Chicken, broilers or fryers, breast, meat only, cooked, roasted",
+      "dataType": "SR Legacy",
+      "publicationDate": "4/1/2019",
+      "ndbNumber": 5064,
+      "foodCategory": "Poultry Products",
+      "detailUrl": "https://fdc.nal.usda.gov/food-details/171477/nutrients",
+      "nutrientNotes": {
+        "calories": "208 Energy",
+        "fiber": "291 Fiber, total dietary"
+      },
+      "per100g": {
+        "calories": 165.0,
+        "fiber": 0.0,
+        "protein": 31.0,
+        "fat": 3.57,
+        "carbs": 0.0,
+        "sugar": 0.0,
+        "satFat": 1.01,
+        "sodium": 74.0
+      },
+      "foodLibraryItem": {
+        "name": "Chicken breast",
+        "grams": 100,
+        "calories": 165.0,
+        "macros": {
+          "protein": 31.0,
+          "carbs": 0.0,
+          "fat": 3.57,
+          "fiber": 0.0,
+          "sugar": 0.0,
+          "satFat": 1.01,
+          "sodium": 74.0
+        }
+      }
+    },
+    {
+      "libraryName": "White rice, cooked",
+      "fdcId": 168878,
+      "description": "Rice, white, long-grain, regular, enriched, cooked",
+      "dataType": "SR Legacy",
+      "publicationDate": "4/1/2019",
+      "ndbNumber": 20045,
+      "foodCategory": "Cereal Grains and Pasta",
+      "detailUrl": "https://fdc.nal.usda.gov/food-details/168878/nutrients",
+      "nutrientNotes": {
+        "calories": "208 Energy",
+        "fiber": "291 Fiber, total dietary"
+      },
+      "per100g": {
+        "calories": 130.0,
+        "fiber": 0.4,
+        "protein": 2.69,
+        "fat": 0.28,
+        "carbs": 28.2,
+        "sugar": 0.05,
+        "satFat": 0.08,
+        "sodium": 1.0
+      },
+      "foodLibraryItem": {
+        "name": "White rice, cooked",
+        "grams": 100,
+        "calories": 130.0,
+        "macros": {
+          "protein": 2.69,
+          "carbs": 28.2,
+          "fat": 0.28,
+          "fiber": 0.4,
+          "sugar": 0.05,
+          "satFat": 0.08,
+          "sodium": 1.0
+        }
+      }
+    },
+    {
+      "libraryName": "Rolled oats",
+      "fdcId": 2346396,
+      "description": "Oats, whole grain, rolled, old fashioned",
+      "dataType": "Foundation",
+      "publicationDate": "10/28/2022",
+      "ndbNumber": 20038,
+      "foodCategory": "Cereal Grains and Pasta",
+      "detailUrl": "https://fdc.nal.usda.gov/food-details/2346396/nutrients",
+      "nutrientNotes": {
+        "calories": "958 Energy (Atwater Specific Factors)",
+        "fiber": "293 Total dietary fiber (AOAC 2011.25)"
+      },
+      "per100g": {
+        "calories": 379.0,
+        "fiber": 10.4,
+        "protein": 13.5,
+        "fat": 5.89,
+        "carbs": 68.7,
+        "sodium": 0.7
+      },
+      "foodLibraryItem": {
+        "name": "Rolled oats",
+        "grams": 100,
+        "calories": 379.0,
+        "macros": {
+          "protein": 13.5,
+          "carbs": 68.7,
+          "fat": 5.89,
+          "fiber": 10.4,
+          "sodium": 0.7
+        }
+      }
+    },
+    {
+      "libraryName": "Whole egg",
+      "fdcId": 171287,
+      "description": "Egg, whole, raw, fresh",
+      "dataType": "SR Legacy",
+      "publicationDate": "4/1/2019",
+      "ndbNumber": 1123,
+      "foodCategory": "Dairy and Egg Products",
+      "detailUrl": "https://fdc.nal.usda.gov/food-details/171287/nutrients",
+      "nutrientNotes": {
+        "calories": "208 Energy",
+        "fiber": "291 Fiber, total dietary"
+      },
+      "per100g": {
+        "calories": 143.0,
+        "fiber": 0.0,
+        "protein": 12.6,
+        "fat": 9.51,
+        "carbs": 0.72,
+        "sugar": 0.37,
+        "satFat": 3.13,
+        "sodium": 142.0
+      },
+      "foodLibraryItem": {
+        "name": "Whole egg",
+        "grams": 100,
+        "calories": 143.0,
+        "macros": {
+          "protein": 12.6,
+          "carbs": 0.72,
+          "fat": 9.51,
+          "fiber": 0.0,
+          "sugar": 0.37,
+          "satFat": 3.13,
+          "sodium": 142.0
+        }
+      }
+    },
+    {
+      "libraryName": "Greek yogurt, 2%",
+      "fdcId": 170903,
+      "description": "Yogurt, Greek, plain, lowfat",
+      "dataType": "SR Legacy",
+      "publicationDate": "4/1/2019",
+      "ndbNumber": 1287,
+      "foodCategory": "Dairy and Egg Products",
+      "detailUrl": "https://fdc.nal.usda.gov/food-details/170903/nutrients",
+      "nutrientNotes": {
+        "calories": "208 Energy",
+        "fiber": "291 Fiber, total dietary"
+      },
+      "per100g": {
+        "calories": 73.0,
+        "fiber": 0.0,
+        "protein": 9.95,
+        "fat": 1.92,
+        "carbs": 3.94,
+        "sugar": 3.56,
+        "satFat": 1.23,
+        "sodium": 34.0
+      },
+      "foodLibraryItem": {
+        "name": "Greek yogurt, 2%",
+        "grams": 100,
+        "calories": 73.0,
+        "macros": {
+          "protein": 9.95,
+          "carbs": 3.94,
+          "fat": 1.92,
+          "fiber": 0.0,
+          "sugar": 3.56,
+          "satFat": 1.23,
+          "sodium": 34.0
+        }
+      }
+    }
+  ],
+  "foodLibrary": [
+    {
+      "name": "Chicken breast",
+      "grams": 100,
+      "calories": 165.0,
+      "macros": {
+        "protein": 31.0,
+        "carbs": 0.0,
+        "fat": 3.57,
+        "fiber": 0.0,
+        "sugar": 0.0,
+        "satFat": 1.01,
+        "sodium": 74.0
+      }
+    },
+    {
+      "name": "White rice, cooked",
+      "grams": 100,
+      "calories": 130.0,
+      "macros": {
+        "protein": 2.69,
+        "carbs": 28.2,
+        "fat": 0.28,
+        "fiber": 0.4,
+        "sugar": 0.05,
+        "satFat": 0.08,
+        "sodium": 1.0
+      }
+    },
+    {
+      "name": "Rolled oats",
+      "grams": 100,
+      "calories": 379.0,
+      "macros": {
+        "protein": 13.5,
+        "carbs": 68.7,
+        "fat": 5.89,
+        "fiber": 10.4,
+        "sodium": 0.7
+      }
+    },
+    {
+      "name": "Whole egg",
+      "grams": 100,
+      "calories": 143.0,
+      "macros": {
+        "protein": 12.6,
+        "carbs": 0.72,
+        "fat": 9.51,
+        "fiber": 0.0,
+        "sugar": 0.37,
+        "satFat": 3.13,
+        "sodium": 142.0
+      }
+    },
+    {
+      "name": "Greek yogurt, 2%",
+      "grams": 100,
+      "calories": 73.0,
+      "macros": {
+        "protein": 9.95,
+        "carbs": 3.94,
+        "fat": 1.92,
+        "fiber": 0.0,
+        "sugar": 3.56,
+        "satFat": 1.23,
+        "sodium": 34.0
+      }
+    }
+  ]
+}
