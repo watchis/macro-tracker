@@ -28,6 +28,7 @@ describe('defaults', () => {
     expect(state.settings.visibleMacros).toEqual(['protein', 'carbs', 'fat']);
     expect(state.settings.goals.calories).toBe(2000);
     expect(state.settings.weekStart).toBe('sunday');
+    expect(state.settings.dataRetention).toBe('forever');
     expect(state.view).toBe('calendar');
   });
 });
@@ -154,6 +155,17 @@ describe('settings', () => {
 
     store().toggleMacro('protein');
     expect(store().settings.visibleMacros).toEqual(['carbs', 'sodium']);
+  });
+
+  it('applies a retention policy and prunes matching days', () => {
+    store().addEntry('2024-02-01', { name: 'Old', grams: 10, calories: 10, macros: {} });
+    store().addEntry(DATE, { name: 'New', grams: 10, calories: 10, macros: {} });
+
+    store().setDataRetention('retain-6-months');
+
+    expect(store().settings.dataRetention).toBe('retain-6-months');
+    expect(store().days['2024-02-01']).toBeUndefined();
+    expect(store().days[DATE]?.[0]?.name).toBe('New');
   });
 });
 
@@ -332,6 +344,7 @@ describe('mergePersistedState', () => {
     expect(merged.settings.visibleMacros).toEqual(['protein']);
     expect(merged.settings.goals.calories).toBe(2000);
     expect(merged.settings.weekStart).toBe('sunday');
+    expect(merged.settings.dataRetention).toBe('forever');
   });
 
   it('leaves transient UI state alone', () => {

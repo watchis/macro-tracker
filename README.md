@@ -26,8 +26,8 @@ of macros that are currently hidden, so switching a macro off never silently dro
 when you log.
 
 **Settings** covers the theme (light, dark or follow the system), the accent color as presets or a
-custom hex, which macros are visible, the daily calorie and per-macro goals, and JSON
-export/import/reset.
+custom hex, which macros are visible, the daily calorie and per-macro goals, JSON import/export,
+local storage usage, and a retention policy for old day logs.
 
 The **budget bar** is pinned to the bottom of every view. It starts full and depletes as the
 selected day is logged, showing the calories left plus a chip per visible macro. Past the goal it
@@ -71,7 +71,7 @@ The dev server serves the app under `/macro-tracker/` because `vite.config.ts` s
 src/
   App.tsx              app shell: header, active view, budget bar
   components/          AppHeader, BudgetBar, MacroChip
-  components/settings/ settings form controls, accent picker, food library, data export/import
+  components/settings/ settings form controls, accent picker, import/export, data retention
   views/               CalendarView, DayView, FoodLibraryView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
   lib/                 date keys, macro metadata, totals and budget math

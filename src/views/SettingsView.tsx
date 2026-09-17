@@ -1,5 +1,6 @@
 import { AccentPicker } from '../components/settings/AccentPicker';
 import { DataSettings } from '../components/settings/DataSettings';
+import { ImportExportSettings } from '../components/settings/ImportExportSettings';
 import { MacroSettings } from '../components/settings/MacroSettings';
 import { SegmentedControl } from '../components/settings/SegmentedControl';
 import { SettingsSection } from '../components/settings/SettingsSection';
@@ -66,9 +67,17 @@ export function SettingsView() {
       </SettingsSection>
 
       <SettingsSection
+        id="import-export"
+        title="Import/Export"
+        description="Move your log between browsers."
+      >
+        <ImportExportSettings />
+      </SettingsSection>
+
+      <SettingsSection
         id="data"
         title="Data"
-        description="Move your log between browsers, or start over."
+        description="See how much space the log uses, and how long to keep it."
       >
         <DataSettings />
       </SettingsSection>
