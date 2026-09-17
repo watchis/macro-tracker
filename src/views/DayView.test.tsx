@@ -351,22 +351,12 @@ describe('DayView navigation', () => {
     expect(screen.getByText(/· today/)).toBeInTheDocument();
   });
 
-  it('goes back to the calendar', async () => {
-    const user = userEvent.setup();
+  it('does not show Home or Calendar shortcuts', () => {
     useAppStore.getState().openDay(DATE);
     render(<DayView />);
 
-    await user.click(screen.getByRole('button', { name: 'Calendar' }));
-    expect(useAppStore.getState().view).toBe('calendar');
-  });
-
-  it('goes back to home', async () => {
-    const user = userEvent.setup();
-    useAppStore.getState().openDay(DATE);
-    render(<DayView />);
-
-    await user.click(screen.getByRole('button', { name: 'Home' }));
-    expect(useAppStore.getState().view).toBe('home');
+    expect(screen.queryByRole('button', { name: 'Home' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Calendar' })).not.toBeInTheDocument();
   });
 
   it('logs against the day it navigates to', async () => {
