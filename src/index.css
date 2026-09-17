@@ -1,0 +1,121 @@
+@import 'tailwindcss';
+
+/*
+ * Palette: neutral gray/white surfaces plus one customizable accent hex.
+ * `--accent` is written onto <html> by src/theme/applyTheme.ts; every other
+ * accent shade below derives from it with color-mix(), so changing the single
+ * hex in settings restyles the whole app.
+ */
+:root,
+[data-theme='light'] {
+  --bg: #ffffff;
+  --surface: #f6f6f7;
+  --surface-raised: #ffffff;
+  --surface-sunken: #ededf0;
+  --text: #18181b;
+  --text-muted: #52525b;
+  --text-subtle: #7c7c85;
+  --border: #e3e3e7;
+  --border-strong: #cfcfd6;
+  --danger: #c62828;
+  --danger-soft: #fdecec;
+  --shadow: 0 1px 2px rgb(24 24 27 / 0.06), 0 8px 24px rgb(24 24 27 / 0.04);
+
+  /* Mixed into --accent to make the "strong" shade: darker in light mode. */
+  --accent-shade: #000000;
+}
+
+[data-theme='dark'] {
+  --bg: #0c0c0e;
+  --surface: #16161a;
+  --surface-raised: #1d1d22;
+  --surface-sunken: #101013;
+  --text: #f3f3f5;
+  --text-muted: #a6a6b0;
+  --text-subtle: #85858f;
+  --border: #2a2a30;
+  --border-strong: #3c3c45;
+  --danger: #f26d6d;
+  --danger-soft: #2a1515;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 24px rgb(0 0 0 / 0.35);
+
+  /* Lighter in dark mode, so hover states still read as "more accent". */
+  --accent-shade: #ffffff;
+}
+
+:root {
+  /* Fallbacks; applyTheme() overwrites both on <html> at runtime. */
+  --accent: #3b82f6;
+  --accent-contrast: #ffffff;
+}
+
+:root,
+[data-theme='light'],
+[data-theme='dark'] {
+  --accent-strong: color-mix(in srgb, var(--accent) 84%, var(--accent-shade));
+  --accent-muted: color-mix(in srgb, var(--accent) 55%, var(--surface));
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  --accent-faint: color-mix(in srgb, var(--accent) 8%, var(--bg));
+  --accent-border: color-mix(in srgb, var(--accent) 42%, var(--border));
+  --accent-ring: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--surface-raised);
+  --color-sunken: var(--surface-sunken);
+  --color-ink: var(--text);
+  --color-muted: var(--text-muted);
+  --color-subtle: var(--text-subtle);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-muted: var(--accent-muted);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-faint: var(--accent-faint);
+  --color-accent-border: var(--accent-border);
+  --color-accent-contrast: var(--accent-contrast);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --shadow-card: var(--shadow);
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* Native controls (checkbox, range, color) pick up the accent for free. */
+  input,
+  select,
+  textarea {
+    accent-color: var(--accent);
+  }
+}
+
+@layer components {
+  .card {
+    background-color: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow);
+  }
+}
