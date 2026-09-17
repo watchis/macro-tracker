@@ -231,7 +231,10 @@ export function DayView({ date }: DayViewProps) {
         ) : null}
       </div>
 
-      <div className="card overflow-x-auto">
+      {/* `relative` keeps the table's visually-hidden caption and header text
+          inside this scroll container; positioned against the viewport instead,
+          they escape the clip and scroll the whole page sideways on a phone. */}
+      <div className="card relative overflow-x-auto">
         <table className="w-full min-w-[34rem] border-collapse text-sm">
           <caption className="sr-only">Food logged on {formatLongDate(day)}</caption>
           <thead>
