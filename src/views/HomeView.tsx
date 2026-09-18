@@ -57,7 +57,6 @@ export function HomeView() {
   const goals = useGoals();
   const weightUnit = useWeightUnit();
   const setWeightUnit = useAppStore((state) => state.setWeightUnit);
-  const setView = useAppStore((state) => state.setView);
   const openDay = useAppStore((state) => state.openDay);
   const [range, setRange] = useState<RangeKey>('90');
   const [chart, setChart] = useState<ChartKey>('weight');
@@ -136,15 +135,8 @@ export function HomeView() {
         </div>
 
         <div className="card grid gap-2 p-3" data-testid="home-mini-calendar">
-          <div className="flex items-baseline justify-between gap-2 px-1">
+          <div className="px-1">
             <h2 className="text-sm font-semibold tracking-tight">This month</h2>
-            <button
-              type="button"
-              onClick={() => setView('calendar')}
-              className="text-xs font-medium text-accent hover:text-accent-strong"
-            >
-              Full calendar
-            </button>
           </div>
           <CalendarView compact />
         </div>

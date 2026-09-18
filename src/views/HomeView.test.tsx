@@ -15,6 +15,12 @@ describe('HomeView', () => {
     expect(screen.getByTestId('home-weight-card')).toBeInTheDocument();
     expect(screen.getByTestId('home-mini-calendar')).toBeInTheDocument();
     expect(screen.getByTestId('mini-calendar-grid')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Full calendar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Previous month' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Next month' })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('home-mini-calendar')).queryByRole('button', { name: 'Today' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId('home-chart')).toBeInTheDocument();
     expect(screen.getByTestId('weight-chart')).toHaveTextContent(/weigh-in/i);
     expect(screen.queryByTestId('calorie-chart')).not.toBeInTheDocument();
