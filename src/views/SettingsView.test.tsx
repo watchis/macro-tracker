@@ -226,7 +226,7 @@ describe('SettingsView data', () => {
     expect(screen.getByTestId('storage-usage-summary')).toHaveTextContent(/used/);
     expect(screen.getByTestId('storage-usage-bar')).toBeInTheDocument();
     expect(screen.getByTestId('data-retention')).toHaveValue('forever');
-    expect(screen.getByTestId('data-retention-description')).toHaveTextContent('Never delete');
+    expect(screen.queryByTestId('data-retention-description')).not.toBeInTheDocument();
   });
 
   it('updates the retention policy and prunes old days', async () => {
@@ -240,7 +240,6 @@ describe('SettingsView data', () => {
     expect(state().settings.dataRetention).toBe('retain-1-year');
     expect(state().days['2024-01-15']).toBeUndefined();
     expect(state().days['2026-09-17']?.[0]?.name).toBe('New');
-    expect(screen.getByTestId('data-retention-description')).toHaveTextContent('one year');
   });
 
   it('resets everything after confirming', async () => {

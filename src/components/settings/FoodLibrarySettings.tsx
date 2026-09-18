@@ -93,7 +93,10 @@ export function FoodLibrarySettings() {
             No matches.
           </p>
         ) : (
-          <ul data-testid="food-library-list" className="grid gap-2">
+          <ul
+            data-testid="food-library-list"
+            className="grid max-h-96 gap-2 overflow-y-auto rounded-lg border border-line p-2"
+          >
             {customMatches.map(({ item, index }) => (
               <li
                 key={`custom-${item.name}-${index}`}

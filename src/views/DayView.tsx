@@ -1,11 +1,9 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { addDays, formatLongDate, isToday, todayKey } from '../lib/dates';
 import { MACROS, formatMacro, macroLabel, macroUnit } from '../lib/macros';
 import { formatCalories, scaleFood } from '../lib/totals';
-import { STARTER_FOOD_COUNT, queryStarterFoods } from '../data/starterCatalog';
 import { useAppStore } from '../store/useAppStore';
 import {
-  useCustomFoods,
   useDayBudget,
   useDayEntries,
   useDayWeightKg,
@@ -23,15 +21,9 @@ import type {
   WeightUnit,
 } from '../types';
 import { fromCanonicalKg, roundWeight, weightUnitLabel } from '../lib/weight';
-import { SegmentedControl } from '../components/settings/SegmentedControl';
-import type { SegmentedOption } from '../components/settings/SegmentedControl';
 import { NumberField } from '../components/settings/NumberField';
-
-type QuickAddOption = {
-  key: string;
-  food: FoodLibraryItem;
-  source: 'custom' | 'starter';
-};
+import { FoodSearchCombobox } from '../components/FoodSearchCombobox';
+import type { FoodSearchPick } from '../components/FoodSearchCombobox';
 
 export type DayViewProps = {
   /** Day to log against; defaults to the selected date. */
@@ -120,7 +112,6 @@ export function DayView({ date }: DayViewProps) {
   const weightKg = useDayWeightKg(day);
   const weightUnit = useWeightUnit();
   const setWeight = useAppStore((state) => state.setWeight);
-  const setWeightUnit = useAppStore((state) => state.setWeightUnit);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Draft>(emptyDraft);
@@ -252,11 +243,9 @@ export function DayView({ date }: DayViewProps) {
       </div>
 
       <WeightPanel
-        day={day}
         weightKg={weightKg}
         weightUnit={weightUnit}
         onCommit={(value) => setWeight(day, value, weightUnit)}
-        onUnitChange={setWeightUnit}
       />
 
       {/* `relative` keeps the table's visually-hidden caption and header text
@@ -471,23 +460,17 @@ export function DayView({ date }: DayViewProps) {
 }
 
 type WeightPanelProps = {
-  day: DateKey;
   weightKg: number | undefined;
   weightUnit: WeightUnit;
   onCommit: (value: number | undefined) => void;
-  onUnitChange: (unit: WeightUnit) => void;
 };
 
-/** Body-weight weigh-in for the selected day; unit preference is shared app-wide. */
-function WeightPanel({ day, weightKg, weightUnit, onCommit, onUnitChange }: WeightPanelProps) {
+/** Body-weight weigh-in for the selected day; unit comes from Settings. */
+function WeightPanel({ weightKg, weightUnit, onCommit }: WeightPanelProps) {
   const display =
     weightKg === undefined
       ? undefined
       : roundWeight(fromCanonicalKg(weightKg, weightUnit), weightUnit);
-  const unitOptions: ReadonlyArray<SegmentedOption<WeightUnit>> = [
-    { value: 'lb', label: 'lb' },
-    { value: 'kg', label: 'kg' },
-  ];
 
   return (
     <div data-testid="day-weight" className="card flex flex-wrap items-end gap-4 p-4">
@@ -502,28 +485,6 @@ function WeightPanel({ day, weightKg, weightUnit, onCommit, onUnitChange }: Weig
         onCommit={(value) => onCommit(value)}
         className="w-36"
       />
-      <div>
-        <span className="block text-xs font-medium tracking-wide text-muted uppercase">Unit</span>
-        <div className="mt-1">
-          <SegmentedControl
-            label="Weight unit"
-            testId="day-weight-unit"
-            value={weightUnit}
-            options={unitOptions}
-            onChange={onUnitChange}
-          />
-        </div>
-      </div>
-      {weightKg !== undefined ? (
-        <button
-          type="button"
-          aria-label={`Clear weight for ${day}`}
-          onClick={() => onCommit(undefined)}
-          className={ROW_BUTTON}
-        >
-          Clear
-        </button>
-      ) : null}
     </div>
   );
 }
@@ -537,21 +498,39 @@ type DraftCellsProps = {
   autoFocus?: boolean;
 };
 
+function draftFromLibraryItem(food: FoodLibraryItem): Draft {
+  const macros: Draft['macros'] = {};
+  for (const { key } of MACROS) {
+    const value = food.macros[key];
+    if (typeof value === 'number') macros[key] = String(value);
+  }
+  return {
+    name: food.name,
+    grams: String(food.grams),
+    calories: String(food.calories),
+    macros,
+  };
+}
+
 /** The name/grams/calories/macro input cells shared by the add and edit rows. */
 function DraftCells({ draft, onChange, visibleMacros, context, autoFocus }: DraftCellsProps) {
   const setMacro = (macro: MacroKey, value: string) =>
     onChange({ ...draft, macros: { ...draft.macros, [macro]: value } });
 
+  const onPickFood = (pick: FoodSearchPick) => {
+    onChange(draftFromLibraryItem(pick.food));
+  };
+
   return (
     <>
       <td className={`${CELL} min-w-40`}>
-        <input
-          type="text"
+        <FoodSearchCombobox
           value={draft.name}
           autoFocus={autoFocus}
           placeholder="Food name"
           aria-label={`Food name for ${context}`}
-          onChange={(event) => onChange({ ...draft, name: event.target.value })}
+          onChange={(name) => onChange({ ...draft, name })}
+          onPick={onPickFood}
           className={INPUT}
         />
       </td>
@@ -602,122 +581,22 @@ function DraftCells({ draft, onChange, visibleMacros, context, autoFocus }: Draf
 
 /** Logs a library food scaled from its reference weight to the grams entered. */
 function QuickAdd({ day }: { day: DateKey }) {
-  const listboxId = useId();
-  const customFoods = useCustomFoods();
   const visibleMacros = useVisibleMacros();
   const addEntry = useAppStore((state) => state.addEntry);
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState<QuickAddOption | null>(null);
-  const [open, setOpen] = useState(false);
-  const [highlight, setHighlight] = useState(0);
+  const [selected, setSelected] = useState<FoodSearchPick | null>(null);
   const [grams, setGrams] = useState('100');
-  const blurTimer = useRef<number | null>(null);
-  const normalizedQuery = query.trim().toLowerCase();
 
-  const customMatches = useMemo(() => {
-    if (!normalizedQuery) return customFoods.slice(0, 20);
-    return customFoods.filter((food) => food.name.toLowerCase().includes(normalizedQuery));
-  }, [customFoods, normalizedQuery]);
-
-  const [starterResult, setStarterResult] = useState<{
-    query: string;
-    items: FoodLibraryItem[];
-  }>({ query: '', items: [] });
-
-  useEffect(() => {
-    if (!normalizedQuery) return;
-    let cancelled = false;
-    const handle = window.setTimeout(() => {
-      queryStarterFoods({ query: normalizedQuery, limit: 40, offset: 0 })
-        .then((page) => {
-          if (!cancelled) setStarterResult({ query: normalizedQuery, items: page.items });
-        })
-        .catch(() => {
-          if (!cancelled) setStarterResult({ query: normalizedQuery, items: [] });
-        });
-    }, 150);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(handle);
-    };
-  }, [normalizedQuery]);
-
-  useEffect(() => {
-    return () => {
-      if (blurTimer.current !== null) window.clearTimeout(blurTimer.current);
-    };
-  }, []);
-
-  const loading = Boolean(normalizedQuery) && starterResult.query !== normalizedQuery;
-
-  const options = useMemo(() => {
-    const starterMatches =
-      normalizedQuery && starterResult.query === normalizedQuery ? starterResult.items : [];
-    const rows: QuickAddOption[] = [];
-    customMatches.forEach((food, index) => {
-      rows.push({ key: `custom:${index}:${food.name}`, food, source: 'custom' });
-    });
-    starterMatches.forEach((food, index) => {
-      rows.push({ key: `starter:${index}:${food.name}`, food, source: 'starter' });
-    });
-    return rows;
-  }, [customMatches, normalizedQuery, starterResult]);
-
-  const activeIndex = options.length === 0 ? 0 : Math.min(highlight, options.length - 1);
   const scaled = selected ? scaleFood(selected.food, parseNumber(grams) ?? 0) : null;
-  const showMenu = open && !selected;
-  const activeOption = options[activeIndex] ?? null;
 
-  const pick = (row: QuickAddOption) => {
-    setSelected(row);
-    setQuery(row.food.name);
-    setOpen(false);
-    setHighlight(0);
+  const pick = (pick: FoodSearchPick) => {
+    setSelected(pick);
+    setQuery(pick.food.name);
   };
 
   const onQueryChange = (value: string) => {
     setQuery(value);
     setSelected(null);
-    setOpen(true);
-    setHighlight(0);
-  };
-
-  const onComboboxKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      if (selected) {
-        setSelected(null);
-        setOpen(true);
-        return;
-      }
-      setOpen(true);
-      if (options.length === 0) return;
-      setHighlight((index) => (Math.min(index, options.length - 1) + 1) % options.length);
-      return;
-    }
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      if (selected) {
-        setSelected(null);
-        setOpen(true);
-        return;
-      }
-      setOpen(true);
-      if (options.length === 0) return;
-      setHighlight(
-        (index) => (Math.min(index, options.length - 1) - 1 + options.length) % options.length,
-      );
-      return;
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      setOpen(false);
-      return;
-    }
-    if (event.key === 'Enter' && showMenu && activeOption) {
-      event.preventDefault();
-      pick(activeOption);
-    }
   };
 
   return (
@@ -730,87 +609,20 @@ function QuickAdd({ day }: { day: DateKey }) {
         addEntry(day, scaled);
       }}
     >
-      <div className="relative grid gap-1">
-        <label
-          htmlFor={`${listboxId}-input`}
-          className="text-xs tracking-wide text-subtle uppercase"
-        >
+      <div className="grid gap-1">
+        <label htmlFor="quick-add-search" className="text-xs tracking-wide text-subtle uppercase">
           Quick add
         </label>
-        <input
-          id={`${listboxId}-input`}
-          type="text"
-          role="combobox"
-          name="quick-add-search"
-          data-testid="quick-add-search"
-          autoComplete="off"
-          aria-autocomplete="list"
-          aria-expanded={showMenu}
-          aria-controls={listboxId}
-          aria-activedescendant={
-            showMenu && activeOption ? `${listboxId}-option-${activeIndex}` : undefined
-          }
+        <FoodSearchCombobox
+          inputId="quick-add-search"
           value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          onFocus={() => {
-            if (blurTimer.current !== null) window.clearTimeout(blurTimer.current);
-            if (!selected) setOpen(true);
-          }}
-          onBlur={() => {
-            blurTimer.current = window.setTimeout(() => setOpen(false), 120);
-          }}
-          onKeyDown={onComboboxKeyDown}
-          placeholder={`Search ${STARTER_FOOD_COUNT.toLocaleString()} foods`}
+          testId="quick-add-search"
+          listTestId="quick-add-suggestions"
+          placeholder="Search foods"
+          onChange={onQueryChange}
+          onPick={pick}
           className={`${INPUT} h-8`}
         />
-
-        {showMenu ? (
-          <ul
-            id={listboxId}
-            role="listbox"
-            data-testid="quick-add-suggestions"
-            className="absolute top-full z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-line bg-surface py-1 shadow-md"
-          >
-            {loading && options.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-muted">Searching…</li>
-            ) : options.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-muted">
-                {normalizedQuery ? 'No matches' : 'Type to search'}
-              </li>
-            ) : (
-              options.map((row, index) => {
-                const active = index === activeIndex;
-                return (
-                  <li
-                    key={row.key}
-                    id={`${listboxId}-option-${index}`}
-                    role="option"
-                    aria-selected={active}
-                    data-testid={`quick-add-option-${index}`}
-                    className={[
-                      'cursor-pointer px-3 py-2 text-sm',
-                      active ? 'bg-accent-soft text-ink' : 'text-ink hover:bg-raised',
-                    ].join(' ')}
-                    onMouseDown={(event) => {
-                      // Keep focus on the input so blur does not close before pick.
-                      event.preventDefault();
-                      pick(row);
-                    }}
-                    onMouseEnter={() => setHighlight(index)}
-                  >
-                    <span className="font-medium">
-                      {row.source === 'custom' ? '★ ' : ''}
-                      {row.food.name}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-muted tabular-nums">
-                      {formatCalories(row.food.calories)} kcal / {Math.round(row.food.grams)} g
-                    </span>
-                  </li>
-                );
-              })
-            )}
-          </ul>
-        ) : null}
       </div>
 
       <label className="grid gap-1 text-xs tracking-wide text-subtle uppercase">

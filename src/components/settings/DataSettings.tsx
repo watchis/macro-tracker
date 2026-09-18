@@ -1,10 +1,6 @@
 import { useId, useState } from 'react';
 import { ConfirmAction } from './ConfirmAction';
-import {
-  DATA_RETENTION_OPTIONS,
-  isDataRetentionPolicy,
-  retentionOption,
-} from '../../lib/retention';
+import { DATA_RETENTION_OPTIONS, isDataRetentionPolicy } from '../../lib/retention';
 import { formatBytes, measureLocalStorageUsage } from '../../lib/storage';
 import { STORAGE_KEY } from '../../store/defaults';
 import { useAppStore } from '../../store/useAppStore';
@@ -23,7 +19,6 @@ export function DataSettings() {
   const [status, setStatus] = useState<Status | null>(null);
   const usage = measureLocalStorageUsage(STORAGE_KEY);
 
-  const option = retentionOption(settings.dataRetention);
   const percent = Math.round(usage.usedRatio * 1000) / 10;
 
   return (
@@ -81,9 +76,6 @@ export function DataSettings() {
             </option>
           ))}
         </select>
-        <p className="mt-1.5 text-xs text-subtle" data-testid="data-retention-description">
-          {option.description}
-        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">

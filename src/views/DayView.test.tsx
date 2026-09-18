@@ -327,9 +327,29 @@ describe('DayView quick add', () => {
     render(<DayView date={DATE} />);
 
     expect(screen.getByTestId('quick-add')).toBeInTheDocument();
-    expect(screen.getByTestId('quick-add-search').getAttribute('placeholder')).toMatch(
-      /Search [\d,]+ foods/,
-    );
+    expect(screen.getByTestId('quick-add-search')).toHaveAttribute('placeholder', 'Search foods');
+  });
+});
+
+describe('DayView food name search', () => {
+  it('fills the add row from a catalog or custom match', async () => {
+    const user = userEvent.setup();
+    useAppStore.getState().addFood({
+      name: 'Gym shake',
+      grams: 100,
+      calories: 120,
+      macros: { protein: 24 },
+    });
+    render(<DayView date={DATE} />);
+
+    const name = screen.getByLabelText('Food name for new entry');
+    await user.type(name, 'Gym');
+    await user.click(await screen.findByRole('option', { name: /gym shake/i }));
+
+    expect(name).toHaveValue('Gym shake');
+    expect(screen.getByLabelText('Grams for new entry')).toHaveValue(100);
+    expect(screen.getByLabelText('Calories for new entry')).toHaveValue(120);
+    expect(screen.getByLabelText('Protein for new entry')).toHaveValue(24);
   });
 });
 
@@ -374,28 +394,25 @@ describe('DayView navigation', () => {
 });
 
 describe('DayView weight', () => {
-  it('records a weigh-in in the preferred unit and can clear it', async () => {
+  it('records a weigh-in in the settings unit', async () => {
     const user = userEvent.setup();
     useAppStore.getState().setWeightUnit('lb');
     render(<DayView date={DATE} />);
+
+    expect(screen.queryByTestId('day-weight-unit')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: `Clear weight for ${DATE}` })).not.toBeInTheDocument();
 
     const input = screen.getByTestId('day-weight-input');
     await user.clear(input);
     await user.type(input, '180');
 
     expect(useAppStore.getState().weights[DATE]).toBeCloseTo(81.6466, 3);
+    expect(screen.getByText('lb')).toBeInTheDocument();
 
-    await user.click(
-      within(screen.getByTestId('day-weight-unit')).getByRole('radio', { name: 'kg' }),
-    );
-    expect(useAppStore.getState().settings.weightUnit).toBe('kg');
-    // Stored kg is unchanged; the field should now show the kilogram equivalent.
+    useAppStore.getState().setWeightUnit('kg');
     expect(Number(screen.getByTestId('day-weight-input').getAttribute('value'))).toBeCloseTo(
       81.65,
       1,
     );
-
-    await user.click(screen.getByRole('button', { name: `Clear weight for ${DATE}` }));
-    expect(useAppStore.getState().weights[DATE]).toBeUndefined();
   });
 });
