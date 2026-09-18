@@ -60,9 +60,6 @@ export function SettingsView() {
             <span className="block text-xs font-medium tracking-wide text-muted uppercase">
               Weight unit
             </span>
-            <p className="mt-1 text-xs text-muted">
-              Used on the Day weigh-in and Graphs page. Stored weights stay in kilograms.
-            </p>
             <div className="mt-2">
               <SegmentedControl
                 label="Weight unit"
