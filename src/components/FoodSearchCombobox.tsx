@@ -24,6 +24,11 @@ export type FoodSearchComboboxProps = {
   testId?: string;
   listTestId?: string;
   inputId?: string;
+  /**
+   * When true (default), Enter selects the highlighted suggestion.
+   * Set false in table rows so Enter can save/add the draft instead.
+   */
+  selectOnEnter?: boolean;
 };
 
 /**
@@ -41,6 +46,7 @@ export function FoodSearchCombobox({
   testId,
   listTestId,
   inputId,
+  selectOnEnter = true,
 }: FoodSearchComboboxProps) {
   const generatedId = useId();
   const listboxId = `${generatedId}-listbox`;
@@ -175,12 +181,13 @@ export function FoodSearchCombobox({
       return;
     }
     if (event.key === 'Escape') {
+      if (!showMenu) return;
       event.preventDefault();
       event.stopPropagation();
       setOpen(false);
       return;
     }
-    if (event.key === 'Enter' && showMenu && activeOption) {
+    if (event.key === 'Enter' && selectOnEnter && showMenu && activeOption) {
       event.preventDefault();
       event.stopPropagation();
       pick(activeOption);

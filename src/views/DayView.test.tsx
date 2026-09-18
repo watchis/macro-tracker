@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within, waitFor } from '@testing-library/react';
+import { render, screen, within, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DayView } from './DayView';
 import { todayKey } from '../lib/dates';
@@ -226,7 +226,10 @@ describe('DayView edit and delete', () => {
     expect(entryAt().name).toBe('Brown rice');
 
     await user.click(screen.getByRole('button', { name: 'Edit Brown rice' }));
-    await user.type(screen.getByLabelText('Food name for Brown rice'), ' leftovers{Escape}');
+    await user.type(
+      screen.getByLabelText('Food name for Brown rice'),
+      ' leftovers{Escape}{Escape}',
+    );
     expect(entryAt().name).toBe('Brown rice');
     expect(screen.getByRole('rowheader', { name: 'Brown rice' })).toBeInTheDocument();
   });
@@ -400,7 +403,9 @@ describe('DayView weight', () => {
     render(<DayView date={DATE} />);
 
     expect(screen.queryByTestId('day-weight-unit')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: `Clear weight for ${DATE}` })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: `Clear weight for ${DATE}` }),
+    ).not.toBeInTheDocument();
 
     const input = screen.getByTestId('day-weight-input');
     await user.clear(input);
@@ -409,7 +414,9 @@ describe('DayView weight', () => {
     expect(useAppStore.getState().weights[DATE]).toBeCloseTo(81.6466, 3);
     expect(screen.getByText('lb')).toBeInTheDocument();
 
-    useAppStore.getState().setWeightUnit('kg');
+    await act(async () => {
+      useAppStore.getState().setWeightUnit('kg');
+    });
     expect(Number(screen.getByTestId('day-weight-input').getAttribute('value'))).toBeCloseTo(
       81.65,
       1,

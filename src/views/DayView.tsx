@@ -529,6 +529,7 @@ function DraftCells({ draft, onChange, visibleMacros, context, autoFocus }: Draf
           autoFocus={autoFocus}
           placeholder="Food name"
           aria-label={`Food name for ${context}`}
+          selectOnEnter={false}
           onChange={(name) => onChange({ ...draft, name })}
           onPick={onPickFood}
           className={INPUT}
