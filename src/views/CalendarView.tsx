@@ -140,32 +140,21 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
     }
   };
 
-  const MonthHeading = compact ? 'h3' : 'h1';
-
   return (
     <section className={compact ? 'grid gap-2' : 'grid gap-4'} data-compact={compact || undefined}>
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <MonthHeading
-            data-testid="calendar-month"
-            className={
-              compact
-                ? 'text-sm font-semibold tracking-tight'
-                : 'text-xl font-semibold tracking-tight'
-            }
-          >
-            {formatMonthYear(activeMonth)}
-          </MonthHeading>
-          {compact ? null : (
+      {compact ? null : (
+        <header className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h1 data-testid="calendar-month" className="text-xl font-semibold tracking-tight">
+              {formatMonthYear(activeMonth)}
+            </h1>
             <p className="mt-0.5 text-sm text-muted">
               {summary.logged === 0
                 ? 'Nothing logged this month yet.'
                 : `${summary.logged} ${summary.logged === 1 ? 'day' : 'days'} logged · ${formatCalories(summary.calories)} kcal total`}
             </p>
-          )}
-        </div>
+          </div>
 
-        {compact ? null : (
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -187,8 +176,8 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
               <span aria-hidden="true">›</span>
             </button>
           </div>
-        )}
-      </header>
+        </header>
+      )}
 
       <div className={compact ? '' : 'card p-2 sm:p-3'}>
         <div

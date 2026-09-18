@@ -56,7 +56,6 @@ export function HomeView() {
   const weights = useWeights();
   const goals = useGoals();
   const weightUnit = useWeightUnit();
-  const setWeightUnit = useAppStore((state) => state.setWeightUnit);
   const openDay = useAppStore((state) => state.openDay);
   const [range, setRange] = useState<RangeKey>('90');
   const [chart, setChart] = useState<ChartKey>('weight');
@@ -84,11 +83,6 @@ export function HomeView() {
     [days, goals.calories, today],
   );
 
-  const unitOptions: ReadonlyArray<SegmentedOption<WeightUnit>> = [
-    { value: 'lb', label: 'lb' },
-    { value: 'kg', label: 'kg' },
-  ];
-
   const rangeOptions: ReadonlyArray<SegmentedOption<RangeKey>> = RANGE_OPTIONS.map((option) => ({
     value: option.value,
     label: option.label,
@@ -109,22 +103,13 @@ export function HomeView() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <SegmentedControl
-            label="Date range"
-            testId="home-range"
-            value={range}
-            options={rangeOptions}
-            onChange={setRange}
-          />
-          <SegmentedControl
-            label="Weight unit"
-            testId="home-weight-unit"
-            value={weightUnit}
-            options={unitOptions}
-            onChange={setWeightUnit}
-          />
-        </div>
+        <SegmentedControl
+          label="Date range"
+          testId="home-range"
+          value={range}
+          options={rangeOptions}
+          onChange={setRange}
+        />
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
