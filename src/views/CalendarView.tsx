@@ -145,10 +145,7 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
       {compact ? null : (
         <header className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h1
-              data-testid="calendar-month"
-              className="text-xl font-semibold tracking-tight"
-            >
+            <h1 data-testid="calendar-month" className="text-xl font-semibold tracking-tight">
               {formatMonthYear(activeMonth)}
             </h1>
             <p className="mt-0.5 text-sm text-muted">
