@@ -23,11 +23,15 @@ import type { DateKey, MacroKey, MonthKey } from '../types';
 export type CalendarViewProps = {
   /** `YYYY-MM` month to open on; defaults to the month of the selected date. */
   month?: MonthKey;
-  /** Day cell click handler; defaults to the store's `openDay`. */
+  /**
+   * Called when the already-active day is clicked again (or Today while today is
+   * active). Defaults to the store's `openDay`. Inactive day clicks only change
+   * the selected date.
+   */
   onOpenDay?: (date: DateKey) => void;
   /**
    * Compact month strip for the Home dashboard: day numbers and a logged-state
-   * dot, without the full calorie/macro cell content.
+   * dot, with minified previous / Today / next controls to change months.
    */
   compact?: boolean;
 };
@@ -42,6 +46,8 @@ const ARROW_STEPS: Record<string, number> = {
 
 const NAV_BUTTON =
   'inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-line bg-raised px-2 text-sm font-medium text-muted transition-colors hover:border-accent-border hover:bg-accent-soft hover:text-ink';
+const COMPACT_NAV_BUTTON =
+  'inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-line bg-raised px-1.5 text-xs font-medium text-muted transition-colors hover:border-accent-border hover:bg-accent-soft hover:text-ink';
 
 function dateInMonth(month: MonthKey, day: number): DateKey {
   const clamped = Math.min(Math.max(day, 1), daysInMonth(month));
@@ -50,8 +56,8 @@ function dateInMonth(month: MonthKey, day: number): DateKey {
 
 /**
  * Month grid of logged days. Each cell carries a compact remaining-calorie
- * readout plus totals for the macros currently switched on in settings, and
- * clicking one opens that day in the day view.
+ * readout plus totals for the macros currently switched on in settings.
+ * Clicking an inactive day selects it; clicking the active day opens its log.
  */
 export function CalendarView({ month, onOpenDay, compact = false }: CalendarViewProps) {
   const selectedDate = useSelectedDate();
@@ -96,10 +102,23 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
     return { logged, calories };
   }, [days, activeMonth]);
 
+  /** Inactive day → select; active day → open the journal. */
+  const handleDayClick = (date: DateKey) => {
+    if (date === selectedDate) {
+      openDay(date);
+      return;
+    }
+    setSelectedDate(date);
+  };
+
   const goToToday = () => {
     const today = todayKey();
-    setSelectedDate(today);
     showMonth(monthKeyOf(today));
+    if (today === selectedDate) {
+      openDay(today);
+      return;
+    }
+    setSelectedDate(today);
   };
 
   const focusDate = (date: DateKey) => {
@@ -132,7 +151,7 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
       focusDate(dateInMonth(activeMonth, daysInMonth(activeMonth)));
       return;
     }
-    if (!compact && (event.key === 'PageUp' || event.key === 'PageDown')) {
+    if (event.key === 'PageUp' || event.key === 'PageDown') {
       event.preventDefault();
       const next = addMonths(activeMonth, event.key === 'PageUp' ? -1 : 1);
       pendingFocus.current = dateInMonth(next, dayOfMonth(date));
@@ -140,44 +159,60 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
     }
   };
 
+  const navButtonClass = compact ? COMPACT_NAV_BUTTON : NAV_BUTTON;
+  const MonthHeading = compact ? 'h3' : 'h1';
+
   return (
     <section className={compact ? 'grid gap-2' : 'grid gap-4'} data-compact={compact || undefined}>
-      {compact ? null : (
-        <header className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h1 data-testid="calendar-month" className="text-xl font-semibold tracking-tight">
-              {formatMonthYear(activeMonth)}
-            </h1>
+      <header
+        className={
+          compact
+            ? 'flex items-center justify-between gap-2 px-1'
+            : 'flex flex-wrap items-center justify-between gap-2'
+        }
+      >
+        <div>
+          <MonthHeading
+            data-testid="calendar-month"
+            className={
+              compact
+                ? 'text-sm font-semibold tracking-tight'
+                : 'text-xl font-semibold tracking-tight'
+            }
+          >
+            {formatMonthYear(activeMonth)}
+          </MonthHeading>
+          {compact ? null : (
             <p className="mt-0.5 text-sm text-muted">
               {summary.logged === 0
                 ? 'Nothing logged this month yet.'
                 : `${summary.logged} ${summary.logged === 1 ? 'day' : 'days'} logged · ${formatCalories(summary.calories)} kcal total`}
             </p>
-          </div>
+          )}
+        </div>
 
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              aria-label="Previous month"
-              onClick={() => showMonth(addMonths(activeMonth, -1))}
-              className={NAV_BUTTON}
-            >
-              <span aria-hidden="true">‹</span>
-            </button>
-            <button type="button" onClick={goToToday} className={NAV_BUTTON}>
-              Today
-            </button>
-            <button
-              type="button"
-              aria-label="Next month"
-              onClick={() => showMonth(addMonths(activeMonth, 1))}
-              className={NAV_BUTTON}
-            >
-              <span aria-hidden="true">›</span>
-            </button>
-          </div>
-        </header>
-      )}
+        <div className={compact ? 'flex items-center gap-1' : 'flex items-center gap-1.5'}>
+          <button
+            type="button"
+            aria-label="Previous month"
+            onClick={() => showMonth(addMonths(activeMonth, -1))}
+            className={navButtonClass}
+          >
+            <span aria-hidden="true">‹</span>
+          </button>
+          <button type="button" onClick={goToToday} className={navButtonClass}>
+            Today
+          </button>
+          <button
+            type="button"
+            aria-label="Next month"
+            onClick={() => showMonth(addMonths(activeMonth, 1))}
+            className={navButtonClass}
+          >
+            <span aria-hidden="true">›</span>
+          </button>
+        </div>
+      </header>
 
       <div className={compact ? '' : 'card p-2 sm:p-3'}>
         <div
@@ -205,7 +240,7 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
                 date={date}
                 month={activeMonth}
                 selected={date === selectedDate}
-                onOpen={openDay}
+                onOpen={handleDayClick}
               />
             ) : (
               <CalendarDayCell
@@ -214,7 +249,7 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
                 month={activeMonth}
                 visibleMacros={visibleMacros}
                 selected={date === selectedDate}
-                onOpen={openDay}
+                onOpen={handleDayClick}
               />
             ),
           )}

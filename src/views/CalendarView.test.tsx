@@ -117,19 +117,22 @@ describe('CalendarView grid', () => {
     expect(cell(today).className).toContain('bg-accent-faint');
   });
 
-  it('opens a day in the day view when its cell is clicked', async () => {
+  it('selects an inactive day on first click and opens it on a second click', async () => {
     const user = userEvent.setup();
     render(<CalendarView month={MONTH} />);
 
     await user.click(cell(DAY));
-
     expect(useAppStore.getState().selectedDate).toBe(DAY);
+    expect(useAppStore.getState().view).not.toBe('day');
+
+    await user.click(cell(DAY));
     expect(useAppStore.getState().view).toBe('day');
   });
 
-  it('lets a caller override the day click handler', async () => {
+  it('lets a caller override opening the already-active day', async () => {
     const user = userEvent.setup();
     const onOpenDay = vi.fn();
+    useAppStore.getState().setSelectedDate(DAY);
     render(<CalendarView month={MONTH} onOpenDay={onOpenDay} />);
 
     await user.click(cell(DAY));
@@ -140,8 +143,9 @@ describe('CalendarView grid', () => {
 });
 
 describe('CalendarView navigation', () => {
-  it('steps between months and jumps back to today', async () => {
+  it('steps between months and jumps back to today without opening when today is inactive', async () => {
     const user = userEvent.setup();
+    useAppStore.getState().setSelectedDate(DAY);
     render(<CalendarView month={MONTH} />);
 
     expect(screen.getByTestId('calendar-month')).toHaveTextContent(formatMonthYear(MONTH));
@@ -158,6 +162,18 @@ describe('CalendarView navigation', () => {
     expect(screen.getByTestId('calendar-month')).toHaveTextContent(
       formatMonthYear(monthKeyOf(today)),
     );
+    expect(useAppStore.getState().selectedDate).toBe(today);
+    expect(useAppStore.getState().view).not.toBe('day');
+  });
+
+  it('opens today from the Today button when today is already active', async () => {
+    const user = userEvent.setup();
+    const today = todayKey();
+    useAppStore.getState().setSelectedDate(today);
+    render(<CalendarView month={monthKeyOf(today)} />);
+
+    await user.click(screen.getByRole('button', { name: 'Today' }));
+    expect(useAppStore.getState().view).toBe('day');
     expect(useAppStore.getState().selectedDate).toBe(today);
   });
 

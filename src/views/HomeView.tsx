@@ -120,9 +120,6 @@ export function HomeView() {
         </div>
 
         <div className="card grid gap-2 p-3" data-testid="home-mini-calendar">
-          <div className="px-1">
-            <h2 className="text-sm font-semibold tracking-tight">This month</h2>
-          </div>
           <CalendarView compact />
         </div>
       </div>
