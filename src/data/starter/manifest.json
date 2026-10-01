@@ -1,9 +1,9 @@
 {
-  "source": "Curated whole foods (USDA FoodData Central, UK CoFID, Canadian Nutrient File)",
+  "source": "Curated whole foods plus household brands (USDA FoodData Central, UK CoFID, Canadian Nutrient File)",
   "license": "USDA public domain; UK Open Government Licence (CoFID); Health Canada Canadian Nutrient File",
   "portal": "https://fdc.nal.usda.gov/",
-  "basis": "Amounts per 100 g edible portion. Compiled from USDA FoodData Central (SR Legacy and Foundation Foods), the UK Composition of Foods Integrated Dataset (CoFID), and the Canadian Nutrient File. Each food keeps the source id from that lookup. Same-food rows are dropped only when their macros match; category JSON files are lazy-loaded.",
-  "total": 4844,
+  "basis": "Amounts per 100 g edible portion. Compiled from USDA FoodData Central (SR Legacy, Foundation Foods, and a short list of Branded Foods), the UK Composition of Foods Integrated Dataset (CoFID), and the Canadian Nutrient File. Each food keeps the source id from that lookup. Same-food rows are dropped only when their macros match; category JSON files are lazy-loaded.",
+  "total": 4895,
   "categories": [
     {
       "id": "poultry",
@@ -38,7 +38,7 @@
     {
       "id": "dairy-eggs",
       "label": "Dairy & eggs",
-      "count": 295
+      "count": 297
     },
     {
       "id": "grains",
@@ -78,12 +78,17 @@
     {
       "id": "beverages",
       "label": "Beverages",
-      "count": 187
+      "count": 203
     },
     {
       "id": "seasonings",
       "label": "Sauces, seasonings & sweeteners",
-      "count": 136
+      "count": 146
+    },
+    {
+      "id": "popular-brands",
+      "label": "Popular brands",
+      "count": 23
     }
   ]
 }

@@ -187,6 +187,12 @@ describe('FoodLibraryView', () => {
     });
 
     await user.clear(screen.getByTestId('food-library-search'));
+    await user.type(screen.getByTestId('food-library-search'), 'heinz');
+    await waitFor(() => {
+      expect(screen.getByTestId('starter-food-list')).toHaveTextContent(/Heinz Tomato Ketchup/);
+    });
+
+    await user.clear(screen.getByTestId('food-library-search'));
     await user.type(screen.getByTestId('food-library-search'), 'aubergine');
     await waitFor(() => {
       const list = screen.getByTestId('starter-food-list');

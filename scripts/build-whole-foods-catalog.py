@@ -7,13 +7,15 @@ Values are per 100 g edible portion. They were compiled from:
   - Health Canada Canadian Nutrient File
 
 Everyday names cover common foods. The rest keep the database description
-with grade, trim, and salt boilerplate removed. Branded, restaurant,
-fast-food, and baby-food rows were left out. A row is dropped only when
-it is the same food as one already kept and the macros are not distinct.
+with grade, trim, and salt boilerplate removed. Restaurant, fast-food,
+and baby-food rows were left out. A short list of household brand foods
+comes from USDA Branded Foods. A row is dropped only when it is the same
+food as one already kept and the macros are not distinct.
 Every entry records source and sourceRef from the lookup.
 
 Counts by source at compile time: USDA SR Legacy 3685,
-USDA Foundation 224, CoFID 930, Canadian Nutrient File 5.
+USDA Foundation 224, CoFID 930, Canadian Nutrient File 5,
+USDA Branded 51.
 
 Run from repo root:
   python3 scripts/build-whole-foods-catalog.py
@@ -2275,6 +2277,7 @@ CATEGORIES: list[dict] = [
             food("Heavy cream", 340, 2.8, 2.8, 36.1, fiber=0, sugar=2.9, satFat=23, sodium=27, fdcId=170859, source="sr", sourceRef=170859),
             food("Kefir, plain", 63, 3.5, 4.3, 3.6, fiber=0, sugar=3.9, satFat=2.3, sodium=43, source="cnf", sourceRef=6291),
             food("Kefir, plain, low-fat", 37, 3.1, 3, 1.4, fiber=0, sugar=3, satFat=0.9, sodium=38, source="cnf", sourceRef=6999),
+            food("Kraft Singles", 286, 14.3, 9.5, 19.1, fiber=0, sugar=9.5, satFat=11.9, sodium=1190, fdcId=2594746, source="brand", sourceRef=2594746),
             food("Light whipping cream", 292, 2.2, 3, 30.9, fiber=0, sugar=3, satFat=19.3, sodium=34, fdcId=170858, source="sr", sourceRef=170858),
             food("Milk substitutes, fluid, with lauric acid oil", 61, 1.8, 6.2, 3.4, fiber=0, satFat=3, sodium=78, fdcId=171264, source="sr", sourceRef=171264),
             food("Milk, 1%", 42, 3.4, 5, 1, fiber=0, sugar=5.2, satFat=0.6, sodium=44, fdcId=170872, source="sr", sourceRef=170872),
@@ -2342,6 +2345,7 @@ CATEGORIES: list[dict] = [
             food("Paneer", 328, 26, 0.9, 24.5, fiber=0, sugar=0.9, satFat=15.4, sodium=19, source="cofid", sourceRef="12-495"),
             food("Parmesan cheese", 392, 35.8, 3.2, 25, fiber=0, sugar=0.1, satFat=14.9, sodium=1175, fdcId=170848, source="sr", sourceRef=170848),
             food("Parmesan cheese topping, fat free", 370, 40, 40, 5, fiber=0, sugar=1.5, satFat=3.1, sodium=1150, fdcId=172206, source="sr", sourceRef=172206),
+            food("Philadelphia Cream Cheese", 357, 7.1, 3.6, 32.1, fiber=0, sugar=3.6, satFat=21.4, sodium=375, fdcId=1514835, source="brand", sourceRef=1514835),
             food("Plain yogurt, low-fat", 63, 5.3, 7, 1.6, fiber=0, sugar=7, satFat=1, sodium=70, fdcId=170886, source="sr", sourceRef=170886),
             food("Plain yogurt, nonfat", 56, 5.7, 7.7, 0.2, fiber=0, sugar=7.7, satFat=0.1, sodium=77, fdcId=170887, source="sr", sourceRef=170887),
             food("Plain yogurt, whole milk", 61, 3.5, 4.7, 3.3, fiber=0, sugar=4.7, satFat=2.1, sodium=46, fdcId=171284, source="sr", sourceRef=171284),
@@ -4682,6 +4686,7 @@ CATEGORIES: list[dict] = [
         "id": "beverages",
         "label": "Beverages",
         "foods": [
+            food("7UP", 42, 0, 10.8, 0, sugar=10.4, sodium=12, fdcId=2109524, source="brand", sourceRef=2109524),
             food("Acerola juice, raw", 23, 0.4, 4.8, 0.3, fiber=0.3, sugar=4.5, satFat=0.1, sodium=3, fdcId=171687, source="sr", sourceRef=171687),
             food("Almond milk, unsweetened", 15, 0.4, 1.3, 1, fiber=0.2, sugar=0.8, satFat=0.1, sodium=72, fdcId=174832, source="sr", sourceRef=174832),
             food("Apple juice", 46, 0.1, 11.3, 0.1, fiber=0.2, sugar=9.6, satFat=0, sodium=4, fdcId=173933, source="sr", sourceRef=173933),
@@ -4693,6 +4698,7 @@ CATEGORIES: list[dict] = [
             food("Apple juice, frozen concentrate, unsweetened, undiluted, without added ascorbic acid", 166, 0.5, 41, 0.4, fiber=0.4, sugar=38.8, satFat=0.1, sodium=25, fdcId=173934, source="sr", sourceRef=173934),
             food("Apple juice, with added vitamin C, from concentrate, shelf stable", 48, 0.1, 11.4, 0.3, sugar=10.3, sodium=5, fdcId=2003590, source="fd", sourceRef=2003590),
             food("Apricots, canned, juice pack, with skin, solids and liquids", 48, 0.6, 12.3, 0, fiber=1.6, sugar=10.7, satFat=0, sodium=4, fdcId=173937, source="sr", sourceRef=173937),
+            food("Arizona Green Tea", 22, 0, 6, 0, fiber=0, sugar=6, satFat=0, sodium=5, fdcId=2061006, source="brand", sourceRef=2061006),
             food("Beef broth", 7, 1.1, 0, 0.2, fiber=0, sugar=0, satFat=0.1, sodium=372, fdcId=171538, source="sr", sourceRef=171538),
             food("Beverages, aloe vera juice drink, fortified with Vitamin C", 15, 0, 3.8, 0, fiber=0, sugar=3.8, satFat=0, sodium=8, fdcId=174131, source="sr", sourceRef=174131),
             food("Beverages, Apple juice drink, light, fortified with vitamin C", 22, 0, 5.1, 0.1, fiber=0, sugar=4.8, satFat=0, sodium=13, fdcId=174112, source="sr", sourceRef=174112),
@@ -4761,16 +4767,24 @@ CATEGORIES: list[dict] = [
             food("Cherry juice, tart", 59, 0.3, 13.7, 0.5, sugar=12.2, sodium=4, fdcId=167807, source="sr", sourceRef=167807),
             food("Chicken broth", 6, 0.6, 0.4, 0.2, fiber=0, sugar=0.4, satFat=0, sodium=371, fdcId=174536, source="sr", sourceRef=174536),
             food("Club soda", 0, 0, 0, 0, fiber=0, sugar=0, satFat=0, sodium=21, fdcId=174842, source="sr", sourceRef=174842),
+            food("Coca-Cola", 39, 0, 11, 0, sugar=11, sodium=13, fdcId=2678649, source="brand", sourceRef=2678649),
+            food("Coca-Cola Zero Sugar", 0, 0, 0, 0, sugar=0, satFat=0, sodium=11, fdcId=2742717, source="brand", sourceRef=2742717),
             food("Coconut milk, canned", 197, 2, 2.8, 21.3, satFat=18.9, sodium=13, fdcId=170173, source="sr", sourceRef=170173),
             food("Coconut water", 19, 0.7, 3.7, 0.2, fiber=1.1, sugar=2.6, satFat=0.2, sodium=105, fdcId=170174, source="sr", sourceRef=170174),
             food("Coffee, decaf, brewed", 0, 0.1, 0, 0, fiber=0, sugar=0, satFat=0, sodium=2, fdcId=171889, source="sr", sourceRef=171889),
             food("Cranberry juice blend, 100% juice, bottled, with added vitamin C and calcium", 45, 0.3, 10.9, 0.1, fiber=0.1, sugar=9.8, satFat=0, sodium=6, fdcId=168212, source="sr", sourceRef=168212),
             food("Cranberry juice, not fortified, from concentrate, shelf stable", 32, 0, 7.3, 0.3, sugar=3.4, sodium=6, fdcId=2003594, source="fd", sourceRef=2003594),
             food("Cranberry juice, unsweetened", 46, 0.4, 12.2, 0.1, fiber=0.1, sugar=12.1, satFat=0, sodium=2, fdcId=168117, source="sr", sourceRef=168117),
+            food("Diet Coke", 0, 0, 0, 0, sugar=0, satFat=0, sodium=11, fdcId=2743961, source="brand", sourceRef=2743961),
+            food("Diet Mountain Dew", 0, 0, 0, 0, sugar=0, sodium=14, fdcId=1459994, source="brand", sourceRef=1459994),
+            food("Diet Pepsi", 0, 0, 0, 0, fiber=0, sugar=0, satFat=0, sodium=10, fdcId=1458411, source="brand", sourceRef=1458411),
+            food("Dr Pepper", 42, 0, 11.3, 0, sugar=11.3, sodium=15, fdcId=2110887, source="brand", sourceRef=2110887),
             food("Espresso", 9, 0.1, 1.7, 0.2, fiber=0, sugar=0, satFat=0.1, sodium=14, fdcId=171891, source="sr", sourceRef=171891),
+            food("Fanta Orange", 47, 0, 12.5, 0, sugar=12.5, sodium=15, fdcId=1627860, source="brand", sourceRef=1627860),
             food("Fruit cocktail, (peach and pineapple and pear and grape and cherry), canned, juice pack, solids and liquids", 46, 0.5, 11.9, 0, fiber=1, sugar=10.9, satFat=0, sodium=4, fdcId=174668, source="sr", sourceRef=174668),
             food("Fruit cocktail, canned in juice, whole contents", 45, 0.4, 11.7, 0, sugar=11.7, satFat=0, sodium=3, source="cofid", sourceRef="14-336"),
             food("Fruit salad, (peach and pear and apricot and pineapple and cherry), canned, juice pack, solids and liquids", 50, 0.5, 13.1, 0, fiber=1, satFat=0, sodium=5, fdcId=174670, source="sr", sourceRef=174670),
+            food("Gatorade", 23, 0, 6.1, 0, fiber=0, sugar=5.8, satFat=0, sodium=46, fdcId=1460596, source="brand", sourceRef=1460596),
             food("Grape juice", 60, 0.4, 14.8, 0.1, fiber=0.2, sugar=14.2, satFat=0, sodium=5, fdcId=173042, source="sr", sourceRef=173042),
             food("Grape juice, canned or bottled, unsweetened, with added ascorbic acid and calcium", 62, 0.4, 14.8, 0.1, fiber=0.2, sugar=14.2, satFat=0, sodium=5, fdcId=168207, source="sr", sourceRef=168207),
             food("Grape juice, purple, with added vitamin C, from concentrate, shelf stable", 66, 0.3, 15.6, 0.3, sugar=14, sodium=4, fdcId=2003592, source="fd", sourceRef=2003592),
@@ -4795,6 +4809,8 @@ CATEGORIES: list[dict] = [
             food("Lime juice, fresh", 9, 0.4, 1.6, 0.1, sugar=1.6, satFat=0, sodium=1, source="cofid", sourceRef="14-279"),
             food("Limeade, frozen concentrate, prepared with water", 52, 0, 13.8, 0, fiber=0, sugar=13.3, satFat=0, sodium=3, fdcId=174862, source="sr", sourceRef=174862),
             food("Mandarin oranges, canned in juice, whole contents", 32, 0.7, 7.7, 0, sugar=7.7, satFat=0, sodium=6, source="cofid", sourceRef="14-146"),
+            food("Monster Energy", 46, 0, 11.3, 0, sugar=11.3, sodium=75, fdcId=2050672, source="brand", sourceRef=2050672),
+            food("Mountain Dew", 48, 0, 13, 0, sugar=13, sodium=18, fdcId=1627761, source="brand", sourceRef=1627761),
             food("Oat milk, unsweetened", 48, 0.8, 5.1, 2.7, fiber=0, sugar=2.3, sodium=42, fdcId=2257046, source="fd", sourceRef=2257046),
             food("Orange juice", 45, 0.7, 10.4, 0.2, fiber=0.2, sugar=8.4, satFat=0, sodium=1, fdcId=169098, source="sr", sourceRef=169098),
             food("Orange juice, ambient, UHT", 34, 0.6, 8.5, 0, fiber=0, sugar=8.5, satFat=0, sodium=3, source="cofid", sourceRef="14-330"),
@@ -4818,6 +4834,7 @@ CATEGORIES: list[dict] = [
             food("Peaches, canned in juice, whole contents", 39, 0.6, 9.7, 0, sugar=9.7, satFat=0, sodium=12, source="cofid", sourceRef="14-188"),
             food("Pears, canned in juice, whole contents", 33, 0.3, 8.5, 0, sugar=8.5, satFat=0, sodium=3, source="cofid", sourceRef="14-197"),
             food("Pears, canned, juice pack, solids and liquids", 50, 0.3, 12.9, 0.1, fiber=1.6, sugar=9.7, satFat=0, sodium=4, fdcId=169936, source="sr", sourceRef=169936),
+            food("Pepsi", 42, 0, 11.6, 0, sugar=11.6, sodium=9, fdcId=2657904, source="brand", sourceRef=2657904),
             food("Pineapple juice, canned or bottled, unsweetened, with added ascorbic acid", 53, 0.4, 12.9, 0.1, fiber=0.2, sugar=10, satFat=0, sodium=2, fdcId=168187, source="sr", sourceRef=168187),
             food("Pineapple juice, canned or bottled, unsweetened, without added ascorbic acid", 53, 0.4, 12.9, 0.1, fiber=0.2, sugar=10, satFat=0, sodium=2, fdcId=169947, source="sr", sourceRef=169947),
             food("Pineapple juice, canned, not from concentrate, unsweetened, with added vitamins A, C and E", 50, 0.4, 12.2, 0.1, fiber=0.2, sugar=10, satFat=0, sodium=3, fdcId=168205, source="sr", sourceRef=168205),
@@ -4854,8 +4871,11 @@ CATEGORIES: list[dict] = [
             food("Prune juice, canned", 71, 0.6, 17.5, 0, fiber=1, sugar=16.5, satFat=0, sodium=4, fdcId=167753, source="sr", sourceRef=167753),
             food("Prunes, canned in juice, whole contents", 79, 0.7, 19.7, 0.2, sugar=19.7, satFat=0, sodium=18, source="cofid", sourceRef="14-237"),
             food("Raspberry juice concentrate", 221, 3, 53.2, 1.3, fiber=1.1, sugar=38.2, satFat=0.1, sodium=10, fdcId=168217, source="sr", sourceRef=168217),
+            food("Red Bull", 45, 0.3, 11.3, 0, sugar=10.7, sodium=28, fdcId=541366, source="brand", sourceRef=541366),
             food("Rice milk, unsweetened", 47, 0.3, 9.2, 1, fiber=0.3, sugar=5.3, satFat=0, sodium=39, fdcId=171942, source="sr", sourceRef=171942),
             food("Soy milk, unsweetened", 38, 3.5, 1.3, 2.1, fiber=0, sugar=0.6, satFat=0.3, sodium=34, fdcId=1750337, source="fd", sourceRef=1750337),
+            food("Sprite", 39, 0, 10.7, 0, sugar=10.7, sodium=18, fdcId=1627891, source="brand", sourceRef=1627891),
+            food("Starbucks Frappuccino Mocha", 63, 2.1, 11.6, 1.1, fiber=0, sugar=10.9, satFat=0.7, sodium=33, fdcId=417696, source="brand", sourceRef=417696),
             food("Tangerine juice, raw", 43, 0.5, 10.1, 0.2, fiber=0.2, sugar=9.9, satFat=0, sodium=1, fdcId=169925, source="sr", sourceRef=169925),
             food("Tangerines, (mandarin oranges), canned, juice pack", 37, 0.6, 9.6, 0, fiber=0.7, sugar=8.9, satFat=0, sodium=5, fdcId=169106, source="sr", sourceRef=169106),
             food("Tea, black, brewed", 1, 0, 0.3, 0, fiber=0, sugar=0, satFat=0, sodium=3, fdcId=173227, source="sr", sourceRef=173227),
@@ -4875,6 +4895,7 @@ CATEGORIES: list[dict] = [
         "id": "seasonings",
         "label": "Sauces, seasonings & sweeteners",
         "foods": [
+            food("A.1. Steak Sauce", 88, 0, 17.7, 0, sugar=11.8, sodium=1647, fdcId=1531281, source="brand", sourceRef=1531281),
             food("Agave syrup", 310, 0.1, 76.4, 0.5, fiber=0.2, sugar=68, satFat=0, sodium=4, fdcId=170277, source="sr", sourceRef=170277),
             food("Baking powder", 163, 5.2, 37.8, 0, fiber=0, sugar=0, satFat=0, sodium=11800, source="cofid", sourceRef="17-355"),
             food("Basil, dried", 233, 23, 47.8, 4.1, fiber=37.7, sugar=1.7, satFat=2.2, sodium=76, fdcId=171317, source="sr", sourceRef=171317),
@@ -4913,6 +4934,7 @@ CATEGORIES: list[dict] = [
             food("Fennel seed", 345, 15.8, 52.3, 14.9, fiber=39.8, satFat=0.5, sodium=88, fdcId=171323, source="sr", sourceRef=171323),
             food("Fenugreek seed", 323, 23, 58.4, 6.4, fiber=24.6, satFat=1.5, sodium=67, fdcId=171324, source="sr", sourceRef=171324),
             food("Fish sauce", 35, 5.1, 3.6, 0, fiber=0, sugar=3.6, satFat=0, sodium=7851, fdcId=174531, source="sr", sourceRef=174531),
+            food("French's Yellow Mustard", 74, 4.2, 4.3, 3.9, fiber=2.7, sugar=0.9, satFat=0.8, sodium=2780, fdcId=1779295, source="brand", sourceRef=1779295),
             food("Garam masala", 379, 15.6, 45.2, 15.1, sodium=97, source="cofid", sourceRef="13-829"),
             food("Garlic powder", 331, 16.6, 72.7, 0.7, fiber=9, sugar=2.4, satFat=0.2, sodium=60, fdcId=171325, source="sr", sourceRef=171325),
             food("Garlic powder (13-830)", 246, 18.7, 42.7, 1.2, sugar=4.2, satFat=0.2, sodium=19, source="cofid", sourceRef="13-830"),
@@ -4922,11 +4944,18 @@ CATEGORIES: list[dict] = [
             food("Ginger, ground (13-832)", 284, 7.4, 60, 3.3, fiber=14.1, sugar=19.8, satFat=1.6, sodium=34, source="cofid", sourceRef="13-832"),
             food("Gravy instant granules", 407, 4.4, 65.2, 16.1, fiber=1.6, sugar=5.3, satFat=10.7, sodium=5300, source="cofid", sourceRef="17-724"),
             food("Gravy instant granules, made up with water", 30, 0.3, 4.7, 1.2, fiber=0.1, sugar=0.4, satFat=0.8, sodium=385, source="cofid", sourceRef="17-725"),
+            food("Grey Poupon Dijon", 100, 0, 0, 0, sugar=0, sodium=2300, fdcId=2597124, source="brand", sourceRef=2597124),
+            food("Heinz Tomato Ketchup", 118, 0, 29.4, 0, sugar=23.5, sodium=941, fdcId=1624854, source="brand", sourceRef=1624854),
+            food("Hellmann's Mayonnaise", 714, 0, 0, 78.6, satFat=10.7, sodium=679, fdcId=2566520, source="brand", sourceRef=2566520),
+            food("Hidden Valley Ranch", 467, 3.3, 6.7, 46.7, fiber=0, sugar=3.3, satFat=8.3, sodium=867, fdcId=2085627, source="brand", sourceRef=2085627),
             food("Hoisin sauce", 220, 3.3, 44.1, 3.4, fiber=2.8, sugar=27.3, satFat=0.6, sodium=1615, fdcId=172886, source="sr", sourceRef=172886),
             food("Honey", 304, 0.3, 82.4, 0, fiber=0.2, sugar=82.1, satFat=0, sodium=4, fdcId=169640, source="sr", sourceRef=169640),
             food("Horseradish", 48, 1.2, 11.3, 0.7, fiber=3.3, sugar=8, satFat=0.1, sodium=420, fdcId=173472, source="sr", sourceRef=173472),
             food("Hot sauce, sriracha", 93, 1.9, 19.2, 0.9, fiber=2.2, sugar=15.1, sodium=2124, fdcId=171186, source="sr", sourceRef=171186),
+            food("Huy Fong Sriracha", 100, 0, 20, 0, sugar=20, sodium=1600, fdcId=2036662, source="brand", sourceRef=2036662),
             food("Ketchup", 101, 1, 27.4, 0.1, fiber=0.3, sugar=21.3, satFat=0, sodium=907, fdcId=168556, source="sr", sourceRef=168556),
+            food("Kikkoman Soy Sauce", 67, 6.7, 6.7, 0, sodium=3933, fdcId=2633367, source="brand", sourceRef=2633367),
+            food("Lea & Perrins Worcestershire", 100, 0, 20, 0, sugar=20, sodium=1300, fdcId=2566786, source="brand", sourceRef=2566786),
             food("Maple syrup", 260, 0, 67, 0.1, fiber=0, sugar=60.5, satFat=0, sodium=12, fdcId=169661, source="sr", sourceRef=169661),
             food("Marinara sauce", 50, 1.4, 7.4, 1.6, fiber=1.8, sugar=4.9, satFat=0.2, sodium=437, fdcId=171192, source="sr", sourceRef=171192),
             food("Marjoram, dried", 271, 12.7, 42.5, 7, sodium=77, source="cofid", sourceRef="13-835"),
@@ -4987,6 +5016,7 @@ CATEGORIES: list[dict] = [
             food("Sugar, brown", 380, 0.1, 98.1, 0, fiber=0, sugar=97, satFat=0, sodium=28, fdcId=168833, source="sr", sourceRef=168833),
             food("Sugar, powdered", 389, 0, 99.8, 0, fiber=0, sugar=97.8, satFat=0, sodium=2, fdcId=169656, source="sr", sourceRef=169656),
             food("Sugar, white", 387, 0, 100, 0, fiber=0, sugar=99.8, satFat=0, sodium=1, fdcId=169655, source="sr", sourceRef=169655),
+            food("Tabasco Pepper Sauce", 0, 0, 0, 0, satFat=0, sodium=900, fdcId=2129478, source="brand", sourceRef=2129478),
             food("Tamari", 60, 10.5, 5.6, 0.1, fiber=0.8, sugar=1.7, satFat=0, sodium=5586, fdcId=174278, source="sr", sourceRef=174278),
             food("Tamarind leaves, fresh", 115, 5.8, 18.2, 2.1, source="cofid", sourceRef="13-855"),
             food("Tamarind pulp, flesh only", 273, 3.2, 64.5, 0.3, sugar=64.5, source="cofid", sourceRef="13-856"),
@@ -5011,6 +5041,35 @@ CATEGORIES: list[dict] = [
             food("Yeast extract", 180, 40.7, 3.5, 0.4, fiber=0, sugar=1.6, sodium=4300, source="cofid", sourceRef="17-517"),
             food("Yeast, bakers, compressed", 53, 11.4, 1.1, 0.4, sugar=0, sodium=16, source="cofid", sourceRef="17-378"),
             food("Yeast, dried", 169, 35.6, 3.5, 1.5, sugar=0, sodium=50, source="cofid", sourceRef="17-379"),
+        ],
+    },
+    {
+        "id": "popular-brands",
+        "label": "Popular brands",
+        "foods": [
+            food("Ben & Jerry's Chocolate Chip Cookie Dough", 264, 3.8, 30.2, 15.1, fiber=0.9, sugar=23.6, satFat=8.5, sodium=52, fdcId=389725, source="brand", sourceRef=389725),
+            food("Campbell's Condensed Tomato Soup", 73, 1.6, 16.1, 0, fiber=1.6, sugar=9.7, satFat=0, sodium=387, fdcId=2696071, source="brand", sourceRef=2696071),
+            food("Cheerios", 357, 14.3, 75, 7.1, fiber=10.7, sugar=3.6, satFat=0, sodium=500, fdcId=2738631, source="brand", sourceRef=2738631),
+            food("Cheetos Crunchy", 536, 7.1, 46.4, 35.7, fiber=3.6, sugar=3.6, satFat=5.4, sodium=893, fdcId=1633683, source="brand", sourceRef=1633683),
+            food("Doritos Nacho Cheese", 500, 7.1, 57.1, 28.6, fiber=3.6, sugar=0, satFat=3.6, sodium=750, fdcId=1629973, source="brand", sourceRef=1629973),
+            food("Ferrero Rocher", 603, 8.2, 44.4, 42.7, sugar=39.9, fdcId=2079982, source="brand", sourceRef=2079982),
+            food("Frosted Flakes", 367, 5, 88.3, 0, fiber=1.7, sugar=35, satFat=0, sodium=517, fdcId=2107423, source="brand", sourceRef=2107423),
+            food("Hershey's Milk Chocolate", 529, 8.8, 64.7, 29.4, fiber=2.9, sugar=58.8, satFat=20.6, sodium=88, fdcId=2088150, source="brand", sourceRef=2088150),
+            food("H\u00e4agen-Dazs Vanilla", 247, 4.5, 20.2, 16.9, fiber=0, sugar=19.1, satFat=10.1, sodium=56, fdcId=2677150, source="brand", sourceRef=2677150),
+            food("Kit Kat", 488, 7, 65.1, 25.6, fiber=2.3, sugar=48.8, satFat=16.3, sodium=70, fdcId=1642758, source="brand", sourceRef=1642758),
+            food("Kraft Macaroni & Cheese", 382, 10.9, 70.9, 5.5, fiber=1.8, sugar=10.9, satFat=2.7, sodium=836, fdcId=1592690, source="brand", sourceRef=1592690),
+            food("Lay's Classic Potato Chips", 571, 7.1, 53.6, 35.7, fiber=3.6, sugar=3.6, satFat=5.4, sodium=607, fdcId=1633665, source="brand", sourceRef=1633665),
+            food("M&M's Milk Chocolate", 485, 6.1, 72.7, 18.2, fiber=3, sugar=63.6, satFat=12.1, sodium=76, fdcId=2109506, source="brand", sourceRef=2109506),
+            food("Nutella", 541, 5.4, 59.5, 29.7, fiber=2.7, sugar=56.8, satFat=10.8, sodium=41, fdcId=2674761, source="brand", sourceRef=2674761),
+            food("Oreo", 483, 3.5, 72.4, 24.1, fiber=3.4, sugar=44.8, satFat=6.9, sodium=310, fdcId=1459591, source="brand", sourceRef=1459591),
+            food("Pop-Tarts Frosted Strawberry", 393, 4, 72.8, 9.7, fiber=1.3, sugar=31.4, satFat=3.1, sodium=323, fdcId=751356, source="brand", sourceRef=751356),
+            food("Pringles Original", 541, 5.4, 56.8, 32.4, fiber=2.7, sugar=0, satFat=9.5, sodium=541, fdcId=2747527, source="brand", sourceRef=2747527),
+            food("Reese's Peanut Butter Cups", 500, 9.1, 59.1, 29.6, fiber=2.3, sugar=52.3, satFat=11.4, sodium=295, fdcId=1642951, source="brand", sourceRef=1642951),
+            food("Ritz Crackers", 464, 7.1, 64.3, 21.4, sugar=10.7, satFat=5.4, sodium=536, fdcId=1459864, source="brand", sourceRef=1459864),
+            food("Skippy Creamy Peanut Butter", 594, 21.9, 18.8, 50, fiber=6.2, sugar=9.4, satFat=9.4, sodium=469, fdcId=1869918, source="brand", sourceRef=1869918),
+            food("Snickers", 486, 5.7, 65.7, 22.9, fiber=2.9, sugar=51.4, satFat=12.9, sodium=214, fdcId=2116671, source="brand", sourceRef=2116671),
+            food("Twix", 500, 4.6, 68.2, 22.7, fiber=0, sugar=50, satFat=13.6, sodium=205, fdcId=2087907, source="brand", sourceRef=2087907),
+            food("Wonder Classic White Bread", 265, 8.2, 53.1, 3.1, fiber=2, sugar=6.1, satFat=0, sodium=531, fdcId=2186274, source="brand", sourceRef=2186274),
         ],
     },
 ]
@@ -5056,15 +5115,15 @@ def main() -> None:
         print(f"  {cat['id']}: {len(cat['foods'])} foods")
 
     manifest = {
-        "source": "Curated whole foods (USDA FoodData Central, UK CoFID, Canadian Nutrient File)",
+        "source": "Curated whole foods plus household brands (USDA FoodData Central, UK CoFID, Canadian Nutrient File)",
         "license": "USDA public domain; UK Open Government Licence (CoFID); Health Canada Canadian Nutrient File",
         "portal": "https://fdc.nal.usda.gov/",
         "basis": (
             "Amounts per 100 g edible portion. Compiled from USDA FoodData Central "
-            "(SR Legacy and Foundation Foods), the UK Composition of Foods Integrated "
-            "Dataset (CoFID), and the Canadian Nutrient File. Each food keeps the "
-            "source id from that lookup. Same-food rows are dropped only when "
-            "their macros match; category JSON files are lazy-loaded."
+            "(SR Legacy, Foundation Foods, and a short list of Branded Foods), the UK "
+            "Composition of Foods Integrated Dataset (CoFID), and the Canadian Nutrient "
+            "File. Each food keeps the source id from that lookup. Same-food rows are "
+            "dropped only when their macros match; category JSON files are lazy-loaded."
         ),
         "total": total,
         "categories": manifest_cats,

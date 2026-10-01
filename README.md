@@ -94,7 +94,9 @@ such as winged beans (sigarilyas) and mung beans; other whole foods keep the dat
 when their macros differ from a similar food. Branded products, fast food, and baby food are
 left out. The catalog is split into category JSON files under `src/data/starter/` and
 **lazy-loaded** as you browse or search. Search also matches common aliases and
-spellings (aubergine, calamari, garbanzo, sigarillias) and ignores accents.
+spellings (aubergine, calamari, garbanzo, sigarillias, coke) and ignores accents.
+A short list of household brand foods, such as Heinz ketchup, Coca-Cola, Mountain Dew,
+and Ferrero Rocher, is included from USDA Branded Foods.
 Regenerate with `python3 scripts/build-whole-foods-catalog.py`. Custom foods you add in the Food
 library view are persisted separately and appear first in quick-add.
 

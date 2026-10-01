@@ -241,6 +241,15 @@ export const ALIAS_RULES: readonly AliasRule[] = [
   { pattern: /\bcoconut milk\b/, aliases: ['coconut milk'] },
   { pattern: /\boat milk\b/, aliases: ['oatmilk'] },
   { pattern: /\balmond milk\b/, aliases: ['almondmilk'] },
+
+  // --- household brands ---
+  { pattern: /\bcoca-cola\b/, aliases: ['coke', 'coca cola'] },
+  { pattern: /\bmountain dew\b|\bmtn dew\b/, aliases: ['mtn dew', 'mt dew'] },
+  { pattern: /\bm&m's\b/, aliases: ['m&ms', 'm and ms'] },
+  { pattern: /\bkit kat\b/, aliases: ['kitkat'] },
+  { pattern: /\breese's\b/, aliases: ['reeses'] },
+  { pattern: /\bpop-tarts\b/, aliases: ['pop tarts', 'poptarts'] },
+  { pattern: /\bhäagen-dazs\b/, aliases: ['haagen dazs'] },
 ];
 
 /** Strip accents so "creme" matches "crème". */

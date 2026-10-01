@@ -12,8 +12,10 @@ embedded values do not need the datasets to regenerate category JSON.
 
 Curation rules:
   - Whole foods from the source databases, plus plain staples (bread, pasta,
-    milk, oil, spices). No branded products, fast food, restaurant meals,
-    baby food, or candy.
+    milk, oil, spices). Fast food, restaurant meals, and baby food stay out.
+  - A short list of household brand foods (Coca-Cola, Heinz ketchup, and
+    similar) is read from scripts/branded_popular.json. Those values were
+    taken from USDA Branded Foods, per 100 g, and are not hand-typed.
   - Keep a food when it is nutritionally distinct from foods already kept.
     Drop it only when it is obviously the same food (same cut, grade, trim,
     or salt note) and the macros are not meaningfully different.
@@ -51,6 +53,7 @@ CATEGORIES = [
     ("oils-fats", "Oils & fats"),
     ("beverages", "Beverages"),
     ("seasonings", "Sauces, seasonings & sweeteners"),
+    ("popular-brands", "Popular brands"),
 ]
 
 
@@ -1359,6 +1362,9 @@ def main() -> None:
     auto = auto_whole_foods(resolved, sr_rows, fd_rows, cofid)
     print(f"Auto-added {len(auto)} whole foods beyond the named list")
     resolved.extend(auto)
+    branded = load_branded_popular()
+    print(f"Added {len(branded)} household brand foods")
+    resolved.extend(branded)
 
     # Drop a later food when an earlier one has the same macros and a near-identical name.
     kept: list[tuple[str, dict]] = []
@@ -1374,7 +1380,7 @@ def main() -> None:
             if a == b or a in b or b in a:
                 duplicate = prev["name"]
                 break
-        if duplicate:
+        if duplicate and food.get("source") != "brand":
             dropped.append((food["name"], duplicate))
             continue
         kept.append((cat, food))
@@ -1413,6 +1419,9 @@ def main() -> None:
     for needed in ("mung beans, dry", "mung beans, cooked", "mung bean sprouts, cooked", "mung dal, cooked"):
         if needed not in have:
             raise SystemExit(f"Missing {needed}")
+    for needed in ("heinz tomato ketchup", "ferrero rocher", "coca-cola", "mountain dew"):
+        if needed not in have:
+            raise SystemExit(f"Missing branded food: {needed}")
     total = sum(len(v) for v in by_cat.values())
     if total <= 750:
         raise SystemExit(f"Catalog is still sparse ({total}); expected a broader whole-food set")
@@ -1422,8 +1431,30 @@ def main() -> None:
     write_builder(by_cat, sources)
 
 
+def load_branded_popular() -> list[tuple[str, dict]]:
+    """Household-name products pinned to USDA Branded Foods rows, per 100 g."""
+    payload = json.loads((REPO / "scripts" / "branded_popular.json").read_text(encoding="utf-8"))
+    loaded = []
+    for item in payload["foods"]:
+        row = {
+            "description": item["description"],
+            "kcal": item["kcal"],
+            "protein": item["protein"],
+            "fat": item["fat"],
+            "carbs": item["carbs"],
+            "fiber": item.get("fiber"),
+            "sugar": item.get("sugar"),
+            "sat": item.get("sat"),
+            "sodium": item.get("sodium"),
+            "fdc_id": item["fdcId"],
+            "source_ref": item["fdcId"],
+        }
+        loaded.append((item["category"], to_food(item["name"], row, "brand")))
+    return loaded
+
+
 def Counter_sources(kept: list[tuple[str, dict]]) -> dict[str, int]:
-    counts = {"sr": 0, "fd": 0, "cofid": 0, "cnf": 0}
+    counts = {"sr": 0, "fd": 0, "cofid": 0, "cnf": 0, "brand": 0}
     for _, food in kept:
         counts[food["source"]] += 1
     return counts
@@ -1465,13 +1496,15 @@ def write_builder(by_cat: dict[str, list[dict]], sources: dict[str, int]) -> Non
         "  - Health Canada Canadian Nutrient File",
         "",
         "Everyday names cover common foods. The rest keep the database description",
-        "with grade, trim, and salt boilerplate removed. Branded, restaurant,",
-        "fast-food, and baby-food rows were left out. A row is dropped only when",
-        "it is the same food as one already kept and the macros are not distinct.",
+        "with grade, trim, and salt boilerplate removed. Restaurant, fast-food,",
+        "and baby-food rows were left out. A short list of household brand foods",
+        "comes from USDA Branded Foods. A row is dropped only when it is the same",
+        "food as one already kept and the macros are not distinct.",
         "Every entry records source and sourceRef from the lookup.",
         "",
         f"Counts by source at compile time: USDA SR Legacy {sources['sr']},",
-        f"USDA Foundation {sources['fd']}, CoFID {sources['cofid']}, Canadian Nutrient File {sources['cnf']}.",
+        f"USDA Foundation {sources['fd']}, CoFID {sources['cofid']}, Canadian Nutrient File {sources['cnf']},",
+        f"USDA Branded {sources['brand']}.",
         "",
         "Run from repo root:",
         "  python3 scripts/build-whole-foods-catalog.py",
@@ -1592,15 +1625,15 @@ def main() -> None:
         print(f"  {cat['id']}: {len(cat['foods'])} foods")
 
     manifest = {
-        "source": "Curated whole foods (USDA FoodData Central, UK CoFID, Canadian Nutrient File)",
+        "source": "Curated whole foods plus household brands (USDA FoodData Central, UK CoFID, Canadian Nutrient File)",
         "license": "USDA public domain; UK Open Government Licence (CoFID); Health Canada Canadian Nutrient File",
         "portal": "https://fdc.nal.usda.gov/",
         "basis": (
             "Amounts per 100 g edible portion. Compiled from USDA FoodData Central "
-            "(SR Legacy and Foundation Foods), the UK Composition of Foods Integrated "
-            "Dataset (CoFID), and the Canadian Nutrient File. Each food keeps the "
-            "source id from that lookup. Same-food rows are dropped only when "
-            "their macros match; category JSON files are lazy-loaded."
+            "(SR Legacy, Foundation Foods, and a short list of Branded Foods), the UK "
+            "Composition of Foods Integrated Dataset (CoFID), and the Canadian Nutrient "
+            "File. Each food keeps the source id from that lookup. Same-food rows are "
+            "dropped only when their macros match; category JSON files are lazy-loaded."
         ),
         "total": total,
         "categories": manifest_cats,

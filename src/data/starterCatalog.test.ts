@@ -29,6 +29,7 @@ describe('whole-foods starter catalog', () => {
       'oils-fats',
       'beverages',
       'seasonings',
+      'popular-brands',
     ]);
     expect(STARTER_MANIFEST.categories.map((c) => c.id)).not.toContain('fast-foods');
   });
@@ -59,9 +60,9 @@ describe('whole-foods starter catalog', () => {
       expect(names.has(key), food.name).toBe(false);
       names.add(key);
       expect(food.grams).toBe(100);
-      expect(food.source).toMatch(/^(sr|fd|cofid|cnf)$/);
+      expect(food.source).toMatch(/^(sr|fd|cofid|cnf|brand)$/);
       expect(food.sourceRef === 0 ? '0' : food.sourceRef).toBeTruthy();
-      if (food.source === 'sr' || food.source === 'fd') {
+      if (food.source === 'sr' || food.source === 'fd' || food.source === 'brand') {
         expect(food.fdcId).toBe(food.sourceRef);
       }
       expect(food.calories).toBeGreaterThanOrEqual(0);
@@ -85,6 +86,24 @@ describe('whole-foods starter catalog', () => {
     const winged = foods.find((food) => food.name.includes('sigarilyas'));
     expect(winged?.source).toBeTruthy();
     expect(winged?.sourceRef).toBeTruthy();
+  });
+
+  it('includes household brand foods from USDA Branded Foods', async () => {
+    const foods = await loadAllStarterFoods();
+    const byName = new Map(foods.map((food) => [food.name, food]));
+    for (const name of ['Heinz Tomato Ketchup', 'Ferrero Rocher', 'Coca-Cola', 'Mountain Dew']) {
+      const food = byName.get(name);
+      expect(food, name).toBeDefined();
+      expect(food?.source).toBe('brand');
+      expect(food?.fdcId).toBe(food?.sourceRef);
+      expect(food?.grams).toBe(100);
+    }
+    expect(byName.get('Coca-Cola')?.calories).toBe(39);
+    expect(byName.get('Mountain Dew')?.calories).toBe(48);
+    expect(byName.get('Heinz Tomato Ketchup')?.calories).toBe(118);
+    expect(byName.get('Ferrero Rocher')?.calories).toBe(603);
+    const coke = await queryStarterFoods({ query: 'coke', limit: 20 });
+    expect(coke.items.some((item) => item.name === 'Coca-Cola')).toBe(true);
   });
 
   it('finds foods by common aliases and accent-insensitive spellings', async () => {
