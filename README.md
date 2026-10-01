@@ -85,8 +85,10 @@ src/
   index.css            palette custom properties and Tailwind theme mapping
 ```
 
-The food library ships a curated **whole-foods catalog** (~300 everyday foods with clean names;
-nutrition values primarily from [USDA FoodData Central](https://fdc.nal.usda.gov/)), split into
+The food library ships a curated **whole-foods catalog** (~560 everyday foods with clean names;
+nutrition values compiled from [USDA FoodData Central](https://fdc.nal.usda.gov/), the
+[UK Composition of Foods Integrated Dataset](https://www.gov.uk/government/publications/composition-of-foods-integrated-dataset-cofid),
+and the [Canadian Nutrient File](https://food-nutrition.canada.ca/cnf-fce/)), split into
 category JSON files under `src/data/starter/` and **lazy-loaded** as you browse or search.
 Regenerate with `python3 scripts/build-whole-foods-catalog.py`. Custom foods you add in the Food
 library view are persisted separately and appear first in quick-add.

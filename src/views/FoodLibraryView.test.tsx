@@ -139,6 +139,33 @@ describe('FoodLibraryView', () => {
     });
   });
 
+  it('browses rebuilt categories and finds foods added from other databases', async () => {
+    const user = userEvent.setup();
+    render(<FoodLibraryView />);
+
+    const category = screen.getByTestId('starter-category');
+    expect(
+      within(category).getByRole('option', { name: /Potatoes & starches/ }),
+    ).toBeInTheDocument();
+    expect(within(category).getByRole('option', { name: /Lamb, goat & game/ })).toBeInTheDocument();
+    expect(
+      within(category).queryByRole('option', { name: /Fish & seafood/ }),
+    ).not.toBeInTheDocument();
+
+    const starches = STARTER_MANIFEST.categories.find((c) => c.id === 'starches');
+    expect(starches).toBeDefined();
+    await user.selectOptions(category, starches!.id);
+    await waitFor(() => {
+      expect(screen.getByTestId('starter-food-list')).toHaveTextContent(/Potato, baked/);
+    });
+
+    await user.clear(screen.getByTestId('food-library-search'));
+    await user.type(screen.getByTestId('food-library-search'), 'halloumi');
+    await waitFor(() => {
+      expect(screen.getByTestId('starter-food-list')).toHaveTextContent(/Halloumi/);
+    });
+  });
+
   it('filters custom foods with the same search box', async () => {
     const user = userEvent.setup();
     state().addFood({ name: 'Gym shake', grams: 300, calories: 220, macros: { protein: 40 } });

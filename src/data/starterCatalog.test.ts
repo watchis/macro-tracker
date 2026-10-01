@@ -9,10 +9,27 @@ import {
 
 describe('whole-foods starter catalog', () => {
   it('ships a curated catalog (not the bulk USDA dump)', () => {
-    expect(STARTER_FOOD_COUNT).toBeGreaterThan(200);
+    expect(STARTER_FOOD_COUNT).toBeGreaterThan(500);
     expect(STARTER_FOOD_COUNT).toBeLessThan(1000);
     expect(STARTER_MANIFEST.source.toLowerCase()).toMatch(/whole food/);
-    expect(STARTER_MANIFEST.categories.map((c) => c.id)).toContain('poultry');
+    expect(STARTER_MANIFEST.categories.map((c) => c.id)).toEqual([
+      'poultry',
+      'beef',
+      'pork',
+      'lamb-goat-game',
+      'fish',
+      'shellfish',
+      'dairy-eggs',
+      'grains',
+      'legumes',
+      'vegetables',
+      'starches',
+      'fruits',
+      'nuts-seeds',
+      'oils-fats',
+      'beverages',
+      'seasonings',
+    ]);
     expect(STARTER_MANIFEST.categories.map((c) => c.id)).not.toContain('fast-foods');
   });
 
@@ -34,13 +51,19 @@ describe('whole-foods starter catalog', () => {
     }
   });
 
-  it('has no negative macro amounts', async () => {
+  it('has no negative macro amounts or duplicate names', async () => {
     const foods = await loadAllStarterFoods();
+    const names = new Set<string>();
     for (const food of foods) {
+      const key = food.name.trim().toLowerCase();
+      expect(names.has(key), food.name).toBe(false);
+      names.add(key);
+      expect(food.grams).toBe(100);
       expect(food.calories).toBeGreaterThanOrEqual(0);
-      for (const [key, value] of Object.entries(food.macros)) {
-        expect(value, `${food.name}.${key}`).toBeGreaterThanOrEqual(0);
+      for (const [macro, value] of Object.entries(food.macros)) {
+        expect(value, `${food.name}.${macro}`).toBeGreaterThanOrEqual(0);
       }
     }
+    expect(foods).toHaveLength(STARTER_FOOD_COUNT);
   });
 });
