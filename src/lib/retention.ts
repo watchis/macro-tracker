@@ -1,71 +1,43 @@
-import { fromDateKey, monthKeyOf, toDateKey, todayKey } from './dates';
+import { monthKeyOf } from './dates';
 import { LOCAL_STORAGE_QUOTA_BYTES, stringStorageBytes } from './storage';
-import type { DataRetentionPolicy, DateKey, FoodEntry, MonthKey } from '../types';
+import type { DateKey, FoodEntry, MonthKey } from '../types';
 
-export type { DataRetentionPolicy };
+/** Default auto-optimize threshold when the setting is enabled. */
+export const DEFAULT_AUTO_OPTIMIZE_THRESHOLD = 90;
 
-export type DataRetentionOption = {
-  value: DataRetentionPolicy;
-  label: string;
-  /** One-line explanation shown under the select. */
-  description: string;
+/**
+ * Usage at or above this ratio locks inputs across the app and shows a top-bar
+ * warning. Auto-optimize thresholds must stay below this.
+ */
+export const STORAGE_CRITICAL_RATIO = 0.99;
+
+/** Inclusive percent bounds for a configured auto-optimize threshold. */
+export const AUTO_OPTIMIZE_THRESHOLD_MIN = 50;
+export const AUTO_OPTIMIZE_THRESHOLD_MAX = 98;
+
+/** Target fill ratio for a manual Optimize storage pass. */
+export const OPTIMIZE_STORAGE_TARGET_RATIO = 0.7;
+
+export type RetentionContext = {
+  /** Bytes currently used across this origin’s `localStorage`. */
+  storageUsedBytes: number;
+  /** Estimated bytes for a days map (JSON UTF-16). */
+  estimateDaysBytes?: (days: Record<DateKey, FoodEntry[]>) => number;
+  quotaBytes?: number;
 };
 
-export const DATA_RETENTION_OPTIONS: ReadonlyArray<DataRetentionOption> = [
-  {
-    value: 'forever',
-    label: 'Keep forever',
-    description: 'Never delete logged days automatically.',
-  },
-  {
-    value: 'retain-6-months',
-    label: 'Retain 6 months of data',
-    description: 'Delete day logs older than six months.',
-  },
-  {
-    value: 'retain-1-year',
-    label: 'Retain 1 year of data',
-    description: 'Delete day logs older than one year.',
-  },
-  {
-    value: 'pressure-90-drop-3-months',
-    label: 'When storage is 90% full, delete the oldest 3 months',
-    description: "Only trims history when this browser's local storage is nearly full.",
-  },
-];
+export type RetentionBundle = {
+  days: Record<DateKey, FoodEntry[]>;
+  weights: Record<DateKey, number>;
+};
 
-const RETENTION_VALUES = new Set<string>(DATA_RETENTION_OPTIONS.map((option) => option.value));
+export type OptimizeStorageResult = RetentionBundle & {
+  monthsDropped: number;
+  estimatedFreedBytes: number;
+};
 
-export function isDataRetentionPolicy(value: unknown): value is DataRetentionPolicy {
-  return typeof value === 'string' && RETENTION_VALUES.has(value);
-}
-
-export function retentionOption(policy: DataRetentionPolicy): DataRetentionOption {
-  const found = DATA_RETENTION_OPTIONS.find((option) => option.value === policy);
-  return found ?? DATA_RETENTION_OPTIONS[0]!;
-}
-
-/** First day that should still be kept for a rolling month window. */
-export function retainCutoffKey(months: number, now: Date = new Date()): DateKey {
-  const today = fromDateKey(todayKey(now));
-  today.setMonth(today.getMonth() - months);
-  return toDateKey(today);
-}
-
-function dropKeysBefore<T>(record: Record<DateKey, T>, cutoff: DateKey): Record<DateKey, T> {
-  const next: Record<DateKey, T> = {};
-  for (const [key, value] of Object.entries(record)) {
-    if (key >= cutoff) next[key] = value;
-  }
-  return next;
-}
-
-/** @deprecated Prefer `dropKeysBefore`; kept as the days-specific alias used by tests. */
-function dropDaysBefore(
-  days: Record<DateKey, FoodEntry[]>,
-  cutoff: DateKey,
-): Record<DateKey, FoodEntry[]> {
-  return dropKeysBefore(days, cutoff);
+function defaultEstimateDaysBytes(days: Record<DateKey, FoodEntry[]>): number {
+  return stringStorageBytes(JSON.stringify(days));
 }
 
 /** Oldest calendar months that still have at least one keyed day, ascending. */
@@ -98,101 +70,41 @@ function dropOldestMonths<T>(
   return next;
 }
 
-export type RetentionContext = {
-  now?: Date;
-  /** Bytes currently used across this origin’s `localStorage`. */
-  storageUsedBytes: number;
-  /** Estimated bytes for a days map (JSON UTF-16). */
-  estimateDaysBytes?: (days: Record<DateKey, FoodEntry[]>) => number;
-  quotaBytes?: number;
-};
-
-function defaultEstimateDaysBytes(days: Record<DateKey, FoodEntry[]>): number {
-  return stringStorageBytes(JSON.stringify(days));
-}
-
 /**
- * Returns a copy of `days` with entries removed per the active policy. Pure:
- * never mutates the input. Pressure mode may drop several 3-month windows until
- * usage is under the threshold or nothing older remains.
+ * Clamps a percent threshold into the allowed auto-optimize range, or returns
+ * `null` when auto-optimize is disabled.
  */
-export function applyDataRetention(
-  days: Record<DateKey, FoodEntry[]>,
-  policy: DataRetentionPolicy,
-  context: RetentionContext,
-): Record<DateKey, FoodEntry[]> {
-  return applyDataRetentionBundle(days, {}, policy, context).days;
-}
-
-export type RetentionBundle = {
-  days: Record<DateKey, FoodEntry[]>;
-  weights: Record<DateKey, number>;
-};
-
-/**
- * Prunes food days and weigh-ins together so a weight-only history still obeys
- * the same retention window (and pressure drops months present in either map).
- */
-export function applyDataRetentionBundle(
-  days: Record<DateKey, FoodEntry[]>,
-  weights: Record<DateKey, number>,
-  policy: DataRetentionPolicy,
-  context: RetentionContext,
-): RetentionBundle {
-  const now = context.now ?? new Date();
-  const quotaBytes = context.quotaBytes ?? LOCAL_STORAGE_QUOTA_BYTES;
-  const estimate = context.estimateDaysBytes ?? defaultEstimateDaysBytes;
-
-  if (policy === 'forever') return { days, weights };
-
-  if (policy === 'retain-6-months' || policy === 'retain-1-year') {
-    const cutoff = retainCutoffKey(policy === 'retain-6-months' ? 6 : 12, now);
-    return {
-      days: dropDaysBefore(days, cutoff),
-      weights: dropKeysBefore(weights, cutoff),
-    };
+export function normalizeAutoOptimizeThreshold(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = typeof value === 'string' ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return null;
+  const rounded = Math.round(parsed);
+  if (rounded < AUTO_OPTIMIZE_THRESHOLD_MIN || rounded > AUTO_OPTIMIZE_THRESHOLD_MAX) {
+    return null;
   }
-
-  // pressure-90-drop-3-months
-  const threshold = quotaBytes * 0.9;
-  let currentDays = days;
-  let currentWeights = weights;
-  let used = context.storageUsedBytes;
-  for (let step = 0; step < 48 && used >= threshold; step += 1) {
-    const months = oldestLoggedMonths(currentDays, Object.keys(currentWeights));
-    if (months.length === 0) break;
-    const beforeBytes = estimate(currentDays) + stringStorageBytes(JSON.stringify(currentWeights));
-    const nextDays = dropOldestMonths(currentDays, 3, months);
-    const nextWeights = dropOldestMonths(currentWeights, 3, months);
-    if (
-      Object.keys(nextDays).length === Object.keys(currentDays).length &&
-      Object.keys(nextWeights).length === Object.keys(currentWeights).length
-    ) {
-      break;
-    }
-    const afterBytes = estimate(nextDays) + stringStorageBytes(JSON.stringify(nextWeights));
-    used = Math.max(0, used - (beforeBytes - afterBytes));
-    currentDays = nextDays;
-    currentWeights = nextWeights;
-  }
-  return { days: currentDays, weights: currentWeights };
+  return rounded;
 }
 
 /**
- * Target fill ratio for a manual optimize pass. Leaves headroom under the
- * pressure-retention threshold (90%) so logging can continue.
+ * Maps a legacy `dataRetention` policy onto the auto-optimize threshold.
+ * `forever` stays disabled; every other known policy becomes 90%.
  */
-export const OPTIMIZE_STORAGE_TARGET_RATIO = 0.7;
-
-export type OptimizeStorageResult = RetentionBundle & {
-  monthsDropped: number;
-  estimatedFreedBytes: number;
-};
+export function thresholdFromLegacyRetention(value: unknown): number | null {
+  if (value === 'forever') return null;
+  if (
+    value === 'retain-6-months' ||
+    value === 'retain-1-year' ||
+    value === 'pressure-90-drop-3-months'
+  ) {
+    return DEFAULT_AUTO_OPTIMIZE_THRESHOLD;
+  }
+  return DEFAULT_AUTO_OPTIMIZE_THRESHOLD;
+}
 
 /**
  * Frees local storage by dropping the oldest logged months first, while keeping
  * settings/library untouched and preserving the newest month of history.
- * Stops once usage is at or under `targetRatio` of quota (default 70%).
+ * Stops once usage is at or under `targetRatio` of quota.
  */
 export function optimizeStorageBundle(
   days: Record<DateKey, FoodEntry[]>,
@@ -239,6 +151,27 @@ export function optimizeStorageBundle(
     monthsDropped,
     estimatedFreedBytes,
   };
+}
+
+/**
+ * Runs optimize when a threshold is configured and current usage is at or above
+ * it. `null` threshold means auto-optimize is disabled.
+ */
+export function applyAutoOptimize(
+  days: Record<DateKey, FoodEntry[]>,
+  weights: Record<DateKey, number>,
+  thresholdPercent: number | null,
+  context: RetentionContext,
+): OptimizeStorageResult {
+  if (thresholdPercent === null) {
+    return { days, weights, monthsDropped: 0, estimatedFreedBytes: 0 };
+  }
+  const quotaBytes = context.quotaBytes ?? LOCAL_STORAGE_QUOTA_BYTES;
+  const targetRatio = thresholdPercent / 100;
+  if (context.storageUsedBytes / quotaBytes < targetRatio) {
+    return { days, weights, monthsDropped: 0, estimatedFreedBytes: 0 };
+  }
+  return optimizeStorageBundle(days, weights, { ...context, targetRatio });
 }
 
 /** True when two day maps share the same keys (entries assumed unchanged). */

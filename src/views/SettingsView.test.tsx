@@ -191,7 +191,7 @@ describe('SettingsView import/export', () => {
         visibleMacros: ['protein'],
         goals: { calories: 2400, macros: { protein: 180 } },
         weekStart: 'monday',
-        dataRetention: 'retain-1-year',
+        autoOptimizeThreshold: 80,
       },
     });
 
@@ -203,7 +203,7 @@ describe('SettingsView import/export', () => {
     ]);
     expect(state().settings.accent).toBe('#84cc16');
     expect(state().settings.goals.calories).toBe(2400);
-    expect(state().settings.dataRetention).toBe('retain-1-year');
+    expect(state().settings.autoOptimizeThreshold).toBe(80);
     expect(screen.getByTestId('import-export-status')).toHaveTextContent('Imported.');
   });
 
@@ -220,26 +220,32 @@ describe('SettingsView import/export', () => {
 });
 
 describe('SettingsView data', () => {
-  it('shows local storage usage and the retention policy', () => {
+  it('shows local storage usage and the auto-optimize threshold', () => {
     render(<SettingsView />);
 
     expect(screen.getByTestId('storage-usage-summary')).toHaveTextContent(/used/);
     expect(screen.getByTestId('storage-usage-bar')).toBeInTheDocument();
-    expect(screen.getByTestId('data-retention')).toHaveValue('forever');
-    expect(screen.queryByTestId('data-retention-description')).not.toBeInTheDocument();
+    expect(screen.getByTestId('auto-optimize-threshold')).toHaveValue('90');
+    expect(screen.getByTestId('auto-optimize-hint')).toHaveTextContent('90%');
   });
 
-  it('updates the retention policy and prunes old days', async () => {
+  it('updates the auto-optimize threshold and can disable it', async () => {
     const user = userEvent.setup();
-    state().addEntry('2024-01-15', { name: 'Old', grams: 100, calories: 100, macros: {} });
-    state().addEntry('2026-09-17', { name: 'New', grams: 100, calories: 100, macros: {} });
     render(<SettingsView />);
 
-    await user.selectOptions(screen.getByTestId('data-retention'), 'retain-1-year');
+    const input = screen.getByTestId('auto-optimize-threshold');
+    await user.clear(input);
+    await user.type(input, '75');
+    expect(state().settings.autoOptimizeThreshold).toBe(75);
 
-    expect(state().settings.dataRetention).toBe('retain-1-year');
-    expect(state().days['2024-01-15']).toBeUndefined();
-    expect(state().days['2026-09-17']?.[0]?.name).toBe('New');
+    await user.click(screen.getByTestId('auto-optimize-disable'));
+    expect(state().settings.autoOptimizeThreshold).toBeNull();
+    expect(input).toBeDisabled();
+    expect(screen.getByTestId('auto-optimize-hint')).toHaveTextContent('off');
+
+    await user.click(screen.getByTestId('auto-optimize-disable'));
+    expect(state().settings.autoOptimizeThreshold).toBe(90);
+    expect(input).not.toBeDisabled();
   });
 
   it('optimizes storage after confirming and keeps settings', async () => {

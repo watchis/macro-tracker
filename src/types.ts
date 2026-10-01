@@ -57,13 +57,6 @@ export type WeekStart = 'sunday' | 'monday';
 /** Preferred unit for entering and charting body weight. Stored weights are always kg. */
 export type WeightUnit = 'lb' | 'kg';
 
-/**
- * Automatic cleanup for logged days. See `src/lib/retention.ts` for the preset
- * catalog and prune behaviour.
- */
-export type DataRetentionPolicy =
-  'forever' | 'retain-6-months' | 'retain-1-year' | 'pressure-90-drop-3-months';
-
 export type Goals = {
   calories: number;
   macros: MacroAmounts;
@@ -76,8 +69,11 @@ export type Settings = {
   visibleMacros: MacroKey[];
   goals: Goals;
   weekStart: WeekStart;
-  /** How long day logs are kept, or when storage pressure may trim them. */
-  dataRetention: DataRetentionPolicy;
+  /**
+   * When local storage usage reaches this percent, oldest logs are trimmed
+   * automatically. `null` disables auto-optimization.
+   */
+  autoOptimizeThreshold: number | null;
   /** Display/entry unit for body weight; persisted values stay in kilograms. */
   weightUnit: WeightUnit;
 };

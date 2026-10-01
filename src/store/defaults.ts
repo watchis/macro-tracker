@@ -17,7 +17,7 @@ export const DEFAULT_SETTINGS: Settings = {
     macros: { protein: 150, carbs: 200, fat: 65 },
   },
   weekStart: 'sunday',
-  dataRetention: 'forever',
+  autoOptimizeThreshold: 90,
   weightUnit: 'lb',
 };
 

@@ -36,7 +36,7 @@ describe('defaults', () => {
     expect(state.settings.visibleMacros).toEqual(['protein', 'carbs', 'fat']);
     expect(state.settings.goals.calories).toBe(2000);
     expect(state.settings.weekStart).toBe('sunday');
-    expect(state.settings.dataRetention).toBe('forever');
+    expect(state.settings.autoOptimizeThreshold).toBe(90);
     expect(state.settings.weightUnit).toBe('lb');
     expect(state.weights).toEqual({});
     expect(state.view).toBe('home');
@@ -207,15 +207,21 @@ describe('settings', () => {
     expect(store().settings.visibleMacros).toEqual(['carbs', 'sodium']);
   });
 
-  it('applies a retention policy and prunes matching days', () => {
-    store().addEntry('2024-02-01', { name: 'Old', grams: 10, calories: 10, macros: {} });
+  it('applies auto-optimize when usage crosses the threshold', () => {
+    store().addEntry('2025-01-10', { name: 'Old', grams: 10, calories: 10, macros: {} });
     store().addEntry(DATE, { name: 'New', grams: 10, calories: 10, macros: {} });
+    fillStorageTo(Math.floor(LOCAL_STORAGE_QUOTA_BYTES * 0.95));
 
-    store().setDataRetention('retain-6-months');
+    store().setAutoOptimizeThreshold(90);
 
-    expect(store().settings.dataRetention).toBe('retain-6-months');
-    expect(store().days['2024-02-01']).toBeUndefined();
+    expect(store().settings.autoOptimizeThreshold).toBe(90);
+    expect(store().days['2025-01-10']).toBeUndefined();
     expect(store().days[DATE]?.[0]?.name).toBe('New');
+  });
+
+  it('can disable auto-optimize', () => {
+    store().setAutoOptimizeThreshold(null);
+    expect(store().settings.autoOptimizeThreshold).toBeNull();
   });
 });
 
@@ -264,12 +270,13 @@ describe('body weight', () => {
     expect(store().weights[DATE]).toBeUndefined();
   });
 
-  it('prunes old weigh-ins with the retention policy', () => {
-    store().setWeight('2024-02-01', 80, 'kg');
+  it('prunes old weigh-ins when auto-optimize runs', () => {
+    store().setWeight('2025-01-10', 80, 'kg');
     store().setWeight(DATE, 81, 'kg');
-    store().setDataRetention('retain-6-months');
+    fillStorageTo(Math.floor(LOCAL_STORAGE_QUOTA_BYTES * 0.95));
+    store().setAutoOptimizeThreshold(90);
 
-    expect(store().weights['2024-02-01']).toBeUndefined();
+    expect(store().weights['2025-01-10']).toBeUndefined();
     expect(store().weights[DATE]).toBe(81);
   });
 });
@@ -440,7 +447,7 @@ describe('mergePersistedState', () => {
     expect(merged.settings.visibleMacros).toEqual(['protein']);
     expect(merged.settings.goals.calories).toBe(2000);
     expect(merged.settings.weekStart).toBe('sunday');
-    expect(merged.settings.dataRetention).toBe('forever');
+    expect(merged.settings.autoOptimizeThreshold).toBe(90);
   });
 
   it('strips the old five-item seed from persisted customs', () => {

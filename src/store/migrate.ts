@@ -1,5 +1,9 @@
 import { isLegacyStarterName } from '../data/starterFoodLibrary';
-import { isDataRetentionPolicy } from '../lib/retention';
+import {
+  DEFAULT_AUTO_OPTIMIZE_THRESHOLD,
+  normalizeAutoOptimizeThreshold,
+  thresholdFromLegacyRetention,
+} from '../lib/retention';
 import { isDateKey } from '../lib/dates';
 import { createId } from '../lib/id';
 import { normalizeMacros, sortMacros } from '../lib/macros';
@@ -7,7 +11,6 @@ import { isWeightUnit } from '../lib/weight';
 import { normalizeHex } from '../theme/color';
 import { DEFAULT_SETTINGS, STORE_VERSION, defaultPersistedState } from './defaults';
 import type {
-  DataRetentionPolicy,
   DateKey,
   FoodEntry,
   FoodFavorite,
@@ -151,8 +154,18 @@ function parseWeightUnit(value: unknown): WeightUnit {
   return isWeightUnit(value) ? value : DEFAULT_SETTINGS.weightUnit;
 }
 
-function parseDataRetention(value: unknown): DataRetentionPolicy {
-  return isDataRetentionPolicy(value) ? value : DEFAULT_SETTINGS.dataRetention;
+function parseAutoOptimizeThreshold(value: unknown, legacyRetention: unknown): number | null {
+  if (value !== undefined) {
+    if (value === null) return null;
+    const normalized = normalizeAutoOptimizeThreshold(value);
+    if (normalized !== null) return normalized;
+    // Explicit but invalid → fall back to the default enabled threshold.
+    return DEFAULT_AUTO_OPTIMIZE_THRESHOLD;
+  }
+  if (legacyRetention !== undefined) {
+    return thresholdFromLegacyRetention(legacyRetention);
+  }
+  return DEFAULT_SETTINGS.autoOptimizeThreshold;
 }
 
 function parseVisibleMacros(value: unknown): MacroKey[] {
@@ -175,7 +188,10 @@ export function parseSettings(value: unknown): Settings {
     visibleMacros: parseVisibleMacros(value.visibleMacros),
     goals: parseGoals(value.goals),
     weekStart: parseWeekStart(value.weekStart),
-    dataRetention: parseDataRetention(value.dataRetention),
+    autoOptimizeThreshold: parseAutoOptimizeThreshold(
+      value.autoOptimizeThreshold,
+      value.dataRetention,
+    ),
     weightUnit: parseWeightUnit(value.weightUnit),
   };
 }
