@@ -178,28 +178,21 @@ describe('GoalsView', () => {
 
     render(<GoalsView />);
 
-    expect(
-      within(screen.getByTestId('projection-end-mode')).getByRole('radio', { name: '1 yr' }),
-    ).toHaveAttribute('aria-checked', 'true');
+    const endMode = screen.getByTestId('projection-end-mode');
+    expect(endMode).toHaveValue('52');
     expect(screen.queryByTestId('projection-end-date')).not.toBeInTheDocument();
     expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(53);
 
-    await user.click(
-      within(screen.getByTestId('projection-end-mode')).getByRole('radio', { name: '3 mo' }),
-    );
+    await user.selectOptions(endMode, '13');
     expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(14);
 
-    await user.click(
-      within(screen.getByTestId('projection-end-mode')).getByRole('radio', { name: 'Date' }),
-    );
+    await user.selectOptions(endMode, 'date');
     fireEvent.change(screen.getByTestId('projection-end-date'), {
       target: { value: '2028-09-28' },
     });
     expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(105);
 
-    await user.click(
-      within(screen.getByTestId('projection-end-mode')).getByRole('radio', { name: 'Goal' }),
-    );
+    await user.selectOptions(endMode, 'goal');
     const goal = screen.getByTestId('projection-goal-weight');
     await user.clear(goal);
     await user.type(goal, '65');
