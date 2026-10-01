@@ -473,7 +473,7 @@ function WeightProjectionSection() {
           </div>
 
           <div className="grid gap-3 border-t border-line pt-5">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <span className="w-10 shrink-0 text-xs font-medium tracking-wide text-muted uppercase">
                 Start
               </span>
@@ -484,55 +484,53 @@ function WeightProjectionSection() {
                 options={START_MODES}
                 onChange={setStartMode}
               />
-              <div className="min-w-[10rem] flex-1 sm:ml-auto sm:max-w-xs">
-                {usingStartDate ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      id="projection-start-date"
-                      data-testid="projection-start-date"
-                      type="date"
-                      value={startDate}
-                      onChange={(event) => {
-                        if (!event.target.value) return;
-                        const next = event.target.value as DateKey;
-                        setStartDate(next);
-                        if (usingEndDate && daysBetween(next, endDate) < 7) {
-                          setEndMode('52');
-                        }
-                      }}
-                      className={inlineFieldClassName}
-                    />
-                    <p
-                      data-testid="projection-start-weight"
-                      className="shrink-0 text-sm tabular-nums text-ink"
-                    >
-                      {startWeightPoint
-                        ? formatDisplayWeight(
-                            fromCanonicalKg(startWeightPoint.value, weightUnit),
-                            weightUnit,
-                          )
-                        : '—'}
-                    </p>
-                  </div>
-                ) : (
-                  <NumberField
-                    label="Starting weight"
-                    labelHidden
-                    testId="projection-weight"
-                    value={startWeightDisplay}
-                    unit={weightUnitLabel(weightUnit)}
-                    min={1}
-                    max={weightUnit === 'lb' ? 1000 : 450}
-                    allowEmpty
-                    placeholder={latestWeightKg !== undefined ? 'Latest weigh-in' : 'Required'}
-                    onCommit={(value) => setStartWeightDisplay(value)}
-                    className="[&>div]:mt-0"
+              {usingStartDate ? (
+                <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-sm">
+                  <input
+                    id="projection-start-date"
+                    data-testid="projection-start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={(event) => {
+                      if (!event.target.value) return;
+                      const next = event.target.value as DateKey;
+                      setStartDate(next);
+                      if (usingEndDate && daysBetween(next, endDate) < 7) {
+                        setEndMode('52');
+                      }
+                    }}
+                    className={inlineFieldClassName}
                   />
-                )}
-              </div>
+                  <p
+                    data-testid="projection-start-weight"
+                    className="shrink-0 text-sm tabular-nums text-ink"
+                  >
+                    {startWeightPoint
+                      ? formatDisplayWeight(
+                          fromCanonicalKg(startWeightPoint.value, weightUnit),
+                          weightUnit,
+                        )
+                      : '—'}
+                  </p>
+                </div>
+              ) : (
+                <NumberField
+                  label="Starting weight"
+                  labelHidden
+                  testId="projection-weight"
+                  value={startWeightDisplay}
+                  unit={weightUnitLabel(weightUnit)}
+                  min={1}
+                  max={weightUnit === 'lb' ? 1000 : 450}
+                  allowEmpty
+                  placeholder={latestWeightKg !== undefined ? 'Latest weigh-in' : 'Required'}
+                  onCommit={(value) => setStartWeightDisplay(value)}
+                  className="w-full min-w-[9rem] sm:w-40 [&>div]:mt-0"
+                />
+              )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <span className="w-10 shrink-0 text-xs font-medium tracking-wide text-muted uppercase">
                 End
               </span>
@@ -543,39 +541,36 @@ function WeightProjectionSection() {
                 options={END_MODES}
                 onChange={setEndMode}
               />
-              {usingEndDate || usingGoalWeight ? (
-                <div className="min-w-[10rem] flex-1 sm:ml-auto sm:max-w-xs">
-                  {usingEndDate ? (
-                    <input
-                      id="projection-end-date"
-                      data-testid="projection-end-date"
-                      type="date"
-                      value={endDate}
-                      min={addDays(resolvedStartDate, 7)}
-                      onChange={(event) => {
-                        if (!event.target.value) return;
-                        const next = event.target.value as DateKey;
-                        if (daysBetween(resolvedStartDate, next) < 7) return;
-                        setEndDate(next);
-                      }}
-                      className={inlineFieldClassName}
-                    />
-                  ) : (
-                    <NumberField
-                      label="Goal weight"
-                      labelHidden
-                      testId="projection-goal-weight"
-                      value={goalWeightDisplay}
-                      unit={weightUnitLabel(weightUnit)}
-                      min={1}
-                      max={weightUnit === 'lb' ? 1000 : 450}
-                      allowEmpty
-                      placeholder="Goal weight"
-                      onCommit={(value) => setGoalWeightDisplay(value)}
-                      className="[&>div]:mt-0"
-                    />
-                  )}
-                </div>
+              {usingEndDate ? (
+                <input
+                  id="projection-end-date"
+                  data-testid="projection-end-date"
+                  type="date"
+                  value={endDate}
+                  min={addDays(resolvedStartDate, 7)}
+                  onChange={(event) => {
+                    if (!event.target.value) return;
+                    const next = event.target.value as DateKey;
+                    if (daysBetween(resolvedStartDate, next) < 7) return;
+                    setEndDate(next);
+                  }}
+                  className={`${inlineFieldClassName} w-full min-w-[9rem] sm:w-40`}
+                />
+              ) : null}
+              {usingGoalWeight ? (
+                <NumberField
+                  label="Goal weight"
+                  labelHidden
+                  testId="projection-goal-weight"
+                  value={goalWeightDisplay}
+                  unit={weightUnitLabel(weightUnit)}
+                  min={1}
+                  max={weightUnit === 'lb' ? 1000 : 450}
+                  allowEmpty
+                  placeholder="Goal weight"
+                  onCommit={(value) => setGoalWeightDisplay(value)}
+                  className="w-full min-w-[9rem] sm:w-40 [&>div]:mt-0"
+                />
               ) : null}
             </div>
           </div>
@@ -788,7 +783,7 @@ function ModeTabs<T extends string>({
       role="radiogroup"
       aria-label={label}
       data-testid={testId}
-      className="inline-flex flex-wrap items-center gap-0.5"
+      className="inline-flex flex-wrap items-end gap-x-3 gap-y-1 border-b border-line"
     >
       {options.map((option) => {
         const selected = option.value === value;
@@ -800,10 +795,10 @@ function ModeTabs<T extends string>({
             aria-checked={selected}
             onClick={() => onChange(option.value)}
             className={[
-              'rounded px-2 py-1 text-sm transition-colors',
+              '-mb-px border-b-2 px-0.5 pb-1.5 text-sm transition-colors',
               selected
-                ? 'bg-accent-faint font-medium text-ink'
-                : 'text-muted hover:bg-accent-faint hover:text-ink',
+                ? 'border-accent font-medium text-ink'
+                : 'border-transparent text-muted hover:text-ink',
             ].join(' ')}
           >
             {option.label}
