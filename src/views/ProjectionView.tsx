@@ -2,7 +2,13 @@ import { useMemo, useState } from 'react';
 import { LineChart } from '../components/charts/LineChart';
 import { NumberField } from '../components/settings/NumberField';
 import { SegmentedControl } from '../components/settings/SegmentedControl';
-import { formatLongDate, formatShortDate, todayKey } from '../lib/dates';
+import {
+  ageYearsFromBirthday,
+  formatLongDate,
+  formatShortDate,
+  fromDateKey,
+  todayKey,
+} from '../lib/dates';
 import {
   fromCanonicalCm,
   heightUnitForWeightUnit,
@@ -25,7 +31,7 @@ import { fromCanonicalKg, roundWeight, toCanonicalKg, weightUnitLabel } from '..
 import { useAppStore } from '../store/useAppStore';
 import { useGoals, useProjectionProfile, useWeightUnit, useWeights } from '../store/selectors';
 import type { SegmentedOption } from '../components/settings/SegmentedControl';
-import type { WeightUnit } from '../types';
+import type { DateKey, WeightUnit } from '../types';
 
 const WEEK_OPTIONS = [
   { value: '26', label: '6 mo' },
@@ -112,6 +118,11 @@ export function ProjectionView() {
       ? roundHeight(fromCanonicalCm(profile.heightCm, heightUnit), heightUnit)
       : undefined;
 
+  const ageYears =
+    profile.birthday !== null
+      ? ageYearsFromBirthday(profile.birthday, fromDateKey(startDate))
+      : null;
+
   const effectiveIntake =
     intakeSource === 'goal'
       ? goals.calories > 0
@@ -123,7 +134,7 @@ export function ProjectionView() {
 
   const ready =
     profile.sex !== null &&
-    profile.ageYears !== null &&
+    ageYears !== null &&
     profile.heightCm !== null &&
     startWeightDisplay !== undefined &&
     startWeightDisplay > 0 &&
@@ -132,7 +143,7 @@ export function ProjectionView() {
     (maintenanceSource === 'formula' || logMaintenance !== null);
 
   const result = useMemo(() => {
-    if (!ready || !profile.sex || profile.ageYears === null || profile.heightCm === null) {
+    if (!ready || !profile.sex || ageYears === null || profile.heightCm === null) {
       return null;
     }
     if (startWeightDisplay === undefined || effectiveIntake === undefined) return null;
@@ -144,14 +155,14 @@ export function ProjectionView() {
         sex: profile.sex,
         weightKg: startWeightKg,
         heightCm: profile.heightCm,
-        ageYears: profile.ageYears,
+        ageYears,
         maintenanceKcal: logMaintenance.maintenanceKcal,
       });
     }
 
     return projectWeightLoss({
       sex: profile.sex,
-      ageYears: profile.ageYears,
+      ageYears,
       heightCm: profile.heightCm,
       startWeightKg,
       activity,
@@ -162,7 +173,7 @@ export function ProjectionView() {
   }, [
     ready,
     profile.sex,
-    profile.ageYears,
+    ageYears,
     profile.heightCm,
     profile.activity,
     startWeightDisplay,
@@ -261,19 +272,31 @@ export function ProjectionView() {
             </select>
           </div>
 
-          <NumberField
-            label="Age"
-            testId="projection-age"
-            value={profile.ageYears ?? undefined}
-            unit="years"
-            integer
-            min={1}
-            max={120}
-            allowEmpty
-            placeholder="Required"
-            onCommit={(value) => setProjectionProfile({ ageYears: value ?? null })}
-            className="max-w-48"
-          />
+          <div className="max-w-48">
+            <label
+              htmlFor="projection-birthday"
+              className="block text-xs font-medium tracking-wide text-muted uppercase"
+            >
+              Birthday
+            </label>
+            <input
+              id="projection-birthday"
+              type="date"
+              data-testid="projection-birthday"
+              value={profile.birthday ?? ''}
+              max={startDate}
+              onChange={(event) => {
+                const value = event.target.value;
+                setProjectionProfile({ birthday: value ? (value as DateKey) : null });
+              }}
+              className="mt-1 w-full rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
+            />
+            {ageYears !== null ? (
+              <p className="mt-1 text-xs text-subtle" data-testid="projection-age-hint">
+                Age {ageYears}
+              </p>
+            ) : null}
+          </div>
 
           <NumberField
             label="Height"
@@ -426,7 +449,7 @@ export function ProjectionView() {
             ? 'Log more weigh-ins and food days to estimate maintenance, or switch Maintenance back to Formula.'
             : intakeSource === 'logged' && !loggedIntake
               ? 'Log some food days to use a logged average, or switch intake to Goal / Custom.'
-              : 'Fill in sex, age, height, starting weight, and daily intake to see the projection.'}
+              : 'Fill in sex, birthday, height, starting weight, and daily intake to see the projection.'}
         </div>
       ) : result ? (
         <>

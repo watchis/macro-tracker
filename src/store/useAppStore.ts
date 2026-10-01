@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { todayKey } from '../lib/dates';
+import { ageYearsFromBirthday, isDateKey, todayKey } from '../lib/dates';
 import {
   removeCustomFavorite,
   syncCustomFavorite,
@@ -421,12 +421,15 @@ export const useAppStore = create<AppStore>()(
           if (patch.sex !== undefined) {
             next.sex = patch.sex === 'male' || patch.sex === 'female' ? patch.sex : null;
           }
-          if (patch.ageYears !== undefined) {
-            const age = patch.ageYears;
-            next.ageYears =
-              age === null || !Number.isFinite(age) || age < 0 || age > 120
-                ? null
-                : Math.round(age);
+          if (patch.birthday !== undefined) {
+            const birthday = patch.birthday;
+            if (birthday === null) {
+              next.birthday = null;
+            } else {
+              const age = ageYearsFromBirthday(birthday);
+              next.birthday =
+                isDateKey(birthday) && age !== null && age >= 0 && age <= 120 ? birthday : null;
+            }
           }
           if (patch.heightCm !== undefined) {
             const height = patch.heightCm;

@@ -4,7 +4,7 @@ import {
   normalizeAutoOptimizeThreshold,
   thresholdFromLegacyRetention,
 } from '../lib/retention';
-import { isDateKey } from '../lib/dates';
+import { ageYearsFromBirthday, isDateKey, toDateKey } from '../lib/dates';
 import { createId } from '../lib/id';
 import { normalizeMacros, sortMacros } from '../lib/macros';
 import {
@@ -170,19 +170,25 @@ function parseActivity(value: unknown): ActivityMultiplier {
   return isActivityMultiplier(value) ? value : DEFAULT_ACTIVITY;
 }
 
+function parseBirthday(value: unknown, legacyAgeYears: unknown): DateKey | null {
+  if (isDateKey(value)) {
+    const age = ageYearsFromBirthday(value);
+    if (age !== null && age >= 0 && age <= 120) return value;
+    return null;
+  }
+  if (legacyAgeYears === null || legacyAgeYears === undefined) return null;
+  const parsed = num(legacyAgeYears, Number.NaN);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 120) return null;
+  const years = Math.round(parsed);
+  const now = new Date();
+  const approx = new Date(now.getFullYear() - years, now.getMonth(), now.getDate());
+  return toDateKey(approx);
+}
+
 function parseProjection(value: unknown): ProjectionProfile {
   if (!isRecord(value)) {
     return { ...DEFAULT_SETTINGS.projection };
   }
-  const ageRaw = value.ageYears;
-  const ageYears =
-    ageRaw === null || ageRaw === undefined
-      ? null
-      : (() => {
-          const parsed = num(ageRaw, Number.NaN);
-          if (!Number.isFinite(parsed) || parsed < 0 || parsed > 120) return null;
-          return Math.round(parsed);
-        })();
   const heightRaw = value.heightCm;
   const heightCm =
     heightRaw === null || heightRaw === undefined
@@ -194,7 +200,7 @@ function parseProjection(value: unknown): ProjectionProfile {
         })();
   return {
     sex: parseSex(value.sex),
-    ageYears,
+    birthday: parseBirthday(value.birthday, value.ageYears),
     heightCm,
     activity: parseActivity(value.activity),
   };

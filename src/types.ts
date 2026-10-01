@@ -72,8 +72,8 @@ export type ActivityMultiplier = 1.2 | 1.375 | 1.55 | 1.725 | 1.9;
  */
 export type ProjectionProfile = {
   sex: Sex | null;
-  /** Whole years; `null` when unset. */
-  ageYears: number | null;
+  /** Birthday as `YYYY-MM-DD`; age for BMR is derived from this. `null` when unset. */
+  birthday: DateKey | null;
   /** Height in centimeters; `null` when unset. */
   heightCm: number | null;
   activity: ActivityMultiplier;

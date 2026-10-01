@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProjectionView } from './ProjectionView';
 import { useAppStore } from '../store/useAppStore';
+
+/** Birthday that yields age 35 on 2026-10-01 (and near that date). */
+const BIRTHDAY_AGE_35 = '1991-03-15';
 
 describe('ProjectionView', () => {
   it('prompts for missing profile fields before projecting', () => {
@@ -23,9 +26,10 @@ describe('ProjectionView', () => {
 
     await user.selectOptions(screen.getByTestId('projection-sex'), 'male');
 
-    const age = screen.getByTestId('projection-age');
-    await user.clear(age);
-    await user.type(age, '35');
+    fireEvent.change(screen.getByTestId('projection-birthday'), {
+      target: { value: BIRTHDAY_AGE_35 },
+    });
+    expect(screen.getByTestId('projection-age-hint')).toHaveTextContent(/Age 3[45]/);
 
     const height = screen.getByTestId('projection-height');
     await user.clear(height);
@@ -45,7 +49,7 @@ describe('ProjectionView', () => {
 
     expect(useAppStore.getState().settings.projection).toMatchObject({
       sex: 'male',
-      ageYears: 35,
+      birthday: BIRTHDAY_AGE_35,
       heightCm: 177.8,
       activity: 1.2,
     });
@@ -55,7 +59,7 @@ describe('ProjectionView', () => {
     const user = userEvent.setup();
     useAppStore.getState().setProjectionProfile({
       sex: 'female',
-      ageYears: 30,
+      birthday: '1996-06-01',
       heightCm: 165,
       activity: 1.375,
     });
@@ -79,7 +83,7 @@ describe('ProjectionView', () => {
     const store = useAppStore.getState();
     store.setProjectionProfile({
       sex: 'male',
-      ageYears: 35,
+      birthday: BIRTHDAY_AGE_35,
       heightCm: 178,
       activity: 1.2,
     });
@@ -109,7 +113,7 @@ describe('ProjectionView', () => {
     const store = useAppStore.getState();
     store.setProjectionProfile({
       sex: 'male',
-      ageYears: 35,
+      birthday: BIRTHDAY_AGE_35,
       heightCm: 178,
       activity: 1.2,
     });
