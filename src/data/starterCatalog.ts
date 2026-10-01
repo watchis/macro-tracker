@@ -1,3 +1,4 @@
+import { compareFoodSearchRelevance } from '../lib/foodSearch';
 import type { FoodLibraryItem } from '../types';
 import { aliasesForName, normalizeSearchText } from './foodAliases';
 import manifestJson from './starter/manifest.json';
@@ -152,12 +153,15 @@ export async function queryStarterFoods(options: StarterQuery = {}): Promise<Sta
   }
 
   const filtered = query ? pool.filter((item) => matchesQuery(item, query)) : pool;
+  const ranked = query
+    ? [...filtered].sort((a, b) => compareFoodSearchRelevance(a, b, query))
+    : filtered;
   return {
-    items: filtered.slice(offset, offset + limit).map((item) => ({
+    items: ranked.slice(offset, offset + limit).map((item) => ({
       ...item,
       macros: { ...item.macros },
     })),
-    total: filtered.length,
+    total: ranked.length,
     offset,
     limit,
   };

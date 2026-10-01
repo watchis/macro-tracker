@@ -1,8 +1,9 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { matchingAlias, normalizeSearchText } from '../data/foodAliases';
+import { matchingAlias } from '../data/foodAliases';
 import { queryStarterFoods, type StarterFood } from '../data/starterCatalog';
 import { foodFavoriteKey, isFoodFavorited } from '../lib/foodFavorites';
+import { compareFoodSearchRelevance, foodSearchScore } from '../lib/foodSearch';
 import { formatCalories } from '../lib/totals';
 import { useCustomFoods, useFoodFavorites } from '../store/selectors';
 import type { CSSProperties, KeyboardEvent } from 'react';
@@ -72,8 +73,9 @@ export function FoodSearchCombobox({
 
   const customMatches = useMemo(() => {
     if (!normalizedQuery) return [];
-    const needle = normalizeSearchText(normalizedQuery);
-    return customFoods.filter((food) => normalizeSearchText(food.name).includes(needle));
+    return customFoods
+      .filter((food) => foodSearchScore(food, normalizedQuery) !== null)
+      .sort((a, b) => compareFoodSearchRelevance(a, b, normalizedQuery));
   }, [customFoods, normalizedQuery]);
 
   const [starterResult, setStarterResult] = useState<{
@@ -110,7 +112,6 @@ export function FoodSearchCombobox({
   const options = useMemo(() => {
     const rows: FoodSearchOption[] = [];
     const seen = new Set<string>();
-    const needle = normalizeSearchText(normalizedQuery);
 
     const push = (food: SearchableFood, source: FoodFavoriteSource, favorited: boolean) => {
       const key = foodFavoriteKey(source, food.name);
@@ -129,9 +130,8 @@ export function FoodSearchCombobox({
 
     const starterMatches = starterResult.query === normalizedQuery ? starterResult.items : [];
 
-    // Favorites that match the query first, then remaining custom/catalog hits.
     foodFavorites.forEach((favorite) => {
-      if (!normalizeSearchText(favorite.name).includes(needle)) return;
+      if (foodSearchScore(favorite, normalizedQuery) === null) return;
       const { source, ...food } = favorite;
       push(food, source, true);
     });
@@ -141,6 +141,9 @@ export function FoodSearchCombobox({
     starterMatches.forEach((food) => {
       push(food, 'starter', isFoodFavorited(foodFavorites, 'starter', food.name));
     });
+
+    // Match precision across favorites, custom, and catalog hits.
+    rows.sort((a, b) => compareFoodSearchRelevance(a.food, b.food, normalizedQuery));
     return rows;
   }, [customMatches, foodFavorites, normalizedQuery, starterResult]);
 
