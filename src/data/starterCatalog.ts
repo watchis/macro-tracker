@@ -1,4 +1,5 @@
 import type { FoodLibraryItem } from '../types';
+import { aliasesForName, normalizeSearchText } from './foodAliases';
 import manifestJson from './starter/manifest.json';
 
 export type StarterCategoryMeta = {
@@ -9,6 +10,12 @@ export type StarterCategoryMeta = {
 
 export type StarterFood = FoodLibraryItem & {
   fdcId?: number;
+  /** Composition database that supplied this row: sr, fd, cofid, or cnf. */
+  source?: string;
+  /** USDA FDC id, CoFID food code, or Canadian Nutrient File food code. */
+  sourceRef?: string | number;
+  /** Everyday names and spellings that should find this food. */
+  aliases?: string[];
   categoryId: string;
   categoryLabel: string;
 };
@@ -59,7 +66,9 @@ const categoryModules = import.meta.glob<{
   default: {
     id: string;
     label: string;
-    foods: Array<FoodLibraryItem & { fdcId?: number }>;
+    foods: Array<
+      FoodLibraryItem & { fdcId?: number; source?: string; sourceRef?: string | number }
+    >;
   };
 }>('./starter/categories/*.json');
 
@@ -86,15 +95,21 @@ export function loadStarterCategory(categoryId: string): Promise<StarterFood[]> 
   const meta = STARTER_MANIFEST.categories.find((category) => category.id === categoryId);
   const promise = loader().then((mod) => {
     const data = mod.default;
-    return data.foods.map((food) => ({
-      name: food.name,
-      grams: food.grams,
-      calories: food.calories,
-      macros: { ...food.macros },
-      fdcId: food.fdcId,
-      categoryId: data.id,
-      categoryLabel: data.label || meta?.label || data.id,
-    }));
+    return data.foods.map((food) => {
+      const aliases = aliasesForName(food.name);
+      return {
+        name: food.name,
+        grams: food.grams,
+        calories: food.calories,
+        macros: { ...food.macros },
+        fdcId: food.fdcId,
+        source: food.source,
+        sourceRef: food.sourceRef,
+        ...(aliases.length > 0 ? { aliases } : {}),
+        categoryId: data.id,
+        categoryLabel: data.label || meta?.label || data.id,
+      };
+    });
   });
   categoryCache.set(categoryId, promise);
   return promise;
@@ -111,10 +126,11 @@ export function loadAllStarterFoods(): Promise<StarterFood[]> {
 }
 
 function matchesQuery(item: StarterFood, query: string): boolean {
-  if (!query) return true;
-  return (
-    item.name.toLowerCase().includes(query) || item.categoryLabel.toLowerCase().includes(query)
-  );
+  const needle = normalizeSearchText(query);
+  if (!needle) return true;
+  if (normalizeSearchText(item.name).includes(needle)) return true;
+  if (normalizeSearchText(item.categoryLabel).includes(needle)) return true;
+  return item.aliases?.some((alias) => normalizeSearchText(alias).includes(needle)) ?? false;
 }
 
 /**

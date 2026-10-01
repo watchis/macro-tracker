@@ -1,79 +1,94 @@
 {
-  "source": "Curated whole foods (USDA FoodData Central values)",
-  "license": "Public domain nutrition values (USDA); curated naming",
+  "source": "Curated whole foods plus household brands (USDA FoodData Central, UK CoFID, Canadian Nutrient File)",
+  "license": "USDA public domain; UK Open Government Licence (CoFID); Health Canada Canadian Nutrient File",
   "portal": "https://fdc.nal.usda.gov/",
-  "basis": "Amounts per 100 g edible portion. Focused on whole foods with everyday names. Category JSON files are lazy-loaded.",
-  "total": 303,
+  "basis": "Amounts per 100 g edible portion. Compiled from USDA FoodData Central (SR Legacy, Foundation Foods, and a short list of Branded Foods), the UK Composition of Foods Integrated Dataset (CoFID), and the Canadian Nutrient File. Each food keeps the source id from that lookup. Same-food rows are dropped only when their macros match; category JSON files are lazy-loaded.",
+  "total": 4895,
   "categories": [
     {
       "id": "poultry",
       "label": "Poultry",
-      "count": 18
+      "count": 302
     },
     {
       "id": "beef",
       "label": "Beef",
-      "count": 17
+      "count": 544
     },
     {
       "id": "pork",
       "label": "Pork",
-      "count": 9
+      "count": 260
     },
     {
-      "id": "lamb",
-      "label": "Lamb",
-      "count": 5
+      "id": "lamb-goat-game",
+      "label": "Lamb, goat & game",
+      "count": 409
     },
     {
-      "id": "fish-seafood",
-      "label": "Fish & seafood",
-      "count": 21
+      "id": "fish",
+      "label": "Fish",
+      "count": 383
+    },
+    {
+      "id": "shellfish",
+      "label": "Shellfish",
+      "count": 70
     },
     {
       "id": "dairy-eggs",
       "label": "Dairy & eggs",
-      "count": 32
+      "count": 297
     },
     {
       "id": "grains",
-      "label": "Grains & pasta",
-      "count": 35
+      "label": "Grains, bread & pasta",
+      "count": 469
     },
     {
       "id": "legumes",
-      "label": "Legumes",
-      "count": 19
+      "label": "Legumes & soy",
+      "count": 257
     },
     {
       "id": "vegetables",
       "label": "Vegetables",
-      "count": 52
+      "count": 619
+    },
+    {
+      "id": "starches",
+      "label": "Potatoes & starches",
+      "count": 151
     },
     {
       "id": "fruits",
       "label": "Fruits",
-      "count": 34
+      "count": 417
     },
     {
       "id": "nuts-seeds",
       "label": "Nuts & seeds",
-      "count": 19
+      "count": 164
     },
     {
       "id": "oils-fats",
       "label": "Oils & fats",
-      "count": 12
+      "count": 181
     },
     {
       "id": "beverages",
       "label": "Beverages",
-      "count": 12
+      "count": 203
     },
     {
-      "id": "condiments",
-      "label": "Condiments & sweeteners",
-      "count": 18
+      "id": "seasonings",
+      "label": "Sauces, seasonings & sweeteners",
+      "count": 146
+    },
+    {
+      "id": "popular-brands",
+      "label": "Popular brands",
+      "count": 23
     }
   ]
 }

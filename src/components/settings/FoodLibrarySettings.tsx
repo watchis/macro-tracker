@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { matchingAlias, normalizeSearchText } from '../../data/foodAliases';
 import { STARTER_FOOD_COUNT, STARTER_MANIFEST } from '../../data/starterCatalog';
 import { useStarterFoodPage } from '../../hooks/useStarterFoodPage';
 import { isFoodFavorited } from '../../lib/foodFavorites';
@@ -22,8 +23,9 @@ function macroSummary(item: FoodLibraryItem): string {
 }
 
 function matchesQuery(item: FoodLibraryItem, query: string): boolean {
-  if (!query) return true;
-  return item.name.toLowerCase().includes(query);
+  const needle = normalizeSearchText(query);
+  if (!needle) return true;
+  return normalizeSearchText(item.name).includes(needle);
 }
 
 function FavoriteStarButton({
@@ -266,25 +268,31 @@ export function FoodLibrarySettings() {
           ) : !page || page.items.length === 0 ? (
             <li className="px-2 py-3 text-sm text-muted">No matches.</li>
           ) : (
-            page.items.map((item) => (
-              <li
-                key={`starter-${item.categoryId}-${item.fdcId ?? item.name}`}
-                className="flex items-start gap-1 rounded-md px-1 py-2 text-sm hover:bg-raised"
-              >
-                <FavoriteStarButton
-                  source="starter"
-                  item={item}
-                  testId={`starter-favorite-${item.fdcId ?? item.name}`}
-                />
-                <div className="min-w-0 pt-1">
-                  <p className="font-medium text-ink">{item.name}</p>
-                  <p className="text-xs text-muted">
-                    {formatCalories(item.calories)} kcal / {item.grams} g · {macroSummary(item)}
-                    {searching || !categoryId ? ` · ${item.categoryLabel}` : ''}
-                  </p>
-                </div>
-              </li>
-            ))
+            page.items.map((item) => {
+              const alias = searching ? matchingAlias(item.name, item.aliases, query) : null;
+              return (
+                <li
+                  key={`starter-${item.categoryId}-${item.fdcId ?? item.name}`}
+                  className="flex items-start gap-1 rounded-md px-1 py-2 text-sm hover:bg-raised"
+                >
+                  <FavoriteStarButton
+                    source="starter"
+                    item={item}
+                    testId={`starter-favorite-${item.fdcId ?? item.name}`}
+                  />
+                  <div className="min-w-0 pt-1">
+                    <p className="font-medium text-ink">
+                      {item.name}
+                      {alias ? <span className="font-normal text-muted"> · {alias}</span> : null}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {formatCalories(item.calories)} kcal / {item.grams} g · {macroSummary(item)}
+                      {searching || !categoryId ? ` · ${item.categoryLabel}` : ''}
+                    </p>
+                  </div>
+                </li>
+              );
+            })
           )}
         </ul>
 

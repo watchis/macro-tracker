@@ -87,9 +87,18 @@ src/
   index.css            palette custom properties and Tailwind theme mapping
 ```
 
-The food library ships a curated **whole-foods catalog** (~300 everyday foods with clean names;
-nutrition values primarily from [USDA FoodData Central](https://fdc.nal.usda.gov/)), split into
-category JSON files under `src/data/starter/` and **lazy-loaded** as you browse or search.
+The food library ships a curated **whole-foods catalog** (about 4,800 foods). Every entry is
+looked up from [USDA FoodData Central](https://fdc.nal.usda.gov/), the
+[UK Composition of Foods Integrated Dataset](https://www.gov.uk/government/publications/composition-of-foods-integrated-dataset-cofid),
+or the [Canadian Nutrient File](https://food-nutrition.canada.ca/cnf-fce/), and keeps that
+row's id (`source` and `sourceRef`). Common foods use everyday names, including Asian staples
+such as winged beans (sigarilyas) and mung beans; other whole foods keep the database name
+when their macros differ from a similar food. Branded products, fast food, and baby food are
+left out. The catalog is split into category JSON files under `src/data/starter/` and
+**lazy-loaded** as you browse or search. Search also matches common aliases and
+spellings (aubergine, calamari, garbanzo, sigarillias, coke) and ignores accents.
+A short list of household brand foods, such as Heinz ketchup, Coca-Cola, Mountain Dew,
+and Ferrero Rocher, is included from USDA Branded Foods.
 Regenerate with `python3 scripts/build-whole-foods-catalog.py`. Custom foods you add in the Food
 library view are persisted separately. Star custom or catalog foods to pin them as favorites for
 Day quick-add (favorites appear when the search field is empty; they are not auto-assigned).

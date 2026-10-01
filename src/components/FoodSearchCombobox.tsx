@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { queryStarterFoods } from '../data/starterCatalog';
+import { matchingAlias, normalizeSearchText } from '../data/foodAliases';
+import { queryStarterFoods, type StarterFood } from '../data/starterCatalog';
 import { foodFavoriteKey, isFoodFavorited } from '../lib/foodFavorites';
 import { formatCalories } from '../lib/totals';
 import { useCustomFoods, useFoodFavorites } from '../store/selectors';
@@ -12,7 +13,14 @@ export type FoodSearchPick = {
   source: FoodFavoriteSource;
 };
 
-type FoodSearchOption = FoodSearchPick & { key: string; favorited: boolean };
+type SearchableFood = FoodLibraryItem & { aliases?: readonly string[] };
+
+type FoodSearchOption = {
+  food: SearchableFood;
+  source: FoodFavoriteSource;
+  key: string;
+  favorited: boolean;
+};
 
 export type FoodSearchComboboxProps = {
   value: string;
@@ -64,12 +72,13 @@ export function FoodSearchCombobox({
 
   const customMatches = useMemo(() => {
     if (!normalizedQuery) return [];
-    return customFoods.filter((food) => food.name.toLowerCase().includes(normalizedQuery));
+    const needle = normalizeSearchText(normalizedQuery);
+    return customFoods.filter((food) => normalizeSearchText(food.name).includes(needle));
   }, [customFoods, normalizedQuery]);
 
   const [starterResult, setStarterResult] = useState<{
     query: string;
-    items: FoodLibraryItem[];
+    items: StarterFood[];
   }>({ query: '', items: [] });
 
   useEffect(() => {
@@ -101,8 +110,9 @@ export function FoodSearchCombobox({
   const options = useMemo(() => {
     const rows: FoodSearchOption[] = [];
     const seen = new Set<string>();
+    const needle = normalizeSearchText(normalizedQuery);
 
-    const push = (food: FoodLibraryItem, source: FoodFavoriteSource, favorited: boolean) => {
+    const push = (food: SearchableFood, source: FoodFavoriteSource, favorited: boolean) => {
       const key = foodFavoriteKey(source, food.name);
       if (seen.has(key)) return;
       seen.add(key);
@@ -121,7 +131,7 @@ export function FoodSearchCombobox({
 
     // Favorites that match the query first, then remaining custom/catalog hits.
     foodFavorites.forEach((favorite) => {
-      if (!favorite.name.toLowerCase().includes(normalizedQuery)) return;
+      if (!normalizeSearchText(favorite.name).includes(needle)) return;
       const { source, ...food } = favorite;
       push(food, source, true);
     });
@@ -241,6 +251,7 @@ export function FoodSearchCombobox({
             ) : (
               options.map((row, index) => {
                 const active = index === activeIndex;
+                const alias = matchingAlias(row.food.name, row.food.aliases, value);
                 return (
                   <li
                     key={row.key}
@@ -262,6 +273,7 @@ export function FoodSearchCombobox({
                     <span className="font-medium">
                       {row.favorited ? '★ ' : ''}
                       {row.food.name}
+                      {alias ? <span className="font-normal text-muted"> · {alias}</span> : null}
                     </span>
                     <span className="mt-0.5 block text-xs text-muted tabular-nums">
                       {formatCalories(row.food.calories)} kcal / {Math.round(row.food.grams)} g
