@@ -590,12 +590,29 @@ function WeightProjectionSection() {
       ) : (
         <>
           <article className="card grid gap-4 p-5" data-testid="projection-chart">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold tracking-tight">Projected weight</h2>
-              <p className="text-xs text-muted" data-testid="projection-summary">
-                {formatShortDate(resolvedStartDate)} → {formatShortDate(resolvedEndDate)} ·{' '}
-                {primary.label} · {formatCalories(primary.intakeKcal)} kcal/day
-              </p>
+              <ul
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted"
+                data-testid="projection-series-legend"
+                aria-label="Chart key"
+              >
+                {scenarios.map((scenario) => (
+                  <li key={scenario.id} className="inline-flex items-center gap-1.5">
+                    <SeriesSwatch
+                      className={scenario.className}
+                      dashed={Boolean(scenario.strokeDasharray)}
+                    />
+                    {scenario.label}
+                  </li>
+                ))}
+                {showWeighIns && actualWeightPoints.length >= 2 ? (
+                  <li className="inline-flex items-center gap-1.5">
+                    <SeriesSwatch className="stroke-muted" dashed />
+                    Weigh-ins
+                  </li>
+                ) : null}
+              </ul>
             </div>
 
             <dl className="grid grid-cols-3 gap-3">
@@ -683,32 +700,6 @@ function WeightProjectionSection() {
                   onClick={() => setShowWeighIns((value) => !value)}
                 />
               </SeriesToggleGroup>
-
-              {scenarios.length > 0 ? (
-                <ul
-                  className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted"
-                  data-testid="projection-series-legend"
-                >
-                  {scenarios.map((scenario) => (
-                    <li key={scenario.id} className="inline-flex items-center gap-1.5">
-                      <span
-                        aria-hidden
-                        className={[
-                          'inline-block h-0.5 w-4 rounded-full',
-                          scenario.className.replace('stroke-', 'bg-'),
-                        ].join(' ')}
-                      />
-                      {scenario.label}
-                    </li>
-                  ))}
-                  {showWeighIns && actualWeightPoints.length >= 2 ? (
-                    <li className="inline-flex items-center gap-1.5">
-                      <span aria-hidden className="inline-block h-0.5 w-4 rounded-full bg-muted" />
-                      Weigh-ins
-                    </li>
-                  ) : null}
-                </ul>
-              ) : null}
             </div>
 
             <LineChart
@@ -774,6 +765,26 @@ function WeightProjectionSection() {
         </>
       )}
     </section>
+  );
+}
+
+function SeriesSwatch({ className, dashed }: { className: string; dashed?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={['inline-block h-0.5 w-4 rounded-full', className.replace('stroke-', 'bg-')].join(
+        ' ',
+      )}
+      style={
+        dashed
+          ? {
+              backgroundImage:
+                'repeating-linear-gradient(90deg, currentColor 0 3px, transparent 3px 5px)',
+              backgroundColor: 'transparent',
+            }
+          : undefined
+      }
+    />
   );
 }
 

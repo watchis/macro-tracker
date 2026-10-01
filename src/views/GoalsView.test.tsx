@@ -133,7 +133,8 @@ describe('GoalsView', () => {
     expect(screen.queryByTestId('projection-series-formula')).not.toBeInTheDocument();
 
     expect(screen.getByTestId('projection-series-goal')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/Goal/);
+    expect(screen.getByTestId('projection-series-legend')).toHaveTextContent(/Goal/);
+    expect(screen.queryByTestId('projection-summary')).not.toBeInTheDocument();
     expect(screen.getByTestId('projection-weight-chart')).toBeInTheDocument();
     expect(screen.getByTestId('chart-series-goal')).toBeInTheDocument();
 
