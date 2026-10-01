@@ -9,6 +9,10 @@ export type StarterCategoryMeta = {
 
 export type StarterFood = FoodLibraryItem & {
   fdcId?: number;
+  /** Composition database that supplied this row: sr, fd, cofid, or cnf. */
+  source?: string;
+  /** USDA FDC id, CoFID food code, or Canadian Nutrient File food code. */
+  sourceRef?: string | number;
   categoryId: string;
   categoryLabel: string;
 };
@@ -59,7 +63,9 @@ const categoryModules = import.meta.glob<{
   default: {
     id: string;
     label: string;
-    foods: Array<FoodLibraryItem & { fdcId?: number }>;
+    foods: Array<
+      FoodLibraryItem & { fdcId?: number; source?: string; sourceRef?: string | number }
+    >;
   };
 }>('./starter/categories/*.json');
 
@@ -92,6 +98,8 @@ export function loadStarterCategory(categoryId: string): Promise<StarterFood[]> 
       calories: food.calories,
       macros: { ...food.macros },
       fdcId: food.fdcId,
+      source: food.source,
+      sourceRef: food.sourceRef,
       categoryId: data.id,
       categoryLabel: data.label || meta?.label || data.id,
     }));

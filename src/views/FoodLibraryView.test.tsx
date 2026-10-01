@@ -156,6 +156,11 @@ describe('FoodLibraryView', () => {
     expect(starches).toBeDefined();
     await user.selectOptions(category, starches!.id);
     await waitFor(() => {
+      expect(screen.getByTestId('starter-food-list')).toHaveTextContent(/Breadfruit|Cassava/);
+    });
+    await user.clear(screen.getByTestId('food-library-search'));
+    await user.type(screen.getByTestId('food-library-search'), 'potato, baked');
+    await waitFor(() => {
       expect(screen.getByTestId('starter-food-list')).toHaveTextContent(/Potato, baked/);
     });
 
@@ -163,6 +168,14 @@ describe('FoodLibraryView', () => {
     await user.type(screen.getByTestId('food-library-search'), 'halloumi');
     await waitFor(() => {
       expect(screen.getByTestId('starter-food-list')).toHaveTextContent(/Halloumi/);
+    });
+
+    await user.clear(screen.getByTestId('food-library-search'));
+    await user.type(screen.getByTestId('food-library-search'), 'sigarilyas');
+    await waitFor(() => {
+      expect(screen.getByTestId('starter-food-list')).toHaveTextContent(
+        /Winged beans \(sigarilyas\)/,
+      );
     });
   });
 

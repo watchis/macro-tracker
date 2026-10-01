@@ -11,12 +11,14 @@ It writes a standalone generator, scripts/build-whole-foods-catalog.py, whose
 embedded values do not need the datasets to regenerate category JSON.
 
 Curation rules:
-  - Everyday foods people actually log. No branded products, fast food,
-    restaurant meals, baby food, or candy.
-  - One preparation per food unless raw vs cooked (or dry vs cooked) changes
-    the numbers enough to matter when weighing.
-  - Near-duplicate names with the same macros are dropped.
-  - Overly niche game, organs (except liver), and specialty cuts are omitted.
+  - Whole foods from the source databases, plus plain staples (bread, pasta,
+    milk, oil, spices). No branded products, fast food, restaurant meals,
+    baby food, or candy.
+  - Keep a food when it is nutritionally distinct from foods already kept.
+    Drop it only when it is obviously the same food (same cut, grade, trim,
+    or salt note) and the macros are not meaningfully different.
+  - Curated display names below win over the automatic names for the same
+    database row. Every value is a lookup; nothing is hand-typed.
 """
 
 from __future__ import annotations
@@ -646,6 +648,80 @@ SPECS: list[tuple] = [
     S("seasonings", "Cardamom", "Spices, cardamom"),
     S("seasonings", "Sage, dried", "Spices, sage, ground"),
     S("seasonings", "Mint, fresh", "Spearmint, fresh"),
+    # Everyday Asian names. The automatic pass still adds other whole foods
+    # from the same rows' source databases; these names are the ones people search.
+    S("legumes", "Mung beans, dry", "Mung beans, mature seeds, raw"),
+    C("legumes", "Mung dal, cooked", "Beans, mung, dahl, dried, boiled in unsalted water"),
+    C("legumes", "Urad beans (black gram), cooked", "Black gram, urad gram, whole, dried, boiled in unsalted water"),
+    C("legumes", "Urad dal, cooked", "Black gram, duhli urad dahl, split, dried, boiled in unsalted water"),
+    S("legumes", "Winged beans, mature, cooked", "Winged beans, mature seeds, cooked, boiled, without salt"),
+    S("legumes", "Winged beans, mature, dry", "Winged beans, mature seeds, raw"),
+    S("legumes", "Pigeon peas, cooked", "Pigeon peas (red gram), mature seeds, cooked, boiled, without salt"),
+    S("legumes", "Adzuki beans, dry", "Beans, adzuki, mature seeds, raw"),
+    S("legumes", "Soybeans, dry", "Soybeans, mature seeds, raw"),
+    S("legumes", "Natto", "Natto"),
+    S("legumes", "Tofu, fried", "Tofu, fried"),
+    S("vegetables", "Winged beans (sigarilyas), cooked", "Winged beans, immature seeds, cooked, boiled, drained, without salt"),
+    S("vegetables", "Winged beans (sigarilyas), raw", "Winged beans, immature seeds, raw"),
+    S("vegetables", "Mung bean sprouts, cooked", "Mung beans, mature seeds, sprouted, cooked, boiled, drained, without salt"),
+    S("vegetables", "Yardlong beans, cooked", "Yardlong bean, cooked, boiled, drained, without salt"),
+    S("vegetables", "Bitter melon, cooked", "Balsam-pear (bitter gourd), pods, cooked, boiled, drained, without salt"),
+    S("vegetables", "Bitter melon, raw", "Balsam-pear (bitter gourd), pods, raw"),
+    S("vegetables", "Chayote, cooked", "Chayote, fruit, cooked, boiled, drained, without salt"),
+    S("vegetables", "Lotus root, cooked", "Lotus root, cooked, boiled, drained, without salt"),
+    S("vegetables", "Lotus root, raw", "Lotus root, raw"),
+    S("vegetables", "Water spinach (kangkong), cooked", "Water convolvulus, cooked, boiled, drained, without salt"),
+    S("vegetables", "Mustard greens, cooked", "Mustard greens, cooked, boiled, drained, without salt"),
+    S("vegetables", "Bok choy, raw", "Cabbage, chinese (pak-choi), raw"),
+    S("vegetables", "Enoki mushrooms", "Mushrooms, enoki, raw"),
+    S("vegetables", "Oyster mushrooms", "Mushrooms, oyster, raw"),
+    S("vegetables", "Maitake mushrooms", "Mushrooms, maitake, raw"),
+    S("vegetables", "Wood ear mushrooms, dried", "Fungi, Cloud ears, dried"),
+    S("vegetables", "Lemongrass", "Lemon grass (citronella), raw"),
+    S("vegetables", "Chives", "Chives, raw"),
+    S("vegetables", "Watercress", "Watercress, raw"),
+    S("vegetables", "Amaranth leaves, cooked", "Amaranth leaves, cooked, boiled, drained, without salt"),
+    S("vegetables", "Garland chrysanthemum, cooked", "Chrysanthemum, garland, cooked, boiled, drained, without salt"),
+    S("vegetables", "Malabar spinach, cooked", "Malabar spinach, cooked"),
+    S("vegetables", "Bamboo shoots, cooked", "Bamboo shoots, cooked, boiled, drained, without salt"),
+    S("vegetables", "Kelp, raw", "Seaweed, kelp, raw"),
+    S("vegetables", "Agar, dried", "Seaweed, agar, dried"),
+    C("vegetables", "Kombu, dried", "Seaweed, kombu, dried, raw"),
+    C("vegetables", "Curry leaves", "Curry leaves, fresh"),
+    C("vegetables", "Fenugreek leaves", "Fenugreek leaves, raw"),
+    S("starches", "Breadfruit", "Breadfruit, raw"),
+    S("fruits", "Pomelo", "Pummelo, raw"),
+    S("fruits", "Durian", "Durian, raw or frozen"),
+    S("fruits", "Jackfruit", "Jackfruit, raw"),
+    S("fruits", "Longan", "Longans, raw"),
+    S("fruits", "Longan, dried", "Longans, dried"),
+    S("fruits", "Starfruit", "Carambola, (starfruit), raw"),
+    S("fruits", "Jujube", "Jujube, raw"),
+    S("fruits", "Tamarind", "Tamarinds, raw"),
+    C("fruits", "Rambutan", "Rambutan, flesh only"),
+    C("fruits", "Mangosteen", "Mangosteen, flesh only"),
+    S("grains", "Cellophane noodles (mung bean), dry", "Noodles, chinese, cellophane or long rice (mung beans), dehydrated"),
+    S("grains", "Rice noodles, cooked", "Rice noodles, cooked"),
+    S("grains", "Rice noodles, dry", "Rice noodles, dry"),
+    S("grains", "Soba noodles, cooked", "Noodles, japanese, soba, cooked"),
+    S("grains", "Soba noodles, dry", "Noodles, japanese, soba, dry"),
+    S("grains", "Somen noodles, cooked", "Noodles, japanese, somen, cooked"),
+    S("grains", "Short-grain rice, cooked", "Rice, white, short-grain, enriched, cooked"),
+    S("grains", "Rice flour", "Rice flour, white, unenriched"),
+    S("grains", "Wonton wrappers", "Wonton wrappers (includes egg roll wrappers)"),
+    S("fish", "Eel, cooked", "Fish, eel, mixed species, cooked, dry heat"),
+    S("fish", "Yellowtail, cooked", "Fish, yellowtail, mixed species, cooked, dry heat"),
+    S("fish", "Milkfish, cooked", "Fish, milkfish, cooked, dry heat"),
+    S("dairy-eggs", "Quail egg", "Egg, quail, whole, fresh, raw"),
+    S("nuts-seeds", "Coconut cream", "Nuts, coconut cream, raw (liquid expressed from grated meat)"),
+    S("nuts-seeds", "Chestnuts, roasted", "Nuts, chestnuts, european, roasted"),
+    S("oils-fats", "Rice bran oil", "Oil, rice bran"),
+    S("oils-fats", "Palm oil", "Oil, palm"),
+    S("seasonings", "Curry powder", "Spices, curry powder"),
+    S("seasonings", "White pepper", "Spices, pepper, white"),
+    S("seasonings", "Fenugreek seed", "Spices, fenugreek seed"),
+    S("seasonings", "Fennel seed", "Spices, fennel seed"),
+    S("shellfish", "Squid, fried", "Mollusks, squid, mixed species, cooked, fried"),
 ]
 
 
@@ -675,6 +751,7 @@ def load_usda(path: Path, data_type: str) -> list[dict]:
                 foods[row["fdc_id"]] = {
                     "fdc_id": int(row["fdc_id"]),
                     "description": row["description"],
+                    "category_id": row.get("food_category_id") or "",
                     "n": {},
                 }
     wanted = {"1003", "1004", "1005", "1008", "1079", "1093", "1258", "2000", "1063", "2047", "2048", "2033", "2039", "1050", "2044"}
@@ -700,6 +777,7 @@ def load_usda(path: Path, data_type: str) -> list[dict]:
             {
                 "fdc_id": food["fdc_id"],
                 "description": food["description"],
+                "category_id": food.get("category_id") or "",
                 "kcal": kcal,
                 "protein": pick(food["n"], "1003"),
                 "fat": pick(food["n"], "1004", "2044"),
@@ -732,6 +810,7 @@ def load_cofid(path: Path) -> dict[str, dict]:
             continue
         proximates[row[1]] = {
             "code": str(row[0]),
+            "group": str(row[3] or ""),
             "kcal": parse_cofid_number(row[12]),
             "protein": parse_cofid_number(row[9]),
             "fat": parse_cofid_number(row[10]),
@@ -772,6 +851,7 @@ def load_cnf_food(code: int) -> dict:
         "sat": by_id.get(606),
         "sodium": by_id.get(307),
         "fdc_id": None,
+        "source_ref": code,
     }
 
 
@@ -794,16 +874,32 @@ def to_food(name: str, row: dict, source: str) -> dict:
         raw_key = {"satFat": "sat"}.get(key, key)
         if row.get(raw_key) is not None:
             macros[key] = as_num(row[raw_key], places)
+    # Carbohydrate-by-difference in Foundation Foods can be slightly negative.
+    # That is zero carbohydrate, not a negative amount someone could log.
+    for key, value in list(macros.items()):
+        if value < 0:
+            macros[key] = 0
+    calories = as_num(row["kcal"], 0)
+    if calories < 0:
+        calories = 0
     food = {
         "name": name,
         "grams": 100,
-        "calories": as_num(row["kcal"], 0),
+        "calories": calories,
         "macros": macros,
         "source": source,
         "sourceName": row.get("description") or name,
     }
     if row.get("fdc_id"):
         food["fdcId"] = row["fdc_id"]
+    source_ref = row.get("source_ref")
+    if source_ref is None and row.get("fdc_id"):
+        source_ref = row["fdc_id"]
+    if source_ref is None and row.get("code"):
+        source_ref = row["code"]
+    if source_ref is None:
+        raise SystemExit(f"No source ref for {name} ({source})")
+    food["sourceRef"] = source_ref
     return food
 
 
@@ -819,14 +915,414 @@ def macro_signature(food: dict) -> tuple:
     )
 
 
+# USDA SR / Foundation category ids. Baby food, fast food, restaurant meals,
+# sweets, snacks, and mixed entrees stay out. Branded rows are filtered by name.
+USDA_WHOLE_FOOD_CATEGORIES = {
+    "1",  # dairy and eggs
+    "2",  # spices and herbs
+    "4",  # fats and oils
+    "5",  # poultry
+    "9",  # fruits
+    "10",  # pork
+    "11",  # vegetables
+    "12",  # nuts and seeds
+    "13",  # beef
+    "14",  # beverages
+    "15",  # finfish and shellfish
+    "16",  # legumes
+    "17",  # lamb, veal, and game
+    "18",  # baked goods (plain breads only)
+    "20",  # cereal grains and pasta
+}
+
+# CoFID groups that are single foods rather than recipes or branded dishes.
+COFID_WHOLE_FOOD_GROUPS = {
+    "DG", "DI", "DF", "FA", "F", "GA", "G", "H", "WY",
+    "JC", "JA", "JK", "JR", "DB", "AC", "AA", "AP", "AG", "AF",
+    "CA", "CD", "BC", "BAH", "BAE", "BAK", "BA", "BAB", "BL", "BN", "BNE", "BJC",
+    "OA", "OC", "OB", "OE", "OF", "DAM", "DAE", "FC", "WC",
+}
+
+NOT_A_WHOLE_FOOD = re.compile(
+    r"|".join(
+        [
+            r"babyfood",
+            r"\binfant\b",
+            r"\btoddler\b",
+            r"fast foods",
+            r"restaurant,",
+            r"cand(?:y|ies)",
+            r"ice cream",
+            r"\bsherbet\b",
+            r"\bsorbet\b",
+            r"\bcookies?\b",
+            r"\bdoughnut",
+            r"\bdonut",
+            r"\bpastry\b",
+            r"\bbrownie\b",
+            r"with added solution",
+            r"mechanically separated",
+            r"mechanically deboned",
+            r"\bbreaded\b",
+            r"\bbattered\b",
+            r"fried, flour",
+            r"fried, batter",
+            r"\bmeatless\b",
+            r"\bimitation\b",
+            r"alcoholic",
+            r"\bcarbonated\b",
+            r"soft drink",
+            r"fruit-flavored drink",
+            r"drink mix",
+            r"granola bar",
+            r"snack bar",
+            r"breakfast bar",
+            r"\bpudding\b",
+            r"\bgelatin\b",
+            r"syrup pack",
+            r"heavy syrup",
+            r"light syrup",
+            r"\bsweetened\b",
+            r"chocolate milk",
+            r"milk shakes?",
+            r"\beggnog\b",
+            r"whipped topping",
+            r"cream substitute",
+            r"\bmargarine\b",
+            r"\bshortening\b",
+            r"\bhydrogenated\b",
+            r"\bindustrial\b",
+            r"\bsoup,",
+            r"\bgravy,",
+            r"separable fat",
+            r"composite of trimmed",
+            r"\bpatty\b",
+            r"\bnugget",
+            r"\bglazed\b",
+            r"barbecue flavored",
+            r"homemade",
+            r"takeaway",
+            r"ready meal",
+            r"\bsandwich\b",
+            r"\bpizza\b",
+            r"\bbhaji\b",
+            r"\bcurry,",
+            r"fried in ",
+            r"coated,",
+            r"\bsupplement\b",
+            r"\bformulated\b",
+            r"cooking spray",
+            r"meal replacement",
+        ]
+    ),
+    re.I,
+)
+
+BRANDED = re.compile(r"\b(?!(?:USDA|KAMUT|AOAC|EMI)\b)[A-Z]{4,}\b")
+PLAIN_BREAD = re.compile(
+    r"bread|tortilla|bagel|pita|english muffin|rolls,|crackers|naan|chapati|roti|matzo|biscuits|cornbread|pancakes|waffles|croissant|focaccia|\bbuns?\b",
+    re.I,
+)
+NOT_PLAIN_BREAD = re.compile(r"cookie|cake|pie|doughnut|donut|pastry|brownie|muffin|stuffing|coating|snack", re.I)
+
+# Words that do not make two foods "the same thing".
+CORE_STOP = re.compile(
+    r"\b("
+    r"choice|select|prime|all grades|grass-fed|grass fed|imported|australian|new zealand|"
+    r"boneless|bone-in|lip-on|lip-off|lip off|"
+    r"cooked|roasted|broiled|grilled|braised|stewed|fried|baked|simmered|boiled|steamed|"
+    r"poached|pan-fried|pan-broiled|dry heat|moist heat|raw|unprepared|prepared|"
+    r"drained|solids|liquids|unsalted|salted"
+    r")\b",
+    re.I,
+)
+
+
+def _num_diff(a, b, places: int) -> float:
+    if a is None or b is None:
+        return 0.0
+    return abs(as_num(a, places) - as_num(b, places))
+
+
+def nutritionally_distinct(a: dict, b: dict) -> bool:
+    """True when two rows would log differently per 100 g.
+
+    Grade, trim, and salt notes on the same food are not distinct when calories
+    and the gram macros stay this close. A different cut, species, or preparation
+    whose numbers move past the threshold is kept.
+    """
+    return (
+        _num_diff(a.get("kcal"), b.get("kcal"), 0) > 12
+        or _num_diff(a.get("protein"), b.get("protein"), 1) > 1.5
+        or _num_diff(a.get("carbs"), b.get("carbs"), 1) > 1.5
+        or _num_diff(a.get("fat"), b.get("fat"), 1) > 1.5
+    )
+
+
+def core_key(description: str) -> str:
+    text = description.lower()
+    text = re.sub(r"\(includes foods for usda's food distribution program\)", "", text)
+    text = re.sub(r"\(may contain additives to retain moisture\)", "", text)
+    text = re.sub(r"\(may have been previously frozen\)", "", text)
+    text = re.sub(r"trimmed to [^,]+", "", text)
+    text = re.sub(r",?\s*with salt\b", "", text)
+    text = re.sub(r",?\s*without salt\b", "", text)
+    text = re.sub(r",?\s*no salt added\b", "", text)
+    text = re.sub(r",?\s*without added salt\b", "", text)
+    text = CORE_STOP.sub(" ", text)
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def display_name(description: str) -> str:
+    text = description
+    text = re.sub(r"\s*\(Includes foods for USDA's Food Distribution Program\)", "", text, flags=re.I)
+    text = re.sub(r"\s*\(may contain additives to retain moisture\)", "", text, flags=re.I)
+    text = re.sub(r"\s*\(may have been previously frozen\)", "", text, flags=re.I)
+    text = re.sub(r",?\s*without salt\b", "", text, flags=re.I)
+    text = re.sub(r",?\s*with salt\b", "", text, flags=re.I)
+    text = re.sub(r",?\s*no salt added\b", "", text, flags=re.I)
+    text = re.sub(r",?\s*drained solids\b", "", text, flags=re.I)
+    text = re.sub(r"\s+", " ", text).strip(" ,")
+    return text
+
+
+def prefer_key(row: dict) -> tuple:
+    text = row["description"].lower()
+    score = 0
+    if "without salt" in text or "no salt added" in text:
+        score -= 5
+    if re.search(r"\bwith salt\b", text):
+        score += 8
+    if "all grades" in text:
+        score -= 3
+    if "choice" in text:
+        score -= 1
+    if "select" in text:
+        score += 1
+    return (score, len(text), text)
+
+
+def usda_whole_food(row: dict) -> bool:
+    if str(row.get("category_id") or "") not in USDA_WHOLE_FOOD_CATEGORIES:
+        return False
+    description = row["description"]
+    if BRANDED.search(description) or NOT_A_WHOLE_FOOD.search(description):
+        return False
+    if str(row.get("category_id")) == "18" and (
+        not PLAIN_BREAD.search(description) or NOT_PLAIN_BREAD.search(description)
+    ):
+        return False
+    if str(row.get("category_id")) == "14":
+        if not re.search(r"coffee|tea,|juice|water|coconut water|milk,", description, re.I):
+            return False
+        if re.search(r"cocktail|powder|mix|sweet|soda|cola|energy|sport", description, re.I):
+            return False
+    if str(row.get("category_id")) == "1" and re.search(
+        r"yogurt,.+(fruit|vanilla|strawberry|blueberry|peach|raspberry|lemon|chocolate)|"
+        r"cheese food|cheese spread|frozen yogurt|dessert",
+        description,
+        re.I,
+    ):
+        return False
+    return row.get("kcal") is not None and row.get("protein") is not None and row.get("carbs") is not None and row.get("fat") is not None
+
+
+def cofid_whole_food(name: str, row: dict) -> bool:
+    if str(row.get("group") or "") not in COFID_WHOLE_FOOD_GROUPS:
+        return False
+    if NOT_A_WHOLE_FOOD.search(name):
+        return False
+    if re.search(r"\b(retail|fortified|assorted flavours|children's)\b", name, re.I):
+        return False
+    return row.get("kcal") is not None and row.get("protein") is not None and row.get("carbs") is not None and row.get("fat") is not None
+
+
+def app_category(row: dict) -> str | None:
+    description = row["description"]
+    category_id = str(row.get("category_id") or "")
+    group = str(row.get("group") or "")
+    if re.search(r"\b(butter|ghee|lard|dripping)\b", description, re.I) or category_id == "4" or group in {"OA", "OC", "OB", "OE", "OF"}:
+        return "oils-fats"
+    if category_id == "15" or group in {"JC", "JA", "JR", "JK"}:
+        if re.match(r"(mollusks|crustaceans)\b", description, re.I) or group == "JK":
+            return "shellfish"
+        return "fish"
+    if category_id == "11" or group in {"DG", "DI", "DF", "DAM", "DAE"}:
+        if "juice" in description.lower():
+            return "beverages"
+        if re.search(
+            r"\b(potatoes|potato|sweet potatoes|sweet potato|yams?\b|plantains?|cassava|taro|dasheen|parsnips?|rutabagas?|jicama|yambean|breadfruit)\b",
+            description,
+            re.I,
+        ):
+            return "starches"
+        if re.search(r"\bcorn, sweet\b", description, re.I):
+            return "starches"
+        return "vegetables"
+    if "juice" in description.lower() or category_id == "14" or group == "FC":
+        return "beverages"
+    return {
+        "5": "poultry",
+        "13": "beef",
+        "10": "pork",
+        "17": "lamb-goat-game",
+        "1": "dairy-eggs",
+        "20": "grains",
+        "18": "grains",
+        "16": "legumes",
+        "9": "fruits",
+        "12": "nuts-seeds",
+        "2": "seasonings",
+        "FA": "fruits",
+        "F": "fruits",
+        "GA": "nuts-seeds",
+        "G": "nuts-seeds",
+        "H": "seasonings",
+        "WY": "seasonings",
+        "DB": "legumes",
+        "AC": "grains",
+        "AA": "grains",
+        "AP": "grains",
+        "AG": "grains",
+        "AF": "grains",
+        "CA": "dairy-eggs",
+        "CD": "dairy-eggs",
+        "BC": "dairy-eggs",
+        "BAH": "dairy-eggs",
+        "BAE": "dairy-eggs",
+        "BAK": "dairy-eggs",
+        "BA": "dairy-eggs",
+        "BAB": "dairy-eggs",
+        "BL": "dairy-eggs",
+        "BN": "dairy-eggs",
+        "BNE": "dairy-eggs",
+        "BJC": "dairy-eggs",
+        "WC": "fruits",
+    }.get(category_id or group)
+
+
+def allocate_name(description: str, used: set[str], ref) -> str:
+    candidates = [display_name(description)]
+    if description not in candidates:
+        candidates.append(description)
+    candidates.append(f"{display_name(description)} ({ref})")
+    for name in candidates:
+        if name and name.lower() not in used:
+            return name
+    raise SystemExit(f"Could not name {description}")
+
+
+def row_view(food: dict) -> dict:
+    macros = food["macros"]
+    return {
+        "description": food.get("sourceName") or food["name"],
+        "kcal": food["calories"],
+        "protein": macros.get("protein"),
+        "carbs": macros.get("carbs"),
+        "fat": macros.get("fat"),
+    }
+
+
+def same_core_conflict(row: dict, buckets: dict[str, list[dict]]) -> bool:
+    for other in buckets.get(core_key(row["description"]), []):
+        if not nutritionally_distinct(row, other):
+            return True
+    return False
+
+
+def cofid_token_conflict(name: str, row: dict, kept_rows: list[dict]) -> bool:
+    """Drop a CoFID food that is the same item as one already kept and not distinct."""
+    stop = {
+        "and", "with", "from", "only", "whole", "fresh", "plain", "average",
+        "dried", "boiled", "water", "unsalted", "salted", "flesh", "raw",
+        "cooked", "mature", "seeds", "seed", "mixed", "species", "all",
+    }
+    tokens = {tok for tok in re.findall(r"[a-z0-9]+", name.lower()) if len(tok) > 2 and tok not in stop}
+    if len(tokens) < 2:
+        return False
+    for other in kept_rows:
+        if nutritionally_distinct(row, other):
+            continue
+        other_tokens = {
+            tok
+            for tok in re.findall(r"[a-z0-9]+", other["description"].lower())
+            if len(tok) > 2 and tok not in stop
+        }
+        if len(tokens & other_tokens) >= 2 and (tokens <= other_tokens or other_tokens <= tokens or len(tokens & other_tokens) >= min(len(tokens), len(other_tokens)) - 0):
+            shared = tokens & other_tokens
+            if len(shared) >= 2 and min(len(tokens), len(other_tokens)) <= len(shared) + 1:
+                return True
+    return False
+
+
+def auto_whole_foods(curated: list[tuple[str, dict]], sr_rows: list[dict], fd_rows: list[dict], cofid: dict[str, dict]) -> list[tuple[str, dict]]:
+    used_names = {food["name"].lower() for _, food in curated}
+    used_desc = {food.get("sourceName") or food["name"] for _, food in curated}
+    buckets: dict[str, list[dict]] = {}
+    kept_rows: list[dict] = []
+    for _, food in curated:
+        view = row_view(food)
+        kept_rows.append(view)
+        buckets.setdefault(core_key(view["description"]), []).append(view)
+
+    added: list[tuple[str, dict]] = []
+    seen_desc = set(used_desc)
+    candidates: list[tuple[dict, str]] = []
+    for row in sr_rows:
+        if row["description"] in seen_desc or not usda_whole_food(row):
+            continue
+        candidates.append((row, "sr"))
+        seen_desc.add(row["description"])
+    for row in fd_rows:
+        if row["description"] in seen_desc or not usda_whole_food(row):
+            continue
+        candidates.append((row, "fd"))
+        seen_desc.add(row["description"])
+    candidates.sort(key=lambda item: prefer_key(item[0]))
+
+    for row, source in candidates:
+        if same_core_conflict(row, buckets):
+            continue
+        category = app_category(row)
+        if category is None or category not in {cat_id for cat_id, _ in CATEGORIES}:
+            continue
+        ref = row.get("fdc_id")
+        name = allocate_name(row["description"], used_names, ref)
+        food = to_food(name, row, source)
+        added.append((category, food))
+        view = row_view(food)
+        kept_rows.append(view)
+        buckets.setdefault(core_key(row["description"]), []).append(view)
+        used_names.add(name.lower())
+
+    cofid_items = sorted(cofid.items(), key=lambda item: item[0].lower())
+    for name_key, row in cofid_items:
+        if name_key in seen_desc or not cofid_whole_food(name_key, row):
+            continue
+        full = {**row, "description": name_key, "fdc_id": None, "source_ref": row.get("code")}
+        if same_core_conflict(full, buckets) or cofid_token_conflict(name_key, full, kept_rows):
+            continue
+        category = app_category(full)
+        if category is None or category not in {cat_id for cat_id, _ in CATEGORIES}:
+            continue
+        name = allocate_name(name_key, used_names, row.get("code"))
+        food = to_food(name, full, "cofid")
+        added.append((category, food))
+        view = row_view(food)
+        kept_rows.append(view)
+        buckets.setdefault(core_key(name_key), []).append(view)
+        used_names.add(name.lower())
+        seen_desc.add(name_key)
+    return added
+
+
 def main() -> None:
     print("Loading USDA…")
-    sr = index_by_description(
-        load_usda(ROOT / "FoodData_Central_sr_legacy_food_csv_2018-04", "sr_legacy_food")
-    )
-    fd = index_by_description(
-        load_usda(ROOT / "FoodData_Central_foundation_food_csv_2026-04-30", "foundation_food")
-    )
+    sr_rows = load_usda(ROOT / "FoodData_Central_sr_legacy_food_csv_2018-04", "sr_legacy_food")
+    fd_rows = load_usda(ROOT / "FoodData_Central_foundation_food_csv_2026-04-30", "foundation_food")
+    sr = index_by_description(sr_rows)
+    fd = index_by_description(fd_rows)
     print("Loading CoFID…")
     cofid = load_cofid(ROOT / "cofid.xlsx")
     cnf_cache: dict[int, dict] = {}
@@ -859,6 +1355,10 @@ def main() -> None:
         for item in missing:
             print(" ", item)
         raise SystemExit(f"{len(missing)} foods did not resolve")
+
+    auto = auto_whole_foods(resolved, sr_rows, fd_rows, cofid)
+    print(f"Auto-added {len(auto)} whole foods beyond the named list")
+    resolved.extend(auto)
 
     # Drop a later food when an earlier one has the same macros and a near-identical name.
     kept: list[tuple[str, dict]] = []
@@ -908,6 +1408,14 @@ def main() -> None:
     missing_legacy = required - have
     if missing_legacy:
         raise SystemExit(f"Missing legacy names: {missing_legacy}")
+    if not any("sigarilyas" in name for name in have):
+        raise SystemExit("Missing winged beans (sigarilyas)")
+    for needed in ("mung beans, dry", "mung beans, cooked", "mung bean sprouts, cooked", "mung dal, cooked"):
+        if needed not in have:
+            raise SystemExit(f"Missing {needed}")
+    total = sum(len(v) for v in by_cat.values())
+    if total <= 750:
+        raise SystemExit(f"Catalog is still sparse ({total}); expected a broader whole-food set")
 
     sources = Counter_sources(kept)
     print("sources", sources)
@@ -937,6 +1445,12 @@ def emit_food_call(food: dict) -> str:
             parts.append(f"{key}={py_num(macros[key])}")
     if food.get("fdcId"):
         parts.append(f'fdcId={food["fdcId"]}')
+    parts.append(f'source={json.dumps(food["source"])}')
+    ref = food["sourceRef"]
+    if isinstance(ref, int):
+        parts.append(f"sourceRef={ref}")
+    else:
+        parts.append(f"sourceRef={json.dumps(str(ref))}")
     return ", ".join(parts) + ")"
 
 
@@ -950,10 +1464,11 @@ def write_builder(by_cat: dict[str, list[dict]], sources: dict[str, int]) -> Non
         "  - UK Composition of Foods Integrated Dataset (CoFID) 2021",
         "  - Health Canada Canadian Nutrient File",
         "",
-        "Everyday names replace database commodity phrasing. Branded, restaurant,",
-        "fast-food, and baby-food rows were left out. Duplicate and near-duplicate",
-        "entries (same food, same macros) were removed, and categories follow how",
-        "people browse a food log rather than botanical or commodity groups.",
+        "Everyday names cover common foods. The rest keep the database description",
+        "with grade, trim, and salt boilerplate removed. Branded, restaurant,",
+        "fast-food, and baby-food rows were left out. A row is dropped only when",
+        "it is the same food as one already kept and the macros are not distinct.",
+        "Every entry records source and sourceRef from the lookup.",
         "",
         f"Counts by source at compile time: USDA SR Legacy {sources['sr']},",
         f"USDA Foundation {sources['fd']}, CoFID {sources['cofid']}, Canadian Nutrient File {sources['cnf']}.",
@@ -984,6 +1499,8 @@ def write_builder(by_cat: dict[str, list[dict]], sources: dict[str, int]) -> Non
         "    satFat: float | None = None,",
         "    sodium: float | None = None,",
         "    fdcId: int | None = None,",
+        "    source: str | None = None,",
+        "    sourceRef: int | str | None = None,",
         ") -> dict:",
         "    macros: dict[str, float] = {",
         '        "protein": protein,',
@@ -1006,6 +1523,10 @@ def write_builder(by_cat: dict[str, list[dict]], sources: dict[str, int]) -> Non
         "    }",
         "    if fdcId is not None:",
         '        item["fdcId"] = fdcId',
+        "    if source is not None:",
+        '        item["source"] = source',
+        "    if sourceRef is not None:",
+        '        item["sourceRef"] = sourceRef',
         "    return item",
         "",
         "",
@@ -1077,8 +1598,9 @@ def main() -> None:
         "basis": (
             "Amounts per 100 g edible portion. Compiled from USDA FoodData Central "
             "(SR Legacy and Foundation Foods), the UK Composition of Foods Integrated "
-            "Dataset (CoFID), and the Canadian Nutrient File, then deduplicated. "
-            "Everyday names; category JSON files are lazy-loaded."
+            "Dataset (CoFID), and the Canadian Nutrient File. Each food keeps the "
+            "source id from that lookup. Same-food rows are dropped only when "
+            "their macros match; category JSON files are lazy-loaded."
         ),
         "total": total,
         "categories": manifest_cats,

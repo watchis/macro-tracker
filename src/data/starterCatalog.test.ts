@@ -9,8 +9,8 @@ import {
 
 describe('whole-foods starter catalog', () => {
   it('ships a curated catalog (not the bulk USDA dump)', () => {
-    expect(STARTER_FOOD_COUNT).toBeGreaterThan(500);
-    expect(STARTER_FOOD_COUNT).toBeLessThan(1000);
+    expect(STARTER_FOOD_COUNT).toBeGreaterThan(750);
+    expect(STARTER_FOOD_COUNT).toBeLessThan(5000);
     expect(STARTER_MANIFEST.source.toLowerCase()).toMatch(/whole food/);
     expect(STARTER_MANIFEST.categories.map((c) => c.id)).toEqual([
       'poultry',
@@ -59,11 +59,31 @@ describe('whole-foods starter catalog', () => {
       expect(names.has(key), food.name).toBe(false);
       names.add(key);
       expect(food.grams).toBe(100);
+      expect(food.source).toMatch(/^(sr|fd|cofid|cnf)$/);
+      expect(food.sourceRef === 0 ? '0' : food.sourceRef).toBeTruthy();
+      if (food.source === 'sr' || food.source === 'fd') {
+        expect(food.fdcId).toBe(food.sourceRef);
+      }
       expect(food.calories).toBeGreaterThanOrEqual(0);
       for (const [macro, value] of Object.entries(food.macros)) {
         expect(value, `${food.name}.${macro}`).toBeGreaterThanOrEqual(0);
       }
     }
     expect(foods).toHaveLength(STARTER_FOOD_COUNT);
+  });
+
+  it('includes winged beans and mung beans from the source databases', async () => {
+    const foods = await loadAllStarterFoods();
+    const names = foods.map((food) => food.name.toLowerCase());
+    expect(names.some((name) => name.includes('sigarilyas'))).toBe(true);
+    expect(names.some((name) => name.includes('mung beans, dry'))).toBe(true);
+    expect(names.some((name) => name.includes('mung beans, cooked'))).toBe(true);
+    expect(names.some((name) => name.includes('mung bean sprouts'))).toBe(true);
+    expect(names.some((name) => name.includes('cellophane noodles') && name.includes('mung'))).toBe(
+      true,
+    );
+    const winged = foods.find((food) => food.name.includes('sigarilyas'));
+    expect(winged?.source).toBeTruthy();
+    expect(winged?.sourceRef).toBeTruthy();
   });
 });

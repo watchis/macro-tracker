@@ -2,88 +2,88 @@
   "source": "Curated whole foods (USDA FoodData Central, UK CoFID, Canadian Nutrient File)",
   "license": "USDA public domain; UK Open Government Licence (CoFID); Health Canada Canadian Nutrient File",
   "portal": "https://fdc.nal.usda.gov/",
-  "basis": "Amounts per 100 g edible portion. Compiled from USDA FoodData Central (SR Legacy and Foundation Foods), the UK Composition of Foods Integrated Dataset (CoFID), and the Canadian Nutrient File, then deduplicated. Everyday names; category JSON files are lazy-loaded.",
-  "total": 559,
+  "basis": "Amounts per 100 g edible portion. Compiled from USDA FoodData Central (SR Legacy and Foundation Foods), the UK Composition of Foods Integrated Dataset (CoFID), and the Canadian Nutrient File. Each food keeps the source id from that lookup. Same-food rows are dropped only when their macros match; category JSON files are lazy-loaded.",
+  "total": 4844,
   "categories": [
     {
       "id": "poultry",
       "label": "Poultry",
-      "count": 32
+      "count": 302
     },
     {
       "id": "beef",
       "label": "Beef",
-      "count": 22
+      "count": 544
     },
     {
       "id": "pork",
       "label": "Pork",
-      "count": 15
+      "count": 260
     },
     {
       "id": "lamb-goat-game",
       "label": "Lamb, goat & game",
-      "count": 18
+      "count": 409
     },
     {
       "id": "fish",
       "label": "Fish",
-      "count": 34
+      "count": 383
     },
     {
       "id": "shellfish",
       "label": "Shellfish",
-      "count": 14
+      "count": 70
     },
     {
       "id": "dairy-eggs",
       "label": "Dairy & eggs",
-      "count": 65
+      "count": 295
     },
     {
       "id": "grains",
       "label": "Grains, bread & pasta",
-      "count": 58
+      "count": 469
     },
     {
       "id": "legumes",
       "label": "Legumes & soy",
-      "count": 26
+      "count": 257
     },
     {
       "id": "vegetables",
       "label": "Vegetables",
-      "count": 86
+      "count": 619
     },
     {
       "id": "starches",
       "label": "Potatoes & starches",
-      "count": 18
+      "count": 151
     },
     {
       "id": "fruits",
       "label": "Fruits",
-      "count": 46
+      "count": 417
     },
     {
       "id": "nuts-seeds",
       "label": "Nuts & seeds",
-      "count": 23
+      "count": 164
     },
     {
       "id": "oils-fats",
       "label": "Oils & fats",
-      "count": 18
+      "count": 181
     },
     {
       "id": "beverages",
       "label": "Beverages",
-      "count": 25
+      "count": 187
     },
     {
       "id": "seasonings",
       "label": "Sauces, seasonings & sweeteners",
-      "count": 59
+      "count": 136
     }
   ]
 }
