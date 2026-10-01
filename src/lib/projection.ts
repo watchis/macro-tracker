@@ -1,6 +1,8 @@
 import { addDays } from './dates';
+import { weightSeries } from './series';
+import { sumEntries } from './totals';
 import { KG_PER_LB } from './weight';
-import type { ActivityMultiplier, DateKey, Sex } from '../types';
+import type { ActivityMultiplier, DateKey, FoodEntry, Sex } from '../types';
 
 export type { ActivityMultiplier, Sex } from '../types';
 
@@ -20,6 +22,9 @@ export const ACTIVITY_OPTIONS: readonly ActivityOption[] = [
 
 export const DEFAULT_ACTIVITY: ActivityMultiplier = 1.2;
 
+/** Default lookback when averaging logged calorie intake. */
+export const LOGGED_INTAKE_LOOKBACK_DAYS = 14;
+
 /** ~3500 kcal per pound of body fat. */
 export const KCAL_PER_LB = 3500;
 
@@ -37,7 +42,11 @@ export type ProjectionInput = {
   heightCm: number;
   /** Starting body weight in kilograms. */
   startWeightKg: number;
-  activity: ActivityMultiplier;
+  /**
+   * Activity multiplier applied to BMR. May be a standard preset or an effective
+   * value inferred from logged intake + weight change.
+   */
+  activity: number;
   /** Planned daily energy intake in kcal. */
   intakeKcal: number;
   /** Projection start date (`YYYY-MM-DD`). */
@@ -67,6 +76,26 @@ export type ProjectionResult = {
   startTdeeKcal: number;
 };
 
+export type LoggedIntakeAverage = {
+  averageKcal: number;
+  loggedDays: number;
+  lookbackDays: number;
+  fromDate: DateKey;
+  toDate: DateKey;
+};
+
+export type LogMaintenanceEstimate = {
+  maintenanceKcal: number;
+  averageIntakeKcal: number;
+  weightChangeKg: number;
+  spanDays: number;
+  loggedDays: number;
+  startDate: DateKey;
+  endDate: DateKey;
+  startWeightKg: number;
+  endWeightKg: number;
+};
+
 export function isSex(value: unknown): value is Sex {
   return value === 'male' || value === 'female';
 }
@@ -89,7 +118,7 @@ export function mifflinStJeorBmr(args: {
   return args.sex === 'male' ? base + 5 : base - 161;
 }
 
-export function tdeeKcal(bmr: number, activity: ActivityMultiplier): number {
+export function tdeeKcal(bmr: number, activity: number): number {
   return bmr * activity;
 }
 
@@ -116,7 +145,7 @@ export function equilibriumWeightKg(args: {
   sex: Sex;
   heightCm: number;
   ageYears: number;
-  activity: ActivityMultiplier;
+  activity: number;
   intakeKcal: number;
 }): number {
   // TDEE = activity * (10*w + 6.25*h - 5*age + s) = intake
@@ -124,6 +153,100 @@ export function equilibriumWeightKg(args: {
   const sexOffset = args.sex === 'male' ? 5 : -161;
   const constant = 6.25 * args.heightCm - 5 * args.ageYears + sexOffset;
   return (args.intakeKcal / args.activity - constant) / 10;
+}
+
+/**
+ * Mean daily calories on days that have at least one food entry inside the
+ * lookback window ending on `endDate` (inclusive).
+ */
+export function averageLoggedIntake(
+  days: Record<DateKey, FoodEntry[]>,
+  endDate: DateKey,
+  lookbackDays: number = LOGGED_INTAKE_LOOKBACK_DAYS,
+): LoggedIntakeAverage | null {
+  if (lookbackDays < 1) return null;
+  const fromDate = addDays(endDate, -(lookbackDays - 1));
+  let sum = 0;
+  let loggedDays = 0;
+
+  for (let offset = 0; offset < lookbackDays; offset += 1) {
+    const date = addDays(fromDate, offset);
+    const entries = days[date];
+    if (!entries || entries.length === 0) continue;
+    sum += sumEntries(entries).calories;
+    loggedDays += 1;
+  }
+
+  if (loggedDays === 0) return null;
+  return {
+    averageKcal: Math.round(sum / loggedDays),
+    loggedDays,
+    lookbackDays,
+    fromDate,
+    toDate: endDate,
+  };
+}
+
+/**
+ * Infer maintenance from weigh-ins + food logs via energy balance:
+ * `TDEE ≈ avg logged intake − (Δkg × kcal/kg) / span days`.
+ *
+ * Needs ≥2 weigh-ins spanning ≥7 days and ≥5 logged food days in that window.
+ */
+export function estimateMaintenanceFromLogs(
+  weights: Record<DateKey, number>,
+  days: Record<DateKey, FoodEntry[]>,
+): LogMaintenanceEstimate | null {
+  const series = weightSeries(weights);
+  if (series.length < 2) return null;
+
+  const first = series[0]!;
+  const last = series[series.length - 1]!;
+  const spanDays = Math.round((last.t - first.t) / 86_400_000);
+  if (spanDays < 7) return null;
+
+  let intakeSum = 0;
+  let loggedDays = 0;
+  for (let offset = 0; offset <= spanDays; offset += 1) {
+    const date = addDays(first.date, offset);
+    const entries = days[date];
+    if (!entries || entries.length === 0) continue;
+    intakeSum += sumEntries(entries).calories;
+    loggedDays += 1;
+  }
+  if (loggedDays < 5) return null;
+
+  const averageIntakeKcal = intakeSum / loggedDays;
+  const weightChangeKg = last.value - first.value;
+  const maintenanceKcal = averageIntakeKcal - (weightChangeKg * KCAL_PER_KG) / spanDays;
+  if (!Number.isFinite(maintenanceKcal) || maintenanceKcal <= 500 || maintenanceKcal > 10000) {
+    return null;
+  }
+
+  return {
+    maintenanceKcal: Math.round(maintenanceKcal),
+    averageIntakeKcal: Math.round(averageIntakeKcal),
+    weightChangeKg,
+    spanDays,
+    loggedDays,
+    startDate: first.date,
+    endDate: last.date,
+    startWeightKg: first.value,
+    endWeightKg: last.value,
+  };
+}
+
+/** Effective activity multiplier so Mifflin×activity matches an observed TDEE. */
+export function activityFromMaintenance(args: {
+  sex: Sex;
+  weightKg: number;
+  heightCm: number;
+  ageYears: number;
+  maintenanceKcal: number;
+}): number {
+  const bmr = mifflinStJeorBmr(args);
+  if (!(bmr > 0)) return DEFAULT_ACTIVITY;
+  return args.maintenanceKcal / bmr;
 }
 
 /**

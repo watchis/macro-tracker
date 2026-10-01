@@ -10,7 +10,15 @@ import {
   roundHeight,
   toCanonicalCm,
 } from '../lib/height';
-import { ACTIVITY_OPTIONS, projectWeightLoss, type ActivityMultiplier } from '../lib/projection';
+import {
+  ACTIVITY_OPTIONS,
+  LOGGED_INTAKE_LOOKBACK_DAYS,
+  activityFromMaintenance,
+  averageLoggedIntake,
+  estimateMaintenanceFromLogs,
+  projectWeightLoss,
+  type ActivityMultiplier,
+} from '../lib/projection';
 import { weightSeries } from '../lib/series';
 import { formatCalories } from '../lib/totals';
 import { fromCanonicalKg, roundWeight, toCanonicalKg, weightUnitLabel } from '../lib/weight';
@@ -26,6 +34,8 @@ const WEEK_OPTIONS = [
 ] as const;
 
 type WeekSpan = (typeof WEEK_OPTIONS)[number]['value'];
+type IntakeSource = 'goal' | 'logged' | 'custom';
+type MaintenanceSource = 'formula' | 'logs';
 
 function formatDisplayWeight(value: number, unit: WeightUnit): string {
   return `${roundWeight(value, unit).toLocaleString(undefined, {
@@ -36,25 +46,39 @@ function formatDisplayWeight(value: number, unit: WeightUnit): string {
 /**
  * LoserTown-style calorie maintenance / weight projection: enter a profile and
  * planned intake, then see weekly weight, maintenance calories, and deficit.
+ * Intake and maintenance can be driven from food logs and weigh-ins.
  */
 export function ProjectionView() {
   const profile = useProjectionProfile();
   const goals = useGoals();
   const weightUnit = useWeightUnit();
   const weights = useWeights();
+  const days = useAppStore((state) => state.days);
   const setProjectionProfile = useAppStore((state) => state.setProjectionProfile);
 
   const heightUnit = heightUnitForWeightUnit(weightUnit);
   const latestWeightKg = useMemo(() => weightSeries(weights).at(-1)?.value, [weights]);
+  const startDate = todayKey();
+
+  const loggedIntake = useMemo(
+    () => averageLoggedIntake(days, startDate, LOGGED_INTAKE_LOOKBACK_DAYS),
+    [days, startDate],
+  );
+  const logMaintenance = useMemo(() => estimateMaintenanceFromLogs(weights, days), [weights, days]);
 
   const [startWeightDisplay, setStartWeightDisplay] = useState<number | undefined>(() =>
     latestWeightKg !== undefined
       ? roundWeight(fromCanonicalKg(latestWeightKg, weightUnit), weightUnit)
       : undefined,
   );
-  const [intakeKcal, setIntakeKcal] = useState<number | undefined>(() =>
-    goals.calories > 0 ? goals.calories : undefined,
+  const [intakeSource, setIntakeSource] = useState<IntakeSource>(() =>
+    goals.calories > 0 ? 'goal' : loggedIntake ? 'logged' : 'custom',
   );
+  const [intakeKcal, setIntakeKcal] = useState<number | undefined>(() => {
+    if (goals.calories > 0) return goals.calories;
+    return loggedIntake?.averageKcal;
+  });
+  const [maintenanceSource, setMaintenanceSource] = useState<MaintenanceSource>('formula');
   const [weeks, setWeeks] = useState<WeekSpan>('52');
 
   // Keep the start-weight field in sync when the preferred unit flips.
@@ -72,10 +96,30 @@ export function ProjectionView() {
     label: option.label,
   }));
 
+  const intakeSourceOptions: ReadonlyArray<SegmentedOption<IntakeSource>> = [
+    { value: 'goal', label: 'Goal' },
+    { value: 'logged', label: 'Logged avg' },
+    { value: 'custom', label: 'Custom' },
+  ];
+
+  const maintenanceSourceOptions: ReadonlyArray<SegmentedOption<MaintenanceSource>> = [
+    { value: 'formula', label: 'Formula' },
+    { value: 'logs', label: 'From logs' },
+  ];
+
   const heightDisplay =
     profile.heightCm !== null && profile.heightCm !== undefined
       ? roundHeight(fromCanonicalCm(profile.heightCm, heightUnit), heightUnit)
       : undefined;
+
+  const effectiveIntake =
+    intakeSource === 'goal'
+      ? goals.calories > 0
+        ? goals.calories
+        : undefined
+      : intakeSource === 'logged'
+        ? (loggedIntake?.averageKcal ?? undefined)
+        : intakeKcal;
 
   const ready =
     profile.sex !== null &&
@@ -83,22 +127,35 @@ export function ProjectionView() {
     profile.heightCm !== null &&
     startWeightDisplay !== undefined &&
     startWeightDisplay > 0 &&
-    intakeKcal !== undefined &&
-    intakeKcal > 0;
+    effectiveIntake !== undefined &&
+    effectiveIntake > 0 &&
+    (maintenanceSource === 'formula' || logMaintenance !== null);
 
-  const startDate = todayKey();
   const result = useMemo(() => {
     if (!ready || !profile.sex || profile.ageYears === null || profile.heightCm === null) {
       return null;
     }
-    if (startWeightDisplay === undefined || intakeKcal === undefined) return null;
+    if (startWeightDisplay === undefined || effectiveIntake === undefined) return null;
+
+    const startWeightKg = toCanonicalKg(startWeightDisplay, weightUnit);
+    let activity: number = profile.activity;
+    if (maintenanceSource === 'logs' && logMaintenance) {
+      activity = activityFromMaintenance({
+        sex: profile.sex,
+        weightKg: startWeightKg,
+        heightCm: profile.heightCm,
+        ageYears: profile.ageYears,
+        maintenanceKcal: logMaintenance.maintenanceKcal,
+      });
+    }
+
     return projectWeightLoss({
       sex: profile.sex,
       ageYears: profile.ageYears,
       heightCm: profile.heightCm,
-      startWeightKg: toCanonicalKg(startWeightDisplay, weightUnit),
-      activity: profile.activity,
-      intakeKcal,
+      startWeightKg,
+      activity,
+      intakeKcal: effectiveIntake,
       startDate,
       weeks: Number(weeks),
     });
@@ -109,10 +166,12 @@ export function ProjectionView() {
     profile.heightCm,
     profile.activity,
     startWeightDisplay,
-    intakeKcal,
+    effectiveIntake,
     weightUnit,
     startDate,
     weeks,
+    maintenanceSource,
+    logMaintenance,
   ]);
 
   const chartPoints = useMemo(() => {
@@ -133,13 +192,45 @@ export function ProjectionView() {
     ];
   }, [result, startWeightDisplay, weightUnit, startDate]);
 
+  const actualWeightPoints = useMemo(
+    () =>
+      weightSeries(weights).map((point) => ({
+        ...point,
+        value: fromCanonicalKg(point.value, weightUnit),
+      })),
+    [weights, weightUnit],
+  );
+
+  function handleIntakeSourceChange(next: IntakeSource) {
+    setIntakeSource(next);
+    if (next === 'goal' && goals.calories > 0) {
+      setIntakeKcal(goals.calories);
+    } else if (next === 'logged' && loggedIntake) {
+      setIntakeKcal(loggedIntake.averageKcal);
+    }
+  }
+
+  function handleIntakeCommit(value: number | undefined) {
+    setIntakeKcal(value);
+    setIntakeSource('custom');
+  }
+
+  const intakeFieldValue =
+    intakeSource === 'goal'
+      ? goals.calories > 0
+        ? goals.calories
+        : undefined
+      : intakeSource === 'logged'
+        ? loggedIntake?.averageKcal
+        : intakeKcal;
+
   return (
     <section className="grid gap-5" data-testid="projection-view">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Projection</h1>
         <p className="mt-0.5 text-sm text-muted">
-          Estimate how weight changes if you hold a steady daily calorie intake. Maintenance
-          calories fall as you get lighter, so the deficit shrinks over time.
+          Estimate how weight changes if you hold a steady daily calorie intake. Use your calorie
+          goal, a recent logged average, or maintenance inferred from weigh-ins.
         </p>
       </header>
 
@@ -214,51 +305,107 @@ export function ProjectionView() {
             className="max-w-48"
           />
 
-          <NumberField
-            label="Daily calorie intake"
-            testId="projection-intake"
-            value={intakeKcal}
-            unit="kcal"
-            integer
-            min={1}
-            max={20000}
-            allowEmpty
-            placeholder={goals.calories > 0 ? 'Calorie goal' : 'Required'}
-            onCommit={(value) => setIntakeKcal(value)}
-            className="max-w-48"
-          />
-
-          <div className="sm:col-span-2">
-            <label
-              htmlFor="projection-activity"
-              className="block text-xs font-medium tracking-wide text-muted uppercase"
-            >
-              Activity level
-            </label>
-            <select
-              id="projection-activity"
-              data-testid="projection-activity"
-              value={String(profile.activity)}
-              onChange={(event) =>
-                setProjectionProfile({
-                  activity: Number(event.target.value) as ActivityMultiplier,
-                })
+          <div className="grid gap-2 sm:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-medium tracking-wide text-muted uppercase">
+                Daily calorie intake
+              </span>
+              <SegmentedControl
+                label="Intake source"
+                testId="projection-intake-source"
+                value={intakeSource}
+                options={intakeSourceOptions}
+                onChange={handleIntakeSourceChange}
+              />
+            </div>
+            <NumberField
+              label="Daily calorie intake"
+              labelHidden
+              testId="projection-intake"
+              value={intakeFieldValue}
+              unit="kcal"
+              integer
+              min={1}
+              max={20000}
+              allowEmpty
+              placeholder={
+                intakeSource === 'logged'
+                  ? loggedIntake
+                    ? 'Logged average'
+                    : 'No recent logs'
+                  : goals.calories > 0
+                    ? 'Calorie goal'
+                    : 'Required'
               }
-              className="mt-1 w-full max-w-xl rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
-            >
-              {ACTIVITY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              onCommit={handleIntakeCommit}
+              className="max-w-48"
+            />
+            <p className="text-xs text-subtle" data-testid="projection-intake-hint">
+              {intakeSource === 'logged'
+                ? loggedIntake
+                  ? `Average ${formatCalories(loggedIntake.averageKcal)} kcal across ${loggedIntake.loggedDays} logged day${loggedIntake.loggedDays === 1 ? '' : 's'} in the last ${loggedIntake.lookbackDays}.`
+                  : `No food logged in the last ${LOGGED_INTAKE_LOOKBACK_DAYS} days.`
+                : intakeSource === 'goal'
+                  ? goals.calories > 0
+                    ? `Using your Settings calorie goal (${formatCalories(goals.calories)} kcal).`
+                    : 'Set a calorie goal in Settings, or switch to Logged avg / Custom.'
+                  : 'Custom what-if intake for this chart only.'}
+            </p>
+          </div>
+
+          <div className="grid gap-2 sm:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-medium tracking-wide text-muted uppercase">
+                Maintenance
+              </span>
+              <SegmentedControl
+                label="Maintenance source"
+                testId="projection-maintenance-source"
+                value={maintenanceSource}
+                options={maintenanceSourceOptions}
+                onChange={setMaintenanceSource}
+              />
+            </div>
+            {maintenanceSource === 'formula' ? (
+              <>
+                <label
+                  htmlFor="projection-activity"
+                  className="block text-xs font-medium tracking-wide text-muted uppercase"
+                >
+                  Activity level
+                </label>
+                <select
+                  id="projection-activity"
+                  data-testid="projection-activity"
+                  value={String(profile.activity)}
+                  onChange={(event) =>
+                    setProjectionProfile({
+                      activity: Number(event.target.value) as ActivityMultiplier,
+                    })
+                  }
+                  className="w-full max-w-xl rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
+                >
+                  {ACTIVITY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <p className="text-sm text-muted" data-testid="projection-maintenance-hint">
+                {logMaintenance
+                  ? `Estimated ${formatCalories(logMaintenance.maintenanceKcal)} kcal/day from ${logMaintenance.loggedDays} logged days and weigh-ins over ${logMaintenance.spanDays} days (${formatShortDate(logMaintenance.startDate)}–${formatShortDate(logMaintenance.endDate)}).`
+                  : 'Need at least two weigh-ins ≥7 days apart and five food-logged days in between.'}
+              </p>
+            )}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
           <p className="text-xs text-subtle">
-            Profile fields are saved in Settings. Weight and intake here are what-if values for this
-            chart.
+            Profile fields are saved with Settings. Intake and maintenance sources update the chart
+            from your logs when selected.
           </p>
           <SegmentedControl
             label="Projection length"
@@ -275,16 +422,25 @@ export function ProjectionView() {
           data-testid="projection-incomplete"
           className="card flex h-40 items-center justify-center p-5 text-sm text-muted"
         >
-          Fill in sex, age, height, starting weight, and daily intake to see the projection.
+          {maintenanceSource === 'logs' && !logMaintenance
+            ? 'Log more weigh-ins and food days to estimate maintenance, or switch Maintenance back to Formula.'
+            : intakeSource === 'logged' && !loggedIntake
+              ? 'Log some food days to use a logged average, or switch intake to Goal / Custom.'
+              : 'Fill in sex, age, height, starting weight, and daily intake to see the projection.'}
         </div>
       ) : result ? (
         <>
           <article className="card grid gap-3 p-5" data-testid="projection-summary">
             <h2 className="text-sm font-semibold tracking-tight">Summary</h2>
             <p className="text-sm text-muted">
-              From {formatLongDate(startDate)}, eating {formatCalories(intakeKcal!)} kcal/day.
-              Starting maintenance is about {formatCalories(Math.round(result.startTdeeKcal))}{' '}
-              kcal/day (BMR {formatCalories(Math.round(result.startBmrKcal))} × activity).
+              From {formatLongDate(startDate)}, eating {formatCalories(effectiveIntake!)} kcal/day
+              {intakeSource === 'logged' ? ' (logged average)' : ''}
+              {intakeSource === 'goal' ? ' (calorie goal)' : ''}. Starting maintenance is about{' '}
+              {formatCalories(Math.round(result.startTdeeKcal))} kcal/day
+              {maintenanceSource === 'logs'
+                ? ' (from logs)'
+                : ` (BMR ${formatCalories(Math.round(result.startBmrKcal))} × activity)`}
+              .
             </p>
             <dl className="grid gap-3 sm:grid-cols-3">
               <div>
@@ -331,10 +487,16 @@ export function ProjectionView() {
           </article>
 
           <article className="card grid gap-3 p-4" data-testid="projection-chart">
-            <h2 className="text-sm font-semibold tracking-tight">Projected weight</h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold tracking-tight">Projected weight</h2>
+              {actualWeightPoints.length > 0 ? (
+                <p className="text-xs text-muted">Dashed line = logged weigh-ins</p>
+              ) : null}
+            </div>
             <LineChart
               testId="projection-weight-chart"
               points={chartPoints}
+              trendPoints={actualWeightPoints.length >= 2 ? actualWeightPoints : undefined}
               valueLabel={(value) => formatDisplayWeight(value, weightUnit)}
               emptyMessage="Nothing to project yet."
             />

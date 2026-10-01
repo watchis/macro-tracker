@@ -33,10 +33,12 @@ to pin it as a favorite; Day's quick-add shows starred foods when the search is 
 scales them by grams when you log.
 
 **Projection** estimates future weight from a body profile (sex, age, height, activity) and a planned
-daily calorie intake, using Mifflin–St Jeor maintenance that shrinks as weight changes. It shows a
-summary, a weight chart, and a weekly table of weight, calories used, and calorie deficit — in the
-spirit of [LoserTown's calculator](https://www.losertown.org/eats/cal.php). Starting weight defaults
-to your latest weigh-in; intake defaults to your calorie goal.
+daily calorie intake, using Mifflin–St Jeor maintenance that shrinks as weight changes. Intake can
+come from your calorie goal, a recent logged average, or a custom value; maintenance can use the
+activity formula or be inferred from weigh-ins plus food logs. It shows a summary, a weight chart
+(with logged weigh-ins overlaid), and a weekly table of weight, calories used, and calorie deficit —
+in the spirit of [LoserTown's calculator](https://www.losertown.org/eats/cal.php). Starting weight
+defaults to your latest weigh-in.
 
 **Settings** covers theme, accent color, weight unit, visible macros, calorie and macro goals, JSON
 import/export, local storage usage, and retention for old day logs.

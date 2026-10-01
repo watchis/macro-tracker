@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
   ACTIVITY_OPTIONS,
+  activityFromMaintenance,
+  averageLoggedIntake,
   bodyMassIndex,
   equilibriumWeightKg,
+  estimateMaintenanceFromLogs,
   healthyWeightRangeKg,
   mifflinStJeorBmr,
   projectWeightLoss,
   tdeeKcal,
 } from './projection';
+import { KG_PER_LB } from './weight';
+import type { FoodEntry } from '../types';
+
+function meal(calories: number, id: string): FoodEntry {
+  return { id, name: 'Meal', grams: 1, calories, macros: {}, createdAt: '' };
+}
 
 describe('mifflinStJeorBmr', () => {
   it('matches a known male example (90.7 kg, 178 cm, age 35)', () => {
@@ -69,7 +78,6 @@ describe('projectWeightLoss', () => {
     expect(result.rows[0]!.weightKg).toBeLessThan(90.718474);
     expect(result.rows[0]!.deficitKcal).toBeGreaterThan(0);
 
-    // Later weeks: lighter weight, lower maintenance, smaller deficit.
     const first = result.rows[0]!;
     const last = result.rows[7]!;
     expect(last.weightKg).toBeLessThan(first.weightKg);
@@ -115,6 +123,79 @@ describe('projectWeightLoss', () => {
       5,
     );
     expect(result.healthyWeightKg.min).toBeLessThan(result.healthyWeightKg.max);
+  });
+});
+
+describe('averageLoggedIntake', () => {
+  it('averages only days with food entries inside the lookback', () => {
+    const result = averageLoggedIntake(
+      {
+        '2026-09-20': [meal(1600, '1')],
+        '2026-09-25': [meal(2000, '2')],
+        '2026-08-01': [meal(900, '3')],
+      },
+      '2026-10-01',
+      14,
+    );
+    expect(result).toEqual({
+      averageKcal: 1800,
+      loggedDays: 2,
+      lookbackDays: 14,
+      fromDate: '2026-09-18',
+      toDate: '2026-10-01',
+    });
+  });
+
+  it('returns null when nothing was logged', () => {
+    expect(averageLoggedIntake({}, '2026-10-01', 14)).toBeNull();
+  });
+});
+
+describe('estimateMaintenanceFromLogs', () => {
+  it('infers TDEE from intake and weight change', () => {
+    const startKg = 90;
+    const endKg = 88;
+    const days: Record<string, FoodEntry[]> = {};
+    for (let i = 0; i < 14; i += 1) {
+      const day = String(i + 1).padStart(2, '0');
+      days[`2026-09-${day}`] = [meal(2000, String(i))];
+    }
+    const estimate = estimateMaintenanceFromLogs(
+      { '2026-09-01': startKg, '2026-09-14': endKg },
+      days,
+    );
+    expect(estimate).not.toBeNull();
+    const expected = 2000 - ((endKg - startKg) * (3500 / KG_PER_LB)) / 13;
+    expect(estimate!.maintenanceKcal).toBe(Math.round(expected));
+    expect(estimate!.loggedDays).toBe(14);
+    expect(estimate!.spanDays).toBe(13);
+  });
+
+  it('returns null without enough weigh-ins or food days', () => {
+    expect(estimateMaintenanceFromLogs({ '2026-09-01': 90 }, {})).toBeNull();
+    expect(
+      estimateMaintenanceFromLogs(
+        { '2026-09-01': 90, '2026-09-03': 89.5 },
+        { '2026-09-01': [meal(1800, '1')] },
+      ),
+    ).toBeNull();
+  });
+});
+
+describe('activityFromMaintenance', () => {
+  it('recovers the activity multiplier from TDEE / BMR', () => {
+    const weightKg = 90;
+    const heightCm = 178;
+    const ageYears = 35;
+    const bmr = mifflinStJeorBmr({ sex: 'male', weightKg, heightCm, ageYears });
+    const activity = activityFromMaintenance({
+      sex: 'male',
+      weightKg,
+      heightCm,
+      ageYears,
+      maintenanceKcal: bmr * 1.55,
+    });
+    expect(activity).toBeCloseTo(1.55, 5);
   });
 });
 
