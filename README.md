@@ -33,13 +33,11 @@ to pin it as a favorite; Day's quick-add shows starred foods when the search is 
 scales them by grams when you log.
 
 **Goals** sets calorie and macro targets (which macros show in tables and chips), and estimates
-future weight from a body profile (sex, birthday, height, activity) and a planned daily calorie
-intake, using Mifflin–St Jeor maintenance that shrinks as weight changes. Intake can come from your
-calorie goal, a recent logged average, or a custom value; maintenance can use the activity formula
-or be inferred from weigh-ins plus food logs. Age is derived from your birthday. It shows a summary,
-a weight chart (with logged weigh-ins overlaid), and a weekly table of weight, calories used, and
-calorie deficit — in the spirit of [LoserTown's calculator](https://www.losertown.org/eats/cal.php).
-Starting weight defaults to your latest weigh-in.
+future weight from a body profile (sex, birthday, height, activity). Age is derived from your
+birthday. On the weight chart you can turn Goal, Logged avg, Custom, Formula, From logs, and
+Weigh-ins on or off to compare Mifflin–St Jeor scenarios side by side — in the spirit of
+[LoserTown's calculator](https://www.losertown.org/eats/cal.php). Starting weight defaults to your
+latest weigh-in; the summary and weekly table follow the first enabled scenario.
 
 **Settings** covers theme, accent color, weight unit, JSON import/export, local storage usage, and
 retention for old day logs.

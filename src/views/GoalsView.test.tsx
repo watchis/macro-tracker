@@ -91,7 +91,7 @@ describe('GoalsView', () => {
     expect(screen.getByTestId('macro-chip-sodium')).toBeInTheDocument();
   });
 
-  it('projects weekly weight, maintenance, and deficit from a filled form', async () => {
+  it('projects weekly weight from profile fields and goal series', async () => {
     const user = userEvent.setup();
     useAppStore.getState().setCalorieGoal(1800);
     useAppStore.getState().setWeightUnit('lb');
@@ -110,12 +110,13 @@ describe('GoalsView', () => {
     await user.clear(height);
     await user.type(height, '70');
 
-    // Starting weight and intake are prefilled from the latest weigh-in and goal.
     expect(screen.getByTestId('projection-weight')).toHaveValue('200');
-    expect(screen.getByTestId('projection-intake')).toHaveValue('1800');
+    expect(screen.getByTestId('projection-series-goal')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('projection-series-formula')).toHaveAttribute('aria-pressed', 'true');
 
-    expect(screen.getByTestId('projection-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/Goal · Formula/);
     expect(screen.getByTestId('projection-weight-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('chart-series-goal-formula')).toBeInTheDocument();
 
     const table = screen.getByTestId('projection-table');
     expect(within(table).getByText('Date')).toBeInTheDocument();
@@ -153,7 +154,7 @@ describe('GoalsView', () => {
     expect(rows).toHaveLength(105);
   });
 
-  it('can drive intake from recent food logs', async () => {
+  it('overlays logged-average intake on the chart when toggled', async () => {
     const user = userEvent.setup();
     const store = useAppStore.getState();
     store.setProjectionProfile({
@@ -170,20 +171,18 @@ describe('GoalsView', () => {
 
     render(<GoalsView />);
 
-    expect(screen.getByTestId('projection-intake')).toHaveValue('2200');
+    expect(screen.getByTestId('chart-series-goal-formula')).toBeInTheDocument();
+    expect(screen.queryByTestId('chart-series-logged-formula')).not.toBeInTheDocument();
 
-    await user.click(
-      within(screen.getByTestId('projection-intake-source')).getByRole('radio', {
-        name: 'Logged avg',
-      }),
-    );
+    await user.click(screen.getByTestId('projection-series-logged'));
 
-    expect(screen.getByTestId('projection-intake')).toHaveValue('1800');
-    expect(screen.getByTestId('projection-intake-hint')).toHaveTextContent(/2 logged days/i);
-    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/logged average/i);
+    expect(screen.getByTestId('projection-series-logged')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('chart-series-logged-formula')).toBeInTheDocument();
+    expect(screen.getByTestId('projection-series-legend')).toHaveTextContent(/Logged · Formula/);
+    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/other scenario/);
   });
 
-  it('can estimate maintenance from weigh-ins and food logs', async () => {
+  it('overlays from-logs maintenance on the chart when toggled', async () => {
     const user = userEvent.setup();
     const store = useAppStore.getState();
     store.setProjectionProfile({
@@ -203,14 +202,13 @@ describe('GoalsView', () => {
 
     render(<GoalsView />);
 
-    await user.click(
-      within(screen.getByTestId('projection-maintenance-source')).getByRole('radio', {
-        name: 'From logs',
-      }),
-    );
+    expect(screen.getByTestId('projection-activity')).toBeInTheDocument();
+    expect(screen.queryByTestId('chart-series-goal-logs')).not.toBeInTheDocument();
 
-    expect(screen.getByTestId('projection-maintenance-hint')).toHaveTextContent(/Estimated/i);
-    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/from logs/i);
-    expect(screen.queryByTestId('projection-activity')).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('projection-series-logs'));
+
+    expect(screen.getByTestId('projection-series-logs')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('chart-series-goal-logs')).toBeInTheDocument();
+    expect(screen.getByTestId('projection-series-legend')).toHaveTextContent(/Goal · From logs/);
   });
 });
