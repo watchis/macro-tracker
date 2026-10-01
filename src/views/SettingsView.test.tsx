@@ -242,23 +242,30 @@ describe('SettingsView data', () => {
     expect(state().days['2026-09-17']?.[0]?.name).toBe('New');
   });
 
-  it('resets everything after confirming', async () => {
+  it('optimizes storage after confirming and keeps settings', async () => {
     const user = userEvent.setup();
     state().setCalorieGoal(1234);
-    state().removeFood(0);
+    state().addEntry('2025-01-10', { name: 'Old', grams: 100, calories: 100, macros: {} });
+    state().addEntry('2026-09-17', { name: 'New', grams: 100, calories: 100, macros: {} });
+    // Push origin usage over the optimize target so oldest months are eligible.
+    localStorage.setItem('pad', 'x'.repeat(Math.ceil((5 * 1024 * 1024 * 0.85) / 2)));
     render(<SettingsView />);
 
-    await user.click(screen.getByTestId('reset-confirm'));
+    await user.click(screen.getByTestId('optimize-storage-confirm'));
     await user.click(
-      within(screen.getByTestId('reset-confirm-confirm')).getByRole('button', { name: 'Cancel' }),
+      within(screen.getByTestId('optimize-storage-confirm-confirm')).getByRole('button', {
+        name: 'Cancel',
+      }),
     );
     expect(state().settings.goals.calories).toBe(1234);
+    expect(state().days['2025-01-10']?.[0]?.name).toBe('Old');
 
-    await confirmAction('reset-confirm', 'Yes, reset all data');
+    await confirmAction('optimize-storage-confirm', 'Yes, optimize storage');
 
-    expect(state().settings.goals.calories).toBe(2000);
-    expect(state().foodLibrary).toHaveLength(0);
-    expect(screen.getByTestId('calorie-goal-input')).toHaveValue('2000');
-    expect(screen.getByTestId('data-status')).toHaveTextContent('Everything is back');
+    expect(state().settings.goals.calories).toBe(1234);
+    expect(state().days['2025-01-10']).toBeUndefined();
+    expect(state().days['2026-09-17']?.[0]?.name).toBe('New');
+    expect(screen.getByTestId('calorie-goal-input')).toHaveValue('1234');
+    expect(screen.getByTestId('data-status')).toHaveTextContent(/Freed|Nothing to remove/);
   });
 });

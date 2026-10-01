@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { mergePersistedState, useAppStore } from './useAppStore';
+import { mergePersistedState, resetAppStore, useAppStore } from './useAppStore';
 import { DEFAULT_ACCENT, STORAGE_KEY, STORE_VERSION, defaultPersistedState } from './defaults';
+import { LOCAL_STORAGE_QUOTA_BYTES } from '../lib/storage';
 import { parsePersistedState } from './migrate';
 import { sumEntries } from '../lib/totals';
 import type { PersistedState } from '../types';
@@ -9,6 +10,12 @@ const DATE = '2026-09-17';
 
 function store() {
   return useAppStore.getState();
+}
+
+function fillStorageTo(bytes: number, key = 'pad'): void {
+  // UTF-16 accounting: each character is 2 bytes, plus the key itself.
+  const payloadChars = Math.max(0, Math.ceil((bytes - key.length * 2) / 2));
+  localStorage.setItem(key, 'x'.repeat(payloadChars));
 }
 
 function readStorage(): { state: PersistedState; version: number } {
@@ -93,7 +100,7 @@ describe('day entries', () => {
 
 describe('food library', () => {
   it('adds, updates and removes foods by index', () => {
-    store().resetAll();
+    resetAppStore();
     const initial = store().foodLibrary.length;
 
     store().addFood({ name: ' Tofu ', grams: 100, calories: 76, macros: { protein: 8 } });
@@ -120,7 +127,7 @@ describe('food library', () => {
   });
 
   it('manually stars and unstars foods without auto-favoriting customs', () => {
-    store().resetAll();
+    resetAppStore();
     store().addFood({ name: 'Tofu', grams: 100, calories: 76, macros: { protein: 8 } });
     expect(store().foodFavorites).toEqual([]);
 
@@ -286,7 +293,7 @@ describe('export, import and reset', () => {
     store().setAccent('#ff0000');
     const json = store().exportJson();
 
-    store().resetAll();
+    resetAppStore();
     expect(store().days).toEqual({});
 
     expect(store().importJson(json)).toEqual({ ok: true });
@@ -336,18 +343,35 @@ describe('export, import and reset', () => {
     expect('somethingElse' in state).toBe(false);
   });
 
-  it('resets days, library and settings back to defaults', () => {
-    store().addEntry(DATE, { name: 'Egg', grams: 50, calories: 72, macros: {} });
+  it('optimizes storage by dropping oldest months while keeping settings', () => {
+    store().addEntry('2025-01-10', { name: 'Old', grams: 100, calories: 100, macros: {} });
+    store().addEntry('2025-02-10', { name: 'Mid', grams: 100, calories: 100, macros: {} });
+    store().addEntry(DATE, { name: 'New', grams: 100, calories: 100, macros: {} });
     store().setThemeMode('dark');
-    store().removeFood(0);
+    store().setCalorieGoal(1234);
+    store().addFood({ name: 'Tofu', grams: 100, calories: 76, macros: { protein: 8 } });
+    store().toggleFoodFavorite('custom', store().foodLibrary[0]!);
 
-    store().resetAll();
+    // Force the optimizer past the 70% target without relying on tiny fixture JSON.
+    fillStorageTo(Math.floor(LOCAL_STORAGE_QUOTA_BYTES * 0.85));
 
-    const defaults = defaultPersistedState();
-    expect(store().days).toEqual({});
-    expect(store().foodLibrary).toEqual(defaults.foodLibrary);
-    expect(store().foodFavorites).toEqual(defaults.foodFavorites);
-    expect(store().settings).toEqual(defaults.settings);
+    const result = store().optimizeStorage();
+
+    expect(result.monthsDropped).toBeGreaterThan(0);
+    expect(store().days['2025-01-10']).toBeUndefined();
+    expect(store().days[DATE]?.[0]?.name).toBe('New');
+    expect(store().settings.themeMode).toBe('dark');
+    expect(store().settings.goals.calories).toBe(1234);
+    expect(store().foodLibrary).toHaveLength(1);
+    expect(store().foodFavorites).toHaveLength(1);
+  });
+
+  it('reports nothing to free when usage is already under the target', () => {
+    store().addEntry(DATE, { name: 'Egg', grams: 50, calories: 72, macros: {} });
+    const before = store().days;
+
+    expect(store().optimizeStorage()).toEqual({ freedBytes: 0, monthsDropped: 0 });
+    expect(store().days).toEqual(before);
   });
 });
 

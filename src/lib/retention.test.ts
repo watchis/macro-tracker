@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { applyDataRetention, oldestLoggedMonths, retainCutoffKey } from './retention';
+import {
+  applyDataRetention,
+  oldestLoggedMonths,
+  optimizeStorageBundle,
+  retainCutoffKey,
+} from './retention';
 import { formatBytes, measureLocalStorageUsage, stringStorageBytes } from './storage';
 import type { FoodEntry } from '../types';
 
@@ -107,5 +112,69 @@ describe('applyDataRetention', () => {
     });
 
     expect(Object.keys(pruned).sort()).toEqual(['2025-04-01', '2026-09-17']);
+  });
+});
+
+describe('optimizeStorageBundle', () => {
+  it('does nothing when usage is already under the target', () => {
+    const days = {
+      '2025-01-01': [entry('old')],
+      '2026-09-17': [entry('new')],
+    };
+    const result = optimizeStorageBundle(
+      days,
+      {},
+      {
+        storageUsedBytes: 1000,
+        quotaBytes: 10_000,
+      },
+    );
+    expect(result.monthsDropped).toBe(0);
+    expect(result.estimatedFreedBytes).toBe(0);
+    expect(result.days).toEqual(days);
+  });
+
+  it('drops oldest months one at a time until under the target', () => {
+    const days = {
+      '2025-01-01': [entry('jan')],
+      '2025-02-01': [entry('feb')],
+      '2025-03-01': [entry('mar')],
+      '2026-09-17': [entry('now')],
+    };
+    const result = optimizeStorageBundle(
+      days,
+      { '2025-01-15': 70 },
+      {
+        storageUsedBytes: 9000,
+        quotaBytes: 10_000,
+        targetRatio: 0.7,
+        estimateDaysBytes: (map) => Object.keys(map).length * 2000,
+      },
+    );
+
+    expect(result.monthsDropped).toBe(1);
+    expect(Object.keys(result.days).sort()).toEqual(['2025-02-01', '2025-03-01', '2026-09-17']);
+    expect(result.weights).toEqual({});
+    expect(result.estimatedFreedBytes).toBeGreaterThan(0);
+  });
+
+  it('keeps the newest month even when still over the target', () => {
+    const days = {
+      '2025-01-01': [entry('jan')],
+      '2026-09-17': [entry('now')],
+    };
+    const result = optimizeStorageBundle(
+      days,
+      {},
+      {
+        storageUsedBytes: 9500,
+        quotaBytes: 10_000,
+        targetRatio: 0.5,
+        estimateDaysBytes: (map) => Object.keys(map).length * 4000,
+      },
+    );
+
+    expect(result.monthsDropped).toBe(1);
+    expect(Object.keys(result.days)).toEqual(['2026-09-17']);
   });
 });

@@ -8,14 +8,22 @@ import { useSettings } from '../../store/selectors';
 
 type Status = { kind: 'ok' | 'error'; message: string };
 
-/** Local storage meter, retention policy, and full reset. */
+function optimizeStatusMessage(freedBytes: number, monthsDropped: number): string {
+  if (monthsDropped === 0) {
+    return 'Nothing to remove — storage is already in good shape.';
+  }
+  const monthLabel = monthsDropped === 1 ? '1 oldest month' : `${monthsDropped} oldest months`;
+  return `Freed ${formatBytes(freedBytes)} by removing ${monthLabel} of logs. Settings and recent data kept.`;
+}
+
+/** Local storage meter, retention policy, and storage optimization. */
 export function DataSettings() {
   const retentionId = useId();
   const settings = useSettings();
   // Subscribe so the meter re-reads localStorage after day or policy changes.
   useAppStore((state) => state.days);
   const setDataRetention = useAppStore((state) => state.setDataRetention);
-  const resetAll = useAppStore((state) => state.resetAll);
+  const optimizeStorage = useAppStore((state) => state.optimizeStorage);
   const [status, setStatus] = useState<Status | null>(null);
   const usage = measureLocalStorageUsage(STORAGE_KEY);
 
@@ -80,12 +88,16 @@ export function DataSettings() {
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
         <ConfirmAction
-          label="Reset all data"
-          confirmLabel="Delete every logged day, food and setting?"
-          testId="reset-confirm"
+          label="Optimize storage"
+          confirmLabel="Free space by removing oldest logs first?"
+          tone="neutral"
+          testId="optimize-storage-confirm"
           onConfirm={() => {
-            resetAll();
-            setStatus({ kind: 'ok', message: 'Everything is back to the defaults.' });
+            const result = optimizeStorage();
+            setStatus({
+              kind: 'ok',
+              message: optimizeStatusMessage(result.freedBytes, result.monthsDropped),
+            });
           }}
         />
       </div>

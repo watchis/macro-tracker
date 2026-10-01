@@ -8,7 +8,7 @@ import {
 } from '../lib/foodFavorites';
 import { createId } from '../lib/id';
 import { normalizeMacros, sortMacros } from '../lib/macros';
-import { applyDataRetentionBundle, sameDayKeys } from '../lib/retention';
+import { applyDataRetentionBundle, optimizeStorageBundle, sameDayKeys } from '../lib/retention';
 import { measureLocalStorageUsage } from '../lib/storage';
 import { toCanonicalKg } from '../lib/weight';
 import { normalizeHex } from '../theme/color';
@@ -90,8 +90,11 @@ export type AppActions = {
   /** Pretty-printed `PersistedState` JSON, ready for a download. */
   exportJson: () => string;
   importJson: (raw: string) => { ok: true } | { ok: false; error: string };
-  /** Wipes days, library and settings back to defaults. Keeps UI state. */
-  resetAll: () => void;
+  /**
+   * Drops oldest day/weight months until storage is under ~70% of quota.
+   * Keeps settings, custom foods, favorites, and the newest month of logs.
+   */
+  optimizeStorage: () => { freedBytes: number; monthsDropped: number };
 };
 
 export type AppStore = PersistedState & UiState & AppActions;
@@ -432,7 +435,22 @@ export const useAppStore = create<AppStore>()(
         return { ok: true };
       },
 
-      resetAll: () => set({ ...defaultPersistedState() }),
+      optimizeStorage: () => {
+        const beforeBytes = measureLocalStorageUsage(STORAGE_KEY).totalBytes;
+        const state = get();
+        const result = optimizeStorageBundle(state.days, state.weights, {
+          storageUsedBytes: beforeBytes,
+        });
+        if (result.monthsDropped === 0) {
+          return { freedBytes: 0, monthsDropped: 0 };
+        }
+        set({ days: result.days, weights: result.weights });
+        const afterBytes = measureLocalStorageUsage(STORAGE_KEY).totalBytes;
+        return {
+          freedBytes: Math.max(0, beforeBytes - afterBytes),
+          monthsDropped: result.monthsDropped,
+        };
+      },
     }),
     {
       name: STORAGE_KEY,

@@ -178,6 +178,69 @@ export function applyDataRetentionBundle(
   return { days: currentDays, weights: currentWeights };
 }
 
+/**
+ * Target fill ratio for a manual optimize pass. Leaves headroom under the
+ * pressure-retention threshold (90%) so logging can continue.
+ */
+export const OPTIMIZE_STORAGE_TARGET_RATIO = 0.7;
+
+export type OptimizeStorageResult = RetentionBundle & {
+  monthsDropped: number;
+  estimatedFreedBytes: number;
+};
+
+/**
+ * Frees local storage by dropping the oldest logged months first, while keeping
+ * settings/library untouched and preserving the newest month of history.
+ * Stops once usage is at or under `targetRatio` of quota (default 70%).
+ */
+export function optimizeStorageBundle(
+  days: Record<DateKey, FoodEntry[]>,
+  weights: Record<DateKey, number>,
+  context: RetentionContext & { targetRatio?: number },
+): OptimizeStorageResult {
+  const quotaBytes = context.quotaBytes ?? LOCAL_STORAGE_QUOTA_BYTES;
+  const targetRatio = context.targetRatio ?? OPTIMIZE_STORAGE_TARGET_RATIO;
+  const threshold = quotaBytes * targetRatio;
+  const estimate = context.estimateDaysBytes ?? defaultEstimateDaysBytes;
+
+  let currentDays = days;
+  let currentWeights = weights;
+  let used = context.storageUsedBytes;
+  let monthsDropped = 0;
+  let estimatedFreedBytes = 0;
+
+  for (let step = 0; step < 120 && used > threshold; step += 1) {
+    const months = oldestLoggedMonths(currentDays, Object.keys(currentWeights));
+    // Keep at least the newest month so recent logging is never wiped entirely.
+    if (months.length <= 1) break;
+
+    const beforeBytes = estimate(currentDays) + stringStorageBytes(JSON.stringify(currentWeights));
+    const nextDays = dropOldestMonths(currentDays, 1, months);
+    const nextWeights = dropOldestMonths(currentWeights, 1, months);
+    if (
+      Object.keys(nextDays).length === Object.keys(currentDays).length &&
+      Object.keys(nextWeights).length === Object.keys(currentWeights).length
+    ) {
+      break;
+    }
+    const afterBytes = estimate(nextDays) + stringStorageBytes(JSON.stringify(nextWeights));
+    const freed = Math.max(0, beforeBytes - afterBytes);
+    estimatedFreedBytes += freed;
+    used = Math.max(0, used - freed);
+    currentDays = nextDays;
+    currentWeights = nextWeights;
+    monthsDropped += 1;
+  }
+
+  return {
+    days: currentDays,
+    weights: currentWeights,
+    monthsDropped,
+    estimatedFreedBytes,
+  };
+}
+
 /** True when two day maps share the same keys (entries assumed unchanged). */
 export function sameDayKeys(a: Record<DateKey, unknown>, b: Record<DateKey, unknown>): boolean {
   const keysA = Object.keys(a);
