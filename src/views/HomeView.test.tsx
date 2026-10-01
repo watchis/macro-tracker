@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { formatMonthYear, monthKeyOf, todayKey } from '../lib/dates';
+import { addMonths, formatMonthYear, monthKeyOf, todayKey } from '../lib/dates';
 import { HomeView } from './HomeView';
 import { useAppStore } from '../store/useAppStore';
 
@@ -15,23 +15,48 @@ describe('HomeView', () => {
     expect(screen.getByTestId('home-weight-card')).toBeInTheDocument();
     expect(screen.getByTestId('home-mini-calendar')).toBeInTheDocument();
     expect(screen.getByTestId('mini-calendar-grid')).toBeInTheDocument();
-    expect(screen.queryByTestId('calendar-month')).not.toBeInTheDocument();
     expect(
-      within(screen.getByTestId('home-mini-calendar')).queryByText(
-        formatMonthYear(monthKeyOf(todayKey())),
-      ),
-    ).not.toBeInTheDocument();
+      within(screen.getByTestId('home-mini-calendar')).getByTestId('calendar-month'),
+    ).toHaveTextContent(formatMonthYear(monthKeyOf(todayKey())));
     expect(screen.queryByTestId('home-weight-unit')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Full calendar' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Previous month' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Next month' })).not.toBeInTheDocument();
     expect(
-      within(screen.getByTestId('home-mini-calendar')).queryByRole('button', { name: 'Today' }),
-    ).not.toBeInTheDocument();
+      within(screen.getByTestId('home-mini-calendar')).getByRole('button', {
+        name: 'Previous month',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('home-mini-calendar')).getByRole('button', { name: 'Next month' }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('home-mini-calendar')).getByRole('button', { name: 'Today' }),
+    ).toBeInTheDocument();
     expect(screen.getByTestId('home-chart')).toBeInTheDocument();
     expect(screen.getByTestId('weight-chart')).toHaveTextContent(/weigh-in/i);
     expect(screen.queryByTestId('calorie-chart')).not.toBeInTheDocument();
     expect(screen.queryByTestId('calorie-delta-chart')).not.toBeInTheDocument();
+  });
+
+  it('lets the mini calendar step months and jump back to today', async () => {
+    const user = userEvent.setup();
+    const today = todayKey();
+    useAppStore.getState().setSelectedDate(today);
+    render(<HomeView />);
+
+    const mini = screen.getByTestId('home-mini-calendar');
+    const monthLabel = () => within(mini).getByTestId('calendar-month');
+    const currentMonth = monthKeyOf(today);
+
+    await user.click(within(mini).getByRole('button', { name: 'Previous month' }));
+    expect(monthLabel()).toHaveTextContent(formatMonthYear(addMonths(currentMonth, -1)));
+
+    await user.click(within(mini).getByRole('button', { name: 'Next month' }));
+    await user.click(within(mini).getByRole('button', { name: 'Next month' }));
+    expect(monthLabel()).toHaveTextContent(formatMonthYear(addMonths(currentMonth, 1)));
+
+    await user.click(within(mini).getByRole('button', { name: 'Today' }));
+    expect(monthLabel()).toHaveTextContent(formatMonthYear(currentMonth));
+    expect(useAppStore.getState().selectedDate).toBe(today);
   });
 
   it('switches charts using the Settings weight unit and opens today from the today card', async () => {
