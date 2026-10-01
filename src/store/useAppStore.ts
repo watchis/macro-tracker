@@ -28,6 +28,7 @@ import type {
   FoodLibraryItem,
   MacroKey,
   PersistedState,
+  ProjectionProfile,
   Settings,
   ThemeMode,
   ViewName,
@@ -87,6 +88,8 @@ export type AppActions = {
   /** Pass `undefined` to clear a macro goal. */
   setMacroGoal: (macro: MacroKey, value: number | undefined) => void;
   setWeekStart: (weekStart: WeekStart) => void;
+  /** Merges fields into the weight-loss projection profile. */
+  setProjectionProfile: (patch: Partial<ProjectionProfile>) => void;
   /**
    * Sets the auto-optimize percent threshold, or `null` to disable. Out-of-range
    * numbers are ignored so a half-typed field cannot blank the setting.
@@ -361,6 +364,10 @@ export const useAppStore = create<AppStore>()(
                 calories: Math.max(0, merged.goals.calories),
                 macros: normalizeMacros(merged.goals.macros),
               },
+              projection: {
+                ...state.settings.projection,
+                ...merged.projection,
+              },
             },
           };
         }),
@@ -405,6 +412,48 @@ export const useAppStore = create<AppStore>()(
         }),
 
       setWeekStart: (weekStart) => get().updateSettings({ weekStart }),
+
+      setProjectionProfile: (patch) =>
+        set((state) => {
+          const current = state.settings.projection;
+          const next: ProjectionProfile = { ...current, ...patch };
+
+          if (patch.sex !== undefined) {
+            next.sex = patch.sex === 'male' || patch.sex === 'female' ? patch.sex : null;
+          }
+          if (patch.ageYears !== undefined) {
+            const age = patch.ageYears;
+            next.ageYears =
+              age === null || !Number.isFinite(age) || age < 0 || age > 120
+                ? null
+                : Math.round(age);
+          }
+          if (patch.heightCm !== undefined) {
+            const height = patch.heightCm;
+            next.heightCm =
+              height === null || !Number.isFinite(height) || height < 50 || height > 300
+                ? null
+                : height;
+          }
+          if (patch.activity !== undefined) {
+            const activity = patch.activity;
+            next.activity =
+              activity === 1.2 ||
+              activity === 1.375 ||
+              activity === 1.55 ||
+              activity === 1.725 ||
+              activity === 1.9
+                ? activity
+                : current.activity;
+          }
+
+          return {
+            settings: {
+              ...state.settings,
+              projection: next,
+            },
+          };
+        }),
 
       setAutoOptimizeThreshold: (threshold) => {
         const next = threshold === null ? null : normalizeAutoOptimizeThreshold(threshold);

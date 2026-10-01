@@ -9,6 +9,7 @@ import type {
   FoodLibraryItem,
   Goals,
   MacroKey,
+  ProjectionProfile,
   Settings,
   ViewName,
   WeightUnit,
@@ -25,6 +26,8 @@ export const selectGoals = (state: AppStore): Goals => state.settings.goals;
 export const selectVisibleMacros = (state: AppStore): MacroKey[] => state.settings.visibleMacros;
 export const selectWeightUnit = (state: AppStore): WeightUnit => state.settings.weightUnit;
 export const selectWeights = (state: AppStore): Record<DateKey, number> => state.weights;
+export const selectProjectionProfile = (state: AppStore): ProjectionProfile =>
+  state.settings.projection;
 
 /** User-added custom foods only (persisted). */
 export const selectCustomFoods = (state: AppStore): FoodLibraryItem[] => state.foodLibrary;
@@ -69,6 +72,10 @@ export function useWeightUnit(): WeightUnit {
 
 export function useWeights(): Record<DateKey, number> {
   return useAppStore(selectWeights);
+}
+
+export function useProjectionProfile(): ProjectionProfile {
+  return useAppStore(selectProjectionProfile);
 }
 
 /** Persisted custom foods only. */

@@ -28,6 +28,10 @@ describe('App shell', () => {
     expect(screen.getByRole('heading', { name: 'Food library' })).toBeInTheDocument();
     expect(useAppStore.getState().view).toBe('library');
 
+    await user.click(screen.getByRole('button', { name: 'Projection' }));
+    expect(screen.getByRole('heading', { name: 'Projection' })).toBeInTheDocument();
+    expect(useAppStore.getState().view).toBe('projection');
+
     await user.click(screen.getByRole('button', { name: 'Calendar' }));
     expect(useAppStore.getState().view).toBe('calendar');
 

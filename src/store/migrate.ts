@@ -7,6 +7,12 @@ import {
 import { isDateKey } from '../lib/dates';
 import { createId } from '../lib/id';
 import { normalizeMacros, sortMacros } from '../lib/macros';
+import {
+  DEFAULT_ACTIVITY,
+  isActivityMultiplier,
+  isSex,
+  type ActivityMultiplier,
+} from '../lib/projection';
 import { isWeightUnit } from '../lib/weight';
 import { normalizeHex } from '../theme/color';
 import { DEFAULT_SETTINGS, STORE_VERSION, defaultPersistedState } from './defaults';
@@ -19,7 +25,9 @@ import type {
   Goals,
   MacroKey,
   PersistedState,
+  ProjectionProfile,
   Settings,
+  Sex,
   ThemeMode,
   WeekStart,
   WeightUnit,
@@ -154,6 +162,44 @@ function parseWeightUnit(value: unknown): WeightUnit {
   return isWeightUnit(value) ? value : DEFAULT_SETTINGS.weightUnit;
 }
 
+function parseSex(value: unknown): Sex | null {
+  return isSex(value) ? value : null;
+}
+
+function parseActivity(value: unknown): ActivityMultiplier {
+  return isActivityMultiplier(value) ? value : DEFAULT_ACTIVITY;
+}
+
+function parseProjection(value: unknown): ProjectionProfile {
+  if (!isRecord(value)) {
+    return { ...DEFAULT_SETTINGS.projection };
+  }
+  const ageRaw = value.ageYears;
+  const ageYears =
+    ageRaw === null || ageRaw === undefined
+      ? null
+      : (() => {
+          const parsed = num(ageRaw, Number.NaN);
+          if (!Number.isFinite(parsed) || parsed < 0 || parsed > 120) return null;
+          return Math.round(parsed);
+        })();
+  const heightRaw = value.heightCm;
+  const heightCm =
+    heightRaw === null || heightRaw === undefined
+      ? null
+      : (() => {
+          const parsed = num(heightRaw, Number.NaN);
+          if (!Number.isFinite(parsed) || parsed < 50 || parsed > 300) return null;
+          return parsed;
+        })();
+  return {
+    sex: parseSex(value.sex),
+    ageYears,
+    heightCm,
+    activity: parseActivity(value.activity),
+  };
+}
+
 function parseAutoOptimizeThreshold(value: unknown, legacyRetention: unknown): number | null {
   if (value !== undefined) {
     if (value === null) return null;
@@ -180,6 +226,7 @@ export function parseSettings(value: unknown): Settings {
       ...DEFAULT_SETTINGS,
       visibleMacros: [...DEFAULT_SETTINGS.visibleMacros],
       goals: parseGoals(undefined),
+      projection: { ...DEFAULT_SETTINGS.projection },
     };
   }
   return {
@@ -193,6 +240,7 @@ export function parseSettings(value: unknown): Settings {
       value.dataRetention,
     ),
     weightUnit: parseWeightUnit(value.weightUnit),
+    projection: parseProjection(value.projection),
   };
 }
 
