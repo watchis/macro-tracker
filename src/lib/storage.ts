@@ -1,7 +1,7 @@
 /**
  * Typical per-origin `localStorage` ceiling in Chromium and Firefox. Safari is
  * often similar; there is no reliable API for the real quota, so this is the
- * figure we show and use for pressure-based retention.
+ * figure we show and use for auto-optimize and critical-storage checks.
  */
 export const LOCAL_STORAGE_QUOTA_BYTES = 5 * 1024 * 1024;
 

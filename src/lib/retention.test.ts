@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { applyDataRetention, oldestLoggedMonths, retainCutoffKey } from './retention';
+import {
+  applyAutoOptimize,
+  normalizeAutoOptimizeThreshold,
+  oldestLoggedMonths,
+  optimizeStorageBundle,
+  thresholdFromLegacyRetention,
+} from './retention';
 import { formatBytes, measureLocalStorageUsage, stringStorageBytes } from './storage';
 import type { FoodEntry } from '../types';
 
@@ -41,71 +47,123 @@ describe('measureLocalStorageUsage', () => {
   });
 });
 
-describe('retainCutoffKey', () => {
-  it('rolls back by calendar months from today', () => {
-    expect(retainCutoffKey(12, new Date(2026, 8, 17))).toBe('2025-09-17');
-    expect(retainCutoffKey(6, new Date(2026, 8, 17))).toBe('2026-03-17');
+describe('normalizeAutoOptimizeThreshold', () => {
+  it('accepts integers in range and rejects everything else', () => {
+    expect(normalizeAutoOptimizeThreshold(90)).toBe(90);
+    expect(normalizeAutoOptimizeThreshold('75')).toBe(75);
+    expect(normalizeAutoOptimizeThreshold(49)).toBeNull();
+    expect(normalizeAutoOptimizeThreshold(99)).toBeNull();
+    expect(normalizeAutoOptimizeThreshold(null)).toBeNull();
+    expect(normalizeAutoOptimizeThreshold('nope')).toBeNull();
   });
 });
 
-describe('applyDataRetention', () => {
+describe('thresholdFromLegacyRetention', () => {
+  it('maps forever to disabled and other policies to 90%', () => {
+    expect(thresholdFromLegacyRetention('forever')).toBeNull();
+    expect(thresholdFromLegacyRetention('retain-1-year')).toBe(90);
+    expect(thresholdFromLegacyRetention('pressure-90-drop-3-months')).toBe(90);
+  });
+});
+
+describe('applyAutoOptimize', () => {
   const days = {
-    '2024-01-10': [entry('old')],
-    '2025-10-01': [entry('mid')],
-    '2026-09-17': [entry('new')],
+    '2025-01-01': [entry('jan')],
+    '2025-02-01': [entry('feb')],
+    '2026-09-17': [entry('now')],
   };
 
-  it('keeps everything when the policy is forever', () => {
-    expect(applyDataRetention(days, 'forever', { storageUsedBytes: 0 })).toEqual(days);
-  });
-
-  it('drops days older than one year', () => {
-    const pruned = applyDataRetention(days, 'retain-1-year', {
-      storageUsedBytes: 0,
-      now: new Date(2026, 8, 17),
+  it('does nothing when auto-optimize is disabled', () => {
+    const result = applyAutoOptimize(days, {}, null, {
+      storageUsedBytes: 9500,
+      quotaBytes: 10_000,
     });
-    expect(Object.keys(pruned).sort()).toEqual(['2025-10-01', '2026-09-17']);
+    expect(result.monthsDropped).toBe(0);
+    expect(result.days).toEqual(days);
   });
 
-  it('drops days older than six months', () => {
-    const pruned = applyDataRetention(days, 'retain-6-months', {
-      storageUsedBytes: 0,
-      now: new Date(2026, 8, 17),
-    });
-    expect(Object.keys(pruned)).toEqual(['2026-09-17']);
-  });
-
-  it('does nothing under the storage pressure threshold', () => {
-    const pruned = applyDataRetention(days, 'pressure-90-drop-3-months', {
+  it('does nothing under the configured threshold', () => {
+    const result = applyAutoOptimize(days, {}, 90, {
       storageUsedBytes: 1000,
       quotaBytes: 10_000,
     });
-    expect(pruned).toEqual(days);
+    expect(result.monthsDropped).toBe(0);
+    expect(result.days).toEqual(days);
   });
 
-  it('deletes the oldest three months when storage is over 90%', () => {
-    const dense = {
+  it('drops oldest months when usage is at or above the threshold', () => {
+    expect(oldestLoggedMonths(days)).toEqual(['2025-01', '2025-02', '2026-09']);
+    const result = applyAutoOptimize(days, {}, 90, {
+      storageUsedBytes: 9500,
+      quotaBytes: 10_000,
+      estimateDaysBytes: (map) => Object.keys(map).length * 2000,
+    });
+    expect(result.monthsDropped).toBeGreaterThan(0);
+    expect(Object.keys(result.days)).toContain('2026-09-17');
+    expect(Object.keys(result.days)).not.toContain('2025-01-01');
+  });
+});
+
+describe('optimizeStorageBundle', () => {
+  it('does nothing when usage is already under the target', () => {
+    const days = {
+      '2025-01-01': [entry('old')],
+      '2026-09-17': [entry('new')],
+    };
+    const result = optimizeStorageBundle(
+      days,
+      {},
+      {
+        storageUsedBytes: 1000,
+        quotaBytes: 10_000,
+      },
+    );
+    expect(result.monthsDropped).toBe(0);
+    expect(result.estimatedFreedBytes).toBe(0);
+    expect(result.days).toEqual(days);
+  });
+
+  it('drops oldest months one at a time until under the target', () => {
+    const days = {
       '2025-01-01': [entry('jan')],
       '2025-02-01': [entry('feb')],
       '2025-03-01': [entry('mar')],
-      '2025-04-01': [entry('apr')],
       '2026-09-17': [entry('now')],
     };
-    expect(oldestLoggedMonths(dense)).toEqual([
-      '2025-01',
-      '2025-02',
-      '2025-03',
-      '2025-04',
-      '2026-09',
-    ]);
+    const result = optimizeStorageBundle(
+      days,
+      { '2025-01-15': 70 },
+      {
+        storageUsedBytes: 9000,
+        quotaBytes: 10_000,
+        targetRatio: 0.7,
+        estimateDaysBytes: (map) => Object.keys(map).length * 2000,
+      },
+    );
 
-    const pruned = applyDataRetention(dense, 'pressure-90-drop-3-months', {
-      storageUsedBytes: 9500,
-      quotaBytes: 10_000,
-      // Force a single 3-month drop to land under the threshold.
-      estimateDaysBytes: (map) => Object.keys(map).length * 1000,
-    });
+    expect(result.monthsDropped).toBe(1);
+    expect(Object.keys(result.days).sort()).toEqual(['2025-02-01', '2025-03-01', '2026-09-17']);
+    expect(result.weights).toEqual({});
+    expect(result.estimatedFreedBytes).toBeGreaterThan(0);
+  });
 
-    expect(Object.keys(pruned).sort()).toEqual(['2025-04-01', '2026-09-17']);
+  it('keeps the newest month even when still over the target', () => {
+    const days = {
+      '2025-01-01': [entry('jan')],
+      '2026-09-17': [entry('now')],
+    };
+    const result = optimizeStorageBundle(
+      days,
+      {},
+      {
+        storageUsedBytes: 9500,
+        quotaBytes: 10_000,
+        targetRatio: 0.5,
+        estimateDaysBytes: (map) => Object.keys(map).length * 4000,
+      },
+    );
+
+    expect(result.monthsDropped).toBe(1);
+    expect(Object.keys(result.days)).toEqual(['2026-09-17']);
   });
 });

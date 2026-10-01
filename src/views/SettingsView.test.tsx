@@ -191,7 +191,7 @@ describe('SettingsView import/export', () => {
         visibleMacros: ['protein'],
         goals: { calories: 2400, macros: { protein: 180 } },
         weekStart: 'monday',
-        dataRetention: 'retain-1-year',
+        autoOptimizeThreshold: 80,
       },
     });
 
@@ -203,7 +203,7 @@ describe('SettingsView import/export', () => {
     ]);
     expect(state().settings.accent).toBe('#84cc16');
     expect(state().settings.goals.calories).toBe(2400);
-    expect(state().settings.dataRetention).toBe('retain-1-year');
+    expect(state().settings.autoOptimizeThreshold).toBe(80);
     expect(screen.getByTestId('import-export-status')).toHaveTextContent('Imported.');
   });
 
@@ -220,45 +220,56 @@ describe('SettingsView import/export', () => {
 });
 
 describe('SettingsView data', () => {
-  it('shows local storage usage and the retention policy', () => {
+  it('shows local storage usage and the auto-optimize threshold', () => {
     render(<SettingsView />);
 
     expect(screen.getByTestId('storage-usage-summary')).toHaveTextContent(/used/);
     expect(screen.getByTestId('storage-usage-bar')).toBeInTheDocument();
-    expect(screen.getByTestId('data-retention')).toHaveValue('forever');
-    expect(screen.queryByTestId('data-retention-description')).not.toBeInTheDocument();
+    expect(screen.getByTestId('auto-optimize-threshold')).toHaveValue('90');
   });
 
-  it('updates the retention policy and prunes old days', async () => {
+  it('updates the auto-optimize threshold and can disable it', async () => {
     const user = userEvent.setup();
-    state().addEntry('2024-01-15', { name: 'Old', grams: 100, calories: 100, macros: {} });
-    state().addEntry('2026-09-17', { name: 'New', grams: 100, calories: 100, macros: {} });
     render(<SettingsView />);
 
-    await user.selectOptions(screen.getByTestId('data-retention'), 'retain-1-year');
+    const input = screen.getByTestId('auto-optimize-threshold');
+    await user.clear(input);
+    await user.type(input, '75');
+    expect(state().settings.autoOptimizeThreshold).toBe(75);
 
-    expect(state().settings.dataRetention).toBe('retain-1-year');
-    expect(state().days['2024-01-15']).toBeUndefined();
-    expect(state().days['2026-09-17']?.[0]?.name).toBe('New');
+    await user.click(screen.getByTestId('auto-optimize-disable'));
+    expect(state().settings.autoOptimizeThreshold).toBeNull();
+    expect(input).toBeDisabled();
+
+    await user.click(screen.getByTestId('auto-optimize-disable'));
+    expect(state().settings.autoOptimizeThreshold).toBe(90);
+    expect(input).not.toBeDisabled();
   });
 
-  it('resets everything after confirming', async () => {
+  it('optimizes storage after confirming and keeps settings', async () => {
     const user = userEvent.setup();
     state().setCalorieGoal(1234);
-    state().removeFood(0);
+    state().addEntry('2025-01-10', { name: 'Old', grams: 100, calories: 100, macros: {} });
+    state().addEntry('2026-09-17', { name: 'New', grams: 100, calories: 100, macros: {} });
+    // Push origin usage over the optimize target so oldest months are eligible.
+    localStorage.setItem('pad', 'x'.repeat(Math.ceil((5 * 1024 * 1024 * 0.85) / 2)));
     render(<SettingsView />);
 
-    await user.click(screen.getByTestId('reset-confirm'));
+    await user.click(screen.getByTestId('optimize-storage-confirm'));
     await user.click(
-      within(screen.getByTestId('reset-confirm-confirm')).getByRole('button', { name: 'Cancel' }),
+      within(screen.getByTestId('optimize-storage-confirm-confirm')).getByRole('button', {
+        name: 'Cancel',
+      }),
     );
     expect(state().settings.goals.calories).toBe(1234);
+    expect(state().days['2025-01-10']?.[0]?.name).toBe('Old');
 
-    await confirmAction('reset-confirm', 'Yes, reset all data');
+    await confirmAction('optimize-storage-confirm', 'Yes, optimize storage');
 
-    expect(state().settings.goals.calories).toBe(2000);
-    expect(state().foodLibrary).toHaveLength(0);
-    expect(screen.getByTestId('calorie-goal-input')).toHaveValue('2000');
-    expect(screen.getByTestId('data-status')).toHaveTextContent('Everything is back');
+    expect(state().settings.goals.calories).toBe(1234);
+    expect(state().days['2025-01-10']).toBeUndefined();
+    expect(state().days['2026-09-17']?.[0]?.name).toBe('New');
+    expect(screen.getByTestId('calorie-goal-input')).toHaveValue('1234');
+    expect(screen.getByTestId('data-status')).toHaveTextContent(/Freed|Nothing to remove/);
   });
 });

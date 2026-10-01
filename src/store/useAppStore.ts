@@ -8,14 +8,19 @@ import {
 } from '../lib/foodFavorites';
 import { createId } from '../lib/id';
 import { normalizeMacros, sortMacros } from '../lib/macros';
-import { applyDataRetentionBundle, sameDayKeys } from '../lib/retention';
+import {
+  applyAutoOptimize,
+  normalizeAutoOptimizeThreshold,
+  OPTIMIZE_STORAGE_TARGET_RATIO,
+  optimizeStorageBundle,
+  sameDayKeys,
+} from '../lib/retention';
 import { measureLocalStorageUsage } from '../lib/storage';
 import { toCanonicalKg } from '../lib/weight';
 import { normalizeHex } from '../theme/color';
 import { STORAGE_KEY, STORE_VERSION, defaultPersistedState } from './defaults';
 import { migratePersistedState, parsePersistedState } from './migrate';
 import type {
-  DataRetentionPolicy,
   DateKey,
   FoodEntry,
   FoodEntryInput,
@@ -82,16 +87,23 @@ export type AppActions = {
   /** Pass `undefined` to clear a macro goal. */
   setMacroGoal: (macro: MacroKey, value: number | undefined) => void;
   setWeekStart: (weekStart: WeekStart) => void;
-  setDataRetention: (policy: DataRetentionPolicy) => void;
-  /** Re-runs the active retention policy against current days (e.g. after import). */
-  applyRetentionNow: () => void;
+  /**
+   * Sets the auto-optimize percent threshold, or `null` to disable. Out-of-range
+   * numbers are ignored so a half-typed field cannot blank the setting.
+   */
+  setAutoOptimizeThreshold: (threshold: number | null) => void;
+  /** Re-runs auto-optimize against current days (e.g. after import). */
+  applyAutoOptimizeNow: () => void;
 
   // --- data management -----------------------------------------------------
   /** Pretty-printed `PersistedState` JSON, ready for a download. */
   exportJson: () => string;
   importJson: (raw: string) => { ok: true } | { ok: false; error: string };
-  /** Wipes days, library and settings back to defaults. Keeps UI state. */
-  resetAll: () => void;
+  /**
+   * Drops oldest day/weight months until storage is under ~70% of quota.
+   * Keeps settings, custom foods, favorites, and the newest month of logs.
+   */
+  optimizeStorage: () => { freedBytes: number; monthsDropped: number };
 };
 
 export type AppStore = PersistedState & UiState & AppActions;
@@ -141,18 +153,21 @@ function withWeight(
 function pruneBundle(
   days: Record<DateKey, FoodEntry[]>,
   weights: Record<DateKey, number>,
-  policy: DataRetentionPolicy,
+  thresholdPercent: number | null,
 ): { days: Record<DateKey, FoodEntry[]>; weights: Record<DateKey, number> } {
   const usage = measureLocalStorageUsage(STORAGE_KEY);
-  return applyDataRetentionBundle(days, weights, policy, { storageUsedBytes: usage.totalBytes });
+  const result = applyAutoOptimize(days, weights, thresholdPercent, {
+    storageUsedBytes: usage.totalBytes,
+  });
+  return { days: result.days, weights: result.weights };
 }
 
-function withRetention(
+function withAutoOptimize(
   days: Record<DateKey, FoodEntry[]>,
   weights: Record<DateKey, number>,
-  policy: DataRetentionPolicy,
+  thresholdPercent: number | null,
 ): { days: Record<DateKey, FoodEntry[]>; weights: Record<DateKey, number> } {
-  const pruned = pruneBundle(days, weights, policy);
+  const pruned = pruneBundle(days, weights, thresholdPercent);
   const daysSame = sameDayKeys(days, pruned.days);
   const weightsSame = sameDayKeys(weights, pruned.weights);
   return {
@@ -165,17 +180,21 @@ function withRetention(
  * Every rehydrated payload is re-parsed, not only the ones a version bump sends
  * through `migrate`: persist skips that hook when the stored version already
  * matches, so a hand-edited or half-written payload would otherwise land in the
- * store as-is and crash the first render. Retention runs here too so a long
+ * store as-is and crash the first render. Auto-optimize runs here too so a long
  * absence still trims history on the next load.
  */
 export function mergePersistedState(persisted: unknown, current: AppStore): AppStore {
   const parsed = parsePersistedState(persisted);
-  const retained = withRetention(parsed.days, parsed.weights, parsed.settings.dataRetention);
+  const optimized = withAutoOptimize(
+    parsed.days,
+    parsed.weights,
+    parsed.settings.autoOptimizeThreshold,
+  );
   return {
     ...current,
     ...parsed,
-    days: retained.days,
-    weights: retained.weights,
+    days: optimized.days,
+    weights: optimized.weights,
   };
 }
 
@@ -196,12 +215,12 @@ export const useAppStore = create<AppStore>()(
           ...sanitizeEntryInput(input),
         };
         set((state) => {
-          const retained = withRetention(
+          const optimized = withAutoOptimize(
             withDay(state.days, date, [...(state.days[date] ?? []), entry]),
             state.weights,
-            state.settings.dataRetention,
+            state.settings.autoOptimizeThreshold,
           );
-          return { days: retained.days, weights: retained.weights };
+          return { days: optimized.days, weights: optimized.weights };
         });
         return entry.id;
       },
@@ -223,38 +242,38 @@ export const useAppStore = create<AppStore>()(
                 }
               : entry,
           );
-          const retained = withRetention(
+          const optimized = withAutoOptimize(
             withDay(state.days, date, next),
             state.weights,
-            state.settings.dataRetention,
+            state.settings.autoOptimizeThreshold,
           );
-          return { days: retained.days, weights: retained.weights };
+          return { days: optimized.days, weights: optimized.weights };
         }),
 
       removeEntry: (date, id) =>
         set((state) => {
           const entries = state.days[date];
           if (!entries) return state;
-          const retained = withRetention(
+          const optimized = withAutoOptimize(
             withDay(
               state.days,
               date,
               entries.filter((entry) => entry.id !== id),
             ),
             state.weights,
-            state.settings.dataRetention,
+            state.settings.autoOptimizeThreshold,
           );
-          return { days: retained.days, weights: retained.weights };
+          return { days: optimized.days, weights: optimized.weights };
         }),
 
       clearDay: (date) =>
         set((state) => {
-          const retained = withRetention(
+          const optimized = withAutoOptimize(
             withDay(state.days, date, []),
             state.weights,
-            state.settings.dataRetention,
+            state.settings.autoOptimizeThreshold,
           );
-          return { days: retained.days, weights: retained.weights };
+          return { days: optimized.days, weights: optimized.weights };
         }),
 
       setWeight: (date, value, unit) =>
@@ -264,12 +283,12 @@ export const useAppStore = create<AppStore>()(
             value === null || value === undefined || !Number.isFinite(value) || value <= 0
               ? null
               : toCanonicalKg(value, displayUnit);
-          const retained = withRetention(
+          const optimized = withAutoOptimize(
             state.days,
             withWeight(state.weights, date, kg),
-            state.settings.dataRetention,
+            state.settings.autoOptimizeThreshold,
           );
-          return { days: retained.days, weights: retained.weights };
+          return { days: optimized.days, weights: optimized.weights };
         }),
 
       setWeightUnit: (weightUnit) => get().updateSettings({ weightUnit }),
@@ -324,12 +343,20 @@ export const useAppStore = create<AppStore>()(
       updateSettings: (patch) =>
         set((state) => {
           const merged: Settings = { ...state.settings, ...patch };
+          const threshold =
+            patch.autoOptimizeThreshold !== undefined
+              ? patch.autoOptimizeThreshold === null
+                ? null
+                : (normalizeAutoOptimizeThreshold(patch.autoOptimizeThreshold) ??
+                  state.settings.autoOptimizeThreshold)
+              : merged.autoOptimizeThreshold;
           return {
             settings: {
               ...merged,
               accent: normalizeHex(merged.accent) ?? state.settings.accent,
               visibleMacros: sortMacros(merged.visibleMacros),
               weightUnit: merged.weightUnit === 'kg' ? 'kg' : 'lb',
+              autoOptimizeThreshold: threshold,
               goals: {
                 calories: Math.max(0, merged.goals.calories),
                 macros: normalizeMacros(merged.goals.macros),
@@ -379,21 +406,27 @@ export const useAppStore = create<AppStore>()(
 
       setWeekStart: (weekStart) => get().updateSettings({ weekStart }),
 
-      setDataRetention: (dataRetention) => {
+      setAutoOptimizeThreshold: (threshold) => {
+        const next = threshold === null ? null : normalizeAutoOptimizeThreshold(threshold);
+        if (threshold !== null && next === null) return;
         set((state) => {
-          const retained = withRetention(state.days, state.weights, dataRetention);
+          const optimized = withAutoOptimize(state.days, state.weights, next);
           return {
-            settings: { ...state.settings, dataRetention },
-            days: retained.days,
-            weights: retained.weights,
+            settings: { ...state.settings, autoOptimizeThreshold: next },
+            days: optimized.days,
+            weights: optimized.weights,
           };
         });
       },
 
-      applyRetentionNow: () =>
+      applyAutoOptimizeNow: () =>
         set((state) => {
-          const retained = withRetention(state.days, state.weights, state.settings.dataRetention);
-          return { days: retained.days, weights: retained.weights };
+          const optimized = withAutoOptimize(
+            state.days,
+            state.weights,
+            state.settings.autoOptimizeThreshold,
+          );
+          return { days: optimized.days, weights: optimized.weights };
         }),
 
       exportJson: () => {
@@ -420,11 +453,15 @@ export const useAppStore = create<AppStore>()(
           return { ok: false, error: 'Expected a Macro Tracker export object.' };
         }
         const state = parsePersistedState(parsed);
-        const retained = withRetention(state.days, state.weights, state.settings.dataRetention);
+        const optimized = withAutoOptimize(
+          state.days,
+          state.weights,
+          state.settings.autoOptimizeThreshold,
+        );
         set({
           version: state.version,
-          days: retained.days,
-          weights: retained.weights,
+          days: optimized.days,
+          weights: optimized.weights,
           foodLibrary: state.foodLibrary,
           foodFavorites: state.foodFavorites,
           settings: state.settings,
@@ -432,7 +469,23 @@ export const useAppStore = create<AppStore>()(
         return { ok: true };
       },
 
-      resetAll: () => set({ ...defaultPersistedState() }),
+      optimizeStorage: () => {
+        const beforeBytes = measureLocalStorageUsage(STORAGE_KEY).totalBytes;
+        const state = get();
+        const result = optimizeStorageBundle(state.days, state.weights, {
+          storageUsedBytes: beforeBytes,
+          targetRatio: OPTIMIZE_STORAGE_TARGET_RATIO,
+        });
+        if (result.monthsDropped === 0) {
+          return { freedBytes: 0, monthsDropped: 0 };
+        }
+        set({ days: result.days, weights: result.weights });
+        const afterBytes = measureLocalStorageUsage(STORAGE_KEY).totalBytes;
+        return {
+          freedBytes: Math.max(0, beforeBytes - afterBytes),
+          monthsDropped: result.monthsDropped,
+        };
+      },
     }),
     {
       name: STORAGE_KEY,
