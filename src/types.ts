@@ -68,12 +68,12 @@ export type ActivityMultiplier = 1.2 | 1.375 | 1.55 | 1.725 | 1.9;
 
 /**
  * Body profile for forward weight projection. Optional fields stay `null` until
- * the user fills them in; the Projection view prompts for anything missing.
+ * the user fills them in; the Goals view prompts for anything missing.
  */
 export type ProjectionProfile = {
   sex: Sex | null;
-  /** Whole years; `null` when unset. */
-  ageYears: number | null;
+  /** Birthday as `YYYY-MM-DD`; age for BMR is derived from this. `null` when unset. */
+  birthday: DateKey | null;
   /** Height in centimeters; `null` when unset. */
   heightCm: number | null;
   activity: ActivityMultiplier;
@@ -125,4 +125,4 @@ export type PersistedState = {
  * Views are switched in app state; there is no router (GitHub Pages has no rewrites).
  * `day` is reachable by opening a calendar cell, not from the header nav.
  */
-export type ViewName = 'home' | 'calendar' | 'day' | 'library' | 'projection' | 'settings';
+export type ViewName = 'home' | 'calendar' | 'day' | 'library' | 'goals' | 'settings';

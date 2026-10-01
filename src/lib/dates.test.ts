@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addDays,
   addMonths,
+  ageYearsFromBirthday,
   buildMonthGrid,
   daysBetween,
   daysInMonth,
@@ -32,6 +33,13 @@ describe('date keys', () => {
   it('uses the local day for today', () => {
     const now = new Date(2026, 8, 17, 23, 30);
     expect(todayKey(now)).toBe('2026-09-17');
+  });
+
+  it('computes whole years of age from a birthday', () => {
+    expect(ageYearsFromBirthday('1991-03-15', new Date(2026, 9, 1))).toBe(35);
+    expect(ageYearsFromBirthday('1991-10-15', new Date(2026, 9, 1))).toBe(34);
+    expect(ageYearsFromBirthday('1991-10-01', new Date(2026, 9, 1))).toBe(35);
+    expect(ageYearsFromBirthday('2030-01-01', new Date(2026, 9, 1))).toBeNull();
   });
 
   it('crosses month and year boundaries when adding days', () => {

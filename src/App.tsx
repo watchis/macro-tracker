@@ -4,7 +4,7 @@ import { CalendarView } from './views/CalendarView';
 import { DayView } from './views/DayView';
 import { FoodLibraryView } from './views/FoodLibraryView';
 import { HomeView } from './views/HomeView';
-import { ProjectionView } from './views/ProjectionView';
+import { GoalsView } from './views/GoalsView';
 import { SettingsView } from './views/SettingsView';
 import {
   isStorageCritical,
@@ -31,7 +31,7 @@ export default function App() {
         {view === 'calendar' ? <CalendarView /> : null}
         {view === 'day' ? <DayView /> : null}
         {view === 'library' ? <FoodLibraryView /> : null}
-        {view === 'projection' ? <ProjectionView /> : null}
+        {view === 'goals' ? <GoalsView /> : null}
         {view === 'settings' ? <SettingsView /> : null}
       </main>
       <BudgetBar />

@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { matchingAlias, normalizeSearchText } from '../../data/foodAliases';
+import { matchingAlias } from '../../data/foodAliases';
 import { STARTER_FOOD_COUNT, STARTER_MANIFEST } from '../../data/starterCatalog';
 import { useStarterFoodPage } from '../../hooks/useStarterFoodPage';
 import { isFoodFavorited } from '../../lib/foodFavorites';
+import { compareFoodSearchRelevance, foodSearchScore } from '../../lib/foodSearch';
 import { MACROS, formatMacro } from '../../lib/macros';
 import { formatCalories } from '../../lib/totals';
 import { useCustomFoods, useFoodFavorites } from '../../store/selectors';
@@ -20,12 +21,6 @@ function macroSummary(item: FoodLibraryItem): string {
     (macro) => `${macro.shortLabel} ${formatMacro(macro.key, item.macros[macro.key] ?? 0)}`,
   );
   return parts.length > 0 ? parts.join(' · ') : 'No macros recorded';
-}
-
-function matchesQuery(item: FoodLibraryItem, query: string): boolean {
-  const needle = normalizeSearchText(query);
-  if (!needle) return true;
-  return normalizeSearchText(item.name).includes(needle);
 }
 
 function FavoriteStarButton({
@@ -79,13 +74,15 @@ export function FoodLibrarySettings() {
   const normalizedQuery = query.trim().toLowerCase();
   const searching = normalizedQuery.length > 0;
 
-  const customMatches = useMemo(
-    () =>
-      customFoods
-        .map((item, index) => ({ item, index }))
-        .filter(({ item }) => matchesQuery(item, normalizedQuery)),
-    [customFoods, normalizedQuery],
-  );
+  const customMatches = useMemo(() => {
+    const rows = customFoods
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) =>
+        normalizedQuery ? foodSearchScore(item, normalizedQuery) !== null : true,
+      );
+    if (!normalizedQuery) return rows;
+    return rows.sort((a, b) => compareFoodSearchRelevance(a.item, b.item, normalizedQuery));
+  }, [customFoods, normalizedQuery]);
 
   const { page, loading, error } = useStarterFoodPage({
     query: normalizedQuery,

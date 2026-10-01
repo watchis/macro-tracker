@@ -133,4 +133,37 @@ describe('whole-foods starter catalog', () => {
     const fraiche = creme.items.find((item) => item.name === 'Crème fraîche');
     expect(fraiche?.aliases ?? []).not.toContain('creme fraiche');
   });
+
+  it('sorts catalog hits by match precision', async () => {
+    const page = await queryStarterFoods({ query: 'corn', limit: 40 });
+    const names = page.items.map((item) => item.name.toLowerCase());
+
+    expect(names.length).toBeGreaterThan(5);
+
+    const leadingCorn = names.findIndex(
+      (name) => name === 'corn' || name.startsWith('corn,') || name.startsWith('corn '),
+    );
+    const popcorn = names.findIndex((name) => name.startsWith('popcorn'));
+    const cornish = names.findIndex((name) => name.includes('cornish'));
+    const crackerCorn = names.findIndex(
+      (name) => name.includes('cracker') && name.includes('corn'),
+    );
+    const acorn = names.findIndex((name) => /\bacorn\b/.test(name));
+
+    expect(leadingCorn).toBeGreaterThanOrEqual(0);
+    expect(popcorn).toBeGreaterThanOrEqual(0);
+    expect(leadingCorn).toBeLessThan(popcorn);
+    if (cornish >= 0) {
+      expect(popcorn).toBeLessThan(cornish);
+    }
+    if (crackerCorn >= 0 && cornish >= 0) {
+      expect(cornish).toBeLessThan(crackerCorn);
+    }
+    if (acorn >= 0) {
+      expect(acorn).toBeGreaterThan(popcorn);
+    }
+
+    // Top results should be corn-primary foods, not incidental substring hits.
+    expect(names[0]).toMatch(/^corn\b/);
+  });
 });

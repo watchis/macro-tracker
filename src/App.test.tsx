@@ -28,9 +28,9 @@ describe('App shell', () => {
     expect(screen.getByRole('heading', { name: 'Food library' })).toBeInTheDocument();
     expect(useAppStore.getState().view).toBe('library');
 
-    await user.click(screen.getByRole('button', { name: 'Projection' }));
-    expect(screen.getByRole('heading', { name: 'Projection' })).toBeInTheDocument();
-    expect(useAppStore.getState().view).toBe('projection');
+    await user.click(screen.getByRole('button', { name: 'Goals' }));
+    expect(screen.getByRole('heading', { name: 'Goals' })).toBeInTheDocument();
+    expect(useAppStore.getState().view).toBe('goals');
 
     await user.click(screen.getByRole('button', { name: 'Calendar' }));
     expect(useAppStore.getState().view).toBe('calendar');
@@ -71,8 +71,10 @@ describe('App shell', () => {
 
     expect(screen.getByTestId('storage-critical-banner')).toHaveTextContent(/almost full|% full/i);
 
-    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    await user.click(screen.getByRole('button', { name: 'Goals' }));
     expect(screen.getByTestId('calorie-goal-input')).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
     expect(screen.getByTestId('auto-optimize-threshold')).not.toBeDisabled();
     expect(screen.getByTestId('auto-optimize-disable')).not.toBeDisabled();
   });

@@ -32,17 +32,14 @@ enter. An optional **weight** field (lb or kg) records a daily weigh-in for Home
 to pin it as a favorite; Day's quick-add shows starred foods when the search is empty and
 scales them by grams when you log.
 
-**Projection** estimates future weight from a body profile (sex, age, height, activity) and a planned
-daily calorie intake, using Mifflin–St Jeor maintenance that shrinks as weight changes. Intake comes
-from your calorie goal or a recent logged average. Leave start date blank to enter starting weight
-(defaults to the latest weigh-in), or set a start date to use the nearest weigh-in. Leave end date
-blank for a 3 mo / 6 mo / 1 yr preset or a goal weight, or set an end date for a custom horizon. It
-shows a summary, a weight chart (with hover tooltips and logged weigh-ins overlaid), and a weekly
-table of weight, calories used, and calorie deficit — in the spirit of
+**Goals** sets calorie and macro targets (which macros show in tables and chips), and estimates
+future weight from a body profile (sex, birthday, height, activity). Age is derived from your
+birthday. Choose how the projection starts (weight or date) and ends (duration, goal weight, or
+date). The chart can overlay Goal and Logged avg intake series plus weigh-ins — in the spirit of
 [LoserTown's calculator](https://www.losertown.org/eats/cal.php).
 
-**Settings** covers theme, accent color, weight unit, visible macros, calorie and macro goals, JSON
-import/export, local storage usage, and retention for old day logs.
+**Settings** covers theme, accent color, weight unit, JSON import/export, local storage usage, and
+retention for old day logs.
 
 The **budget bar** is pinned to the bottom of every view. It starts full and depletes as the
 selected day is logged, showing the calories left plus a chip per visible macro. Past the goal it
@@ -87,7 +84,7 @@ src/
   App.tsx              app shell: header, active view, budget bar
   components/          AppHeader, BudgetBar, MacroChip
   components/settings/ settings form controls, accent picker, import/export, data retention
-  views/               HomeView, CalendarView, DayView, FoodLibraryView, ProjectionView, SettingsView
+  views/               HomeView, CalendarView, DayView, FoodLibraryView, GoalsView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
   data/                whole-foods catalog (lazy category JSON under starter/)
   lib/                 date keys, macro metadata, totals, weight conversion, chart series, projection
