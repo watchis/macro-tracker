@@ -26,8 +26,13 @@ import { useGoals, useProjectionProfile, useWeightUnit, useWeights } from '../st
 import type { SegmentedOption } from '../components/settings/SegmentedControl';
 import type { DateKey, WeightUnit } from '../types';
 
-const DEFAULT_HORIZON_DAYS = 364; // 52 weeks
+const HORIZON_PRESETS = [
+  { value: '13', label: '3 mo', weeks: 13 },
+  { value: '26', label: '6 mo', weeks: 26 },
+  { value: '52', label: '1 yr', weeks: 52 },
+] as const;
 
+type HorizonPreset = (typeof HORIZON_PRESETS)[number]['value'];
 type IntakeSource = 'goal' | 'logged';
 
 function formatDisplayWeight(value: number, unit: WeightUnit): string {
@@ -38,6 +43,10 @@ function formatDisplayWeight(value: number, unit: WeightUnit): string {
 
 function weeksBetween(start: DateKey, end: DateKey): number {
   return Math.max(1, Math.floor(daysBetween(start, end) / 7));
+}
+
+function presetWeeks(preset: HorizonPreset): number {
+  return HORIZON_PRESETS.find((option) => option.value === preset)?.weeks ?? 52;
 }
 
 /**
@@ -57,7 +66,9 @@ export function ProjectionView() {
   const today = todayKey();
 
   const [startDate, setStartDate] = useState<DateKey>(today);
-  const [endDate, setEndDate] = useState<DateKey>(() => addDays(today, DEFAULT_HORIZON_DAYS));
+  /** Empty = use a duration preset instead of a fixed end date. */
+  const [endDate, setEndDate] = useState<DateKey | ''>('');
+  const [horizonPreset, setHorizonPreset] = useState<HorizonPreset>('52');
 
   const loggedIntake = useMemo(
     () => averageLoggedIntake(days, startDate, LOGGED_INTAKE_LOOKBACK_DAYS),
@@ -76,6 +87,13 @@ export function ProjectionView() {
     { value: 'logged', label: 'Logged avg' },
   ];
 
+  const horizonOptions: ReadonlyArray<SegmentedOption<HorizonPreset>> = HORIZON_PRESETS.map(
+    (option) => ({
+      value: option.value,
+      label: option.label,
+    }),
+  );
+
   const heightDisplay =
     profile.heightCm !== null && profile.heightCm !== undefined
       ? roundHeight(fromCanonicalCm(profile.heightCm, heightUnit), heightUnit)
@@ -88,8 +106,10 @@ export function ProjectionView() {
         : undefined
       : (loggedIntake?.averageKcal ?? undefined);
 
-  const weeks = weeksBetween(startDate, endDate);
-  const dateRangeValid = daysBetween(startDate, endDate) >= 7;
+  const usingEndDate = endDate !== '';
+  const weeks = usingEndDate ? weeksBetween(startDate, endDate) : presetWeeks(horizonPreset);
+  const resolvedEndDate = addDays(startDate, weeks * 7);
+  const dateRangeValid = !usingEndDate || daysBetween(startDate, endDate) >= 7;
 
   const ready =
     profile.sex !== null &&
@@ -173,30 +193,34 @@ export function ProjectionView() {
     if (!value) return;
     const next = value as DateKey;
     setStartDate(next);
-    if (daysBetween(next, endDate) < 7) {
-      setEndDate(addDays(next, DEFAULT_HORIZON_DAYS));
+    if (endDate !== '' && daysBetween(next, endDate) < 7) {
+      // Start moved past the chosen end — fall back to presets.
+      setEndDate('');
     }
   }
 
   function handleEndDateChange(value: string) {
-    if (!value) return;
+    if (!value) {
+      setEndDate('');
+      return;
+    }
     const next = value as DateKey;
     if (daysBetween(startDate, next) < 7) return;
     setEndDate(next);
   }
 
-  const endWeightLabel =
-    weeks === 1
-      ? 'After 1 week'
-      : `After ${weeks} weeks (${formatShortDate(addDays(startDate, weeks * 7))})`;
+  const presetLabel = HORIZON_PRESETS.find((option) => option.value === horizonPreset)?.label;
+  const endWeightLabel = usingEndDate
+    ? `After ${weeks} week${weeks === 1 ? '' : 's'} (${formatShortDate(resolvedEndDate)})`
+    : `After ${presetLabel ?? `${weeks} weeks`} (${formatShortDate(resolvedEndDate)})`;
 
   return (
     <section className="grid gap-5" data-testid="projection-view">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Projection</h1>
         <p className="mt-0.5 text-sm text-muted">
-          Estimate how weight changes if you hold a steady daily calorie intake between two dates.
-          Use your calorie goal or a recent logged average for intake.
+          Estimate how weight changes if you hold a steady daily calorie intake. Use your calorie
+          goal or a recent logged average for intake.
         </p>
       </header>
 
@@ -306,7 +330,7 @@ export function ProjectionView() {
             </p>
           </div>
 
-          <div>
+          <div className="grid gap-2">
             <label
               htmlFor="projection-end-date"
               className="block text-xs font-medium tracking-wide text-muted uppercase"
@@ -320,12 +344,23 @@ export function ProjectionView() {
               value={endDate}
               min={addDays(startDate, 7)}
               onChange={(event) => handleEndDateChange(event.target.value)}
-              className="mt-1 w-full max-w-48 rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
+              className="w-full max-w-48 rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
             />
-            <p className="mt-1 text-xs text-subtle" data-testid="projection-horizon-hint">
-              {dateRangeValid
-                ? `${weeks} week${weeks === 1 ? '' : 's'} · ${daysBetween(startDate, endDate)} days`
-                : 'End date must be at least one week after the start.'}
+            {!usingEndDate ? (
+              <SegmentedControl
+                label="Projection length"
+                testId="projection-horizon-preset"
+                value={horizonPreset}
+                options={horizonOptions}
+                onChange={setHorizonPreset}
+              />
+            ) : null}
+            <p className="text-xs text-subtle" data-testid="projection-horizon-hint">
+              {!dateRangeValid
+                ? 'End date must be at least one week after the start.'
+                : usingEndDate
+                  ? `${weeks} week${weeks === 1 ? '' : 's'} · ${daysBetween(startDate, endDate)} days`
+                  : `${presetLabel} preset · through ${formatShortDate(resolvedEndDate)}`}
             </p>
           </div>
 
@@ -364,7 +399,7 @@ export function ProjectionView() {
         <div className="border-t border-line pt-4">
           <p className="text-xs text-subtle">
             Profile fields are saved with Settings. Starting weight comes from your weigh-ins near
-            the start date; the chart runs through the end date.
+            the start date. Leave end date blank to use a 3 mo / 6 mo / 1 yr preset.
           </p>
         </div>
       </article>
@@ -375,7 +410,7 @@ export function ProjectionView() {
           className="card flex h-40 items-center justify-center p-5 text-sm text-muted"
         >
           {!dateRangeValid
-            ? 'Choose an end date at least one week after the start date.'
+            ? 'Choose an end date at least one week after the start, or clear it to use a preset.'
             : startWeightKg === undefined
               ? 'Log a weigh-in so the projection has a starting weight.'
               : intakeSource === 'logged' && !loggedIntake
@@ -387,8 +422,8 @@ export function ProjectionView() {
           <article className="card grid gap-3 p-5" data-testid="projection-summary">
             <h2 className="text-sm font-semibold tracking-tight">Summary</h2>
             <p className="text-sm text-muted">
-              From {formatLongDate(startDate)} to {formatLongDate(addDays(startDate, weeks * 7))},
-              eating {formatCalories(effectiveIntake!)} kcal/day
+              From {formatLongDate(startDate)} to {formatLongDate(resolvedEndDate)}, eating{' '}
+              {formatCalories(effectiveIntake!)} kcal/day
               {intakeSource === 'logged' ? ' (logged average)' : ' (calorie goal)'}. Starting
               maintenance is about {formatCalories(Math.round(result.startTdeeKcal))} kcal/day (BMR{' '}
               {formatCalories(Math.round(result.startBmrKcal))} × activity).

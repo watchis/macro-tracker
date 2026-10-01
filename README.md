@@ -34,10 +34,10 @@ scales them by grams when you log.
 
 **Projection** estimates future weight from a body profile (sex, age, height, activity) and a planned
 daily calorie intake, using Mifflin–St Jeor maintenance that shrinks as weight changes. Intake comes
-from your calorie goal or a recent logged average. Pick a start and end date to set the horizon;
-starting weight is taken from the nearest weigh-in to the start date. It shows a summary, a weight
-chart (with hover tooltips and logged weigh-ins overlaid), and a weekly table of weight, calories
-used, and calorie deficit — in the spirit of
+from your calorie goal or a recent logged average. Set a start date (starting weight from the nearest
+weigh-in) and either an end date or a 3 mo / 6 mo / 1 yr preset. It shows a summary, a weight chart
+(with hover tooltips and logged weigh-ins overlaid), and a weekly table of weight, calories used,
+and calorie deficit — in the spirit of
 [LoserTown's calculator](https://www.losertown.org/eats/cal.php).
 
 **Settings** covers theme, accent color, weight unit, visible macros, calorie and macro goals, JSON
