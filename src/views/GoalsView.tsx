@@ -389,8 +389,8 @@ function WeightProjectionSection() {
                     : `No food logged in the last ${LOGGED_INTAKE_LOOKBACK_DAYS} days.`
                   : intakeSource === 'goal'
                     ? goals.calories > 0
-                      ? `Using your Settings calorie goal (${formatCalories(goals.calories)} kcal).`
-                      : 'Set a calorie goal in Settings, or switch to Logged avg / Custom.'
+                      ? `Using your calorie goal (${formatCalories(goals.calories)} kcal).`
+                      : 'Set a calorie goal above, or switch to Logged avg / Custom.'
                     : 'Custom what-if intake for this chart only.'}
               </p>
             </div>
