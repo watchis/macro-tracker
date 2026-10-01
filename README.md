@@ -93,7 +93,8 @@ row's id (`source` and `sourceRef`). Common foods use everyday names, including 
 such as winged beans (sigarilyas) and mung beans; other whole foods keep the database name
 when their macros differ from a similar food. Branded products, fast food, and baby food are
 left out. The catalog is split into category JSON files under `src/data/starter/` and
-**lazy-loaded** as you browse or search.
+**lazy-loaded** as you browse or search. Search also matches common aliases and
+spellings (aubergine, calamari, garbanzo, sigarillias) and ignores accents.
 Regenerate with `python3 scripts/build-whole-foods-catalog.py`. Custom foods you add in the Food
 library view are persisted separately and appear first in quick-add.
 

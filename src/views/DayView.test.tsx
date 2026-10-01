@@ -325,6 +325,20 @@ describe('DayView quick add', () => {
     });
   });
 
+  it('finds a catalog food by alias and logs the official name', async () => {
+    const user = userEvent.setup();
+    render(<DayView date={DATE} />);
+
+    await user.type(screen.getByTestId('quick-add-search'), 'calamari');
+    const option = await screen.findByRole('option', { name: /Squid, raw/ });
+    expect(option).toHaveTextContent(/calamari/);
+    await user.click(option);
+    await user.click(screen.getByRole('button', { name: 'Quick add' }));
+
+    expect(entries()[0]).toMatchObject({ name: 'Squid, raw' });
+    expect(entries()[0]).not.toHaveProperty('aliases');
+  });
+
   it('keeps quick-add available when customs are empty', () => {
     useAppStore.setState({ foodLibrary: [] });
     render(<DayView date={DATE} />);

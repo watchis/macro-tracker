@@ -177,6 +177,22 @@ describe('FoodLibraryView', () => {
         /Winged beans \(sigarilyas\)/,
       );
     });
+
+    await user.clear(screen.getByTestId('food-library-search'));
+    await user.type(screen.getByTestId('food-library-search'), 'sigarillias');
+    await waitFor(() => {
+      const list = screen.getByTestId('starter-food-list');
+      expect(list).toHaveTextContent(/Winged beans \(sigarilyas\)/);
+      expect(list).toHaveTextContent(/sigarillias/);
+    });
+
+    await user.clear(screen.getByTestId('food-library-search'));
+    await user.type(screen.getByTestId('food-library-search'), 'aubergine');
+    await waitFor(() => {
+      const list = screen.getByTestId('starter-food-list');
+      expect(list).toHaveTextContent(/Eggplant, raw/);
+      expect(list).toHaveTextContent(/aubergine/);
+    });
   });
 
   it('filters custom foods with the same search box', async () => {

@@ -86,4 +86,32 @@ describe('whole-foods starter catalog', () => {
     expect(winged?.source).toBeTruthy();
     expect(winged?.sourceRef).toBeTruthy();
   });
+
+  it('finds foods by common aliases and accent-insensitive spellings', async () => {
+    const cases: Array<[string, string]> = [
+      ['aubergine', 'Eggplant, raw'],
+      ['courgette', 'Zucchini, raw'],
+      ['calamari', 'Squid, raw'],
+      ['sigarillias', 'Winged beans (sigarilyas), raw'],
+      ['garbanzo', 'Chickpeas, cooked'],
+      ['chana', 'Chickpeas, cooked'],
+      ['pak choi', 'Bok choy, raw'],
+      ['yuca', 'Cassava, raw'],
+      ['prawn', 'Shrimp, cooked'],
+      ['glass noodles', 'Cellophane noodles (mung bean), dry'],
+      ['hamachi', 'Yellowtail, cooked'],
+      ['bangus', 'Milkfish, cooked'],
+      ['karela', 'Bitter melon, raw'],
+      ['creme fraiche', 'Crème fraîche'],
+    ];
+    for (const [query, name] of cases) {
+      const page = await queryStarterFoods({ query, limit: 40 });
+      const hit = page.items.find((item) => item.name === name);
+      expect(hit, query).toBeDefined();
+    }
+
+    const creme = await queryStarterFoods({ query: 'creme fraiche', limit: 5 });
+    const fraiche = creme.items.find((item) => item.name === 'Crème fraîche');
+    expect(fraiche?.aliases ?? []).not.toContain('creme fraiche');
+  });
 });

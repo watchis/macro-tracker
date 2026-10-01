@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { queryStarterFoods } from '../data/starterCatalog';
+import { matchingAlias, normalizeSearchText } from '../data/foodAliases';
+import { queryStarterFoods, type StarterFood } from '../data/starterCatalog';
 import { formatCalories } from '../lib/totals';
 import { useCustomFoods } from '../store/selectors';
 import type { CSSProperties, KeyboardEvent } from 'react';
@@ -11,7 +12,9 @@ export type FoodSearchPick = {
   source: 'custom' | 'starter';
 };
 
-type FoodSearchOption = FoodSearchPick & { key: string };
+type SearchableFood = FoodLibraryItem & { aliases?: readonly string[] };
+
+type FoodSearchOption = { food: SearchableFood; source: 'custom' | 'starter'; key: string };
 
 export type FoodSearchComboboxProps = {
   value: string;
@@ -62,12 +65,13 @@ export function FoodSearchCombobox({
 
   const customMatches = useMemo(() => {
     if (!normalizedQuery) return customFoods.slice(0, 20);
-    return customFoods.filter((food) => food.name.toLowerCase().includes(normalizedQuery));
+    const needle = normalizeSearchText(normalizedQuery);
+    return customFoods.filter((food) => normalizeSearchText(food.name).includes(needle));
   }, [customFoods, normalizedQuery]);
 
   const [starterResult, setStarterResult] = useState<{
     query: string;
-    items: FoodLibraryItem[];
+    items: StarterFood[];
   }>({ query: '', items: [] });
 
   useEffect(() => {
@@ -216,6 +220,7 @@ export function FoodSearchCombobox({
             ) : (
               options.map((row, index) => {
                 const active = index === activeIndex;
+                const alias = matchingAlias(row.food.name, row.food.aliases, value);
                 return (
                   <li
                     key={row.key}
@@ -237,6 +242,7 @@ export function FoodSearchCombobox({
                     <span className="font-medium">
                       {row.source === 'custom' ? '★ ' : ''}
                       {row.food.name}
+                      {alias ? <span className="font-normal text-muted"> · {alias}</span> : null}
                     </span>
                     <span className="mt-0.5 block text-xs text-muted tabular-nums">
                       {formatCalories(row.food.calories)} kcal / {Math.round(row.food.grams)} g
