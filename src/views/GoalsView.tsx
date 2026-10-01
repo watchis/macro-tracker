@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { LineChart, type ChartSeries } from '../components/charts/LineChart';
 import { MacroSettings } from '../components/settings/MacroSettings';
 import { NumberField } from '../components/settings/NumberField';
-import { SegmentedControl } from '../components/settings/SegmentedControl';
 import { SettingsSection } from '../components/settings/SettingsSection';
 import {
   addDays,
@@ -33,7 +32,6 @@ import { formatCalories } from '../lib/totals';
 import { fromCanonicalKg, roundWeight, toCanonicalKg, weightUnitLabel } from '../lib/weight';
 import { useAppStore } from '../store/useAppStore';
 import { useGoals, useProjectionProfile, useWeightUnit, useWeights } from '../store/selectors';
-import type { SegmentedOption } from '../components/settings/SegmentedControl';
 import type { DateKey, WeightUnit } from '../types';
 
 const START_MODES = [
@@ -347,15 +345,6 @@ function WeightProjectionSection() {
     primary,
   ]);
 
-  const startModeOptions: ReadonlyArray<SegmentedOption<StartMode>> = START_MODES.map((option) => ({
-    value: option.value,
-    label: option.label,
-  }));
-  const endModeOptions: ReadonlyArray<SegmentedOption<EndMode>> = END_MODES.map((option) => ({
-    value: option.value,
-    label: option.label,
-  }));
-
   const endWeightLabel = usingEndDate
     ? formatShortDate(resolvedEndDate)
     : usingGoalWeight
@@ -381,6 +370,8 @@ function WeightProjectionSection() {
 
   const fieldClassName =
     'mt-1 w-full rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none';
+  const inlineFieldClassName =
+    'w-full min-w-0 rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none';
 
   return (
     <section className="grid gap-5" data-testid="projection-section">
@@ -481,99 +472,110 @@ function WeightProjectionSection() {
             </div>
           </div>
 
-          <div className="grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <span className="text-xs font-medium tracking-wide text-muted uppercase">Start</span>
-              <SegmentedControl
+          <div className="grid gap-3 border-t border-line pt-5">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span className="w-10 shrink-0 text-xs font-medium tracking-wide text-muted uppercase">
+                Start
+              </span>
+              <ModeTabs
                 label="Start by"
                 testId="projection-start-mode"
                 value={startMode}
-                options={startModeOptions}
+                options={START_MODES}
                 onChange={setStartMode}
               />
-              {usingStartDate ? (
-                <>
-                  <input
-                    id="projection-start-date"
-                    data-testid="projection-start-date"
-                    type="date"
-                    value={startDate}
-                    onChange={(event) => {
-                      if (!event.target.value) return;
-                      const next = event.target.value as DateKey;
-                      setStartDate(next);
-                      if (usingEndDate && daysBetween(next, endDate) < 7) {
-                        setEndMode('52');
-                      }
-                    }}
-                    className={fieldClassName}
+              <div className="min-w-[10rem] flex-1 sm:ml-auto sm:max-w-xs">
+                {usingStartDate ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="projection-start-date"
+                      data-testid="projection-start-date"
+                      type="date"
+                      value={startDate}
+                      onChange={(event) => {
+                        if (!event.target.value) return;
+                        const next = event.target.value as DateKey;
+                        setStartDate(next);
+                        if (usingEndDate && daysBetween(next, endDate) < 7) {
+                          setEndMode('52');
+                        }
+                      }}
+                      className={inlineFieldClassName}
+                    />
+                    <p
+                      data-testid="projection-start-weight"
+                      className="shrink-0 text-sm tabular-nums text-ink"
+                    >
+                      {startWeightPoint
+                        ? formatDisplayWeight(
+                            fromCanonicalKg(startWeightPoint.value, weightUnit),
+                            weightUnit,
+                          )
+                        : '—'}
+                    </p>
+                  </div>
+                ) : (
+                  <NumberField
+                    label="Starting weight"
+                    labelHidden
+                    testId="projection-weight"
+                    value={startWeightDisplay}
+                    unit={weightUnitLabel(weightUnit)}
+                    min={1}
+                    max={weightUnit === 'lb' ? 1000 : 450}
+                    allowEmpty
+                    placeholder={latestWeightKg !== undefined ? 'Latest weigh-in' : 'Required'}
+                    onCommit={(value) => setStartWeightDisplay(value)}
+                    className="[&>div]:mt-0"
                   />
-                  <p
-                    data-testid="projection-start-weight"
-                    className="text-sm tabular-nums text-ink"
-                  >
-                    {startWeightPoint
-                      ? formatDisplayWeight(
-                          fromCanonicalKg(startWeightPoint.value, weightUnit),
-                          weightUnit,
-                        )
-                      : '—'}
-                  </p>
-                </>
-              ) : (
-                <NumberField
-                  label="Starting weight"
-                  labelHidden
-                  testId="projection-weight"
-                  value={startWeightDisplay}
-                  unit={weightUnitLabel(weightUnit)}
-                  min={1}
-                  max={weightUnit === 'lb' ? 1000 : 450}
-                  allowEmpty
-                  placeholder={latestWeightKg !== undefined ? 'Latest weigh-in' : 'Required'}
-                  onCommit={(value) => setStartWeightDisplay(value)}
-                />
-              )}
+                )}
+              </div>
             </div>
 
-            <div className="grid gap-2">
-              <span className="text-xs font-medium tracking-wide text-muted uppercase">End</span>
-              <SegmentedControl
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span className="w-10 shrink-0 text-xs font-medium tracking-wide text-muted uppercase">
+                End
+              </span>
+              <ModeTabs
                 label="End by"
                 testId="projection-end-mode"
                 value={endMode}
-                options={endModeOptions}
+                options={END_MODES}
                 onChange={setEndMode}
               />
-              {usingEndDate ? (
-                <input
-                  id="projection-end-date"
-                  data-testid="projection-end-date"
-                  type="date"
-                  value={endDate}
-                  min={addDays(resolvedStartDate, 7)}
-                  onChange={(event) => {
-                    if (!event.target.value) return;
-                    const next = event.target.value as DateKey;
-                    if (daysBetween(resolvedStartDate, next) < 7) return;
-                    setEndDate(next);
-                  }}
-                  className={fieldClassName}
-                />
-              ) : null}
-              {usingGoalWeight ? (
-                <NumberField
-                  label="Goal weight"
-                  labelHidden
-                  testId="projection-goal-weight"
-                  value={goalWeightDisplay}
-                  unit={weightUnitLabel(weightUnit)}
-                  min={1}
-                  max={weightUnit === 'lb' ? 1000 : 450}
-                  allowEmpty
-                  placeholder="Goal weight"
-                  onCommit={(value) => setGoalWeightDisplay(value)}
-                />
+              {usingEndDate || usingGoalWeight ? (
+                <div className="min-w-[10rem] flex-1 sm:ml-auto sm:max-w-xs">
+                  {usingEndDate ? (
+                    <input
+                      id="projection-end-date"
+                      data-testid="projection-end-date"
+                      type="date"
+                      value={endDate}
+                      min={addDays(resolvedStartDate, 7)}
+                      onChange={(event) => {
+                        if (!event.target.value) return;
+                        const next = event.target.value as DateKey;
+                        if (daysBetween(resolvedStartDate, next) < 7) return;
+                        setEndDate(next);
+                      }}
+                      className={inlineFieldClassName}
+                    />
+                  ) : (
+                    <NumberField
+                      label="Goal weight"
+                      labelHidden
+                      testId="projection-goal-weight"
+                      value={goalWeightDisplay}
+                      unit={weightUnitLabel(weightUnit)}
+                      min={1}
+                      max={weightUnit === 'lb' ? 1000 : 450}
+                      allowEmpty
+                      placeholder="Goal weight"
+                      onCommit={(value) => setGoalWeightDisplay(value)}
+                      className="[&>div]:mt-0"
+                    />
+                  )}
+                </div>
               ) : null}
             </div>
           </div>
@@ -765,6 +767,50 @@ function WeightProjectionSection() {
         </>
       )}
     </section>
+  );
+}
+
+function ModeTabs<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  testId,
+}: {
+  label: string;
+  value: T;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+  testId?: string;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      data-testid={testId}
+      className="inline-flex flex-wrap items-center gap-0.5"
+    >
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(option.value)}
+            className={[
+              'rounded px-2 py-1 text-sm transition-colors',
+              selected
+                ? 'bg-accent-faint font-medium text-ink'
+                : 'text-muted hover:bg-accent-faint hover:text-ink',
+            ].join(' ')}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
