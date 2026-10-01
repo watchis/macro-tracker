@@ -53,17 +53,15 @@ describe('ProjectionView', () => {
     expect(
       within(screen.getByTestId('projection-horizon-preset')).getByRole('radio', { name: '1 yr' }),
     ).toHaveAttribute('aria-checked', 'true');
-    // Helper / remnant copy should be gone.
     expect(screen.queryByText(/Profile fields are saved/i)).not.toBeInTheDocument();
     expect(screen.queryByTestId('projection-intake-hint')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('projection-horizon-hint')).not.toBeInTheDocument();
 
     expect(screen.getByTestId('projection-summary')).toBeInTheDocument();
     expect(screen.getByTestId('projection-weight-chart')).toBeInTheDocument();
 
     const table = screen.getByTestId('projection-table');
     expect(within(table).getByText('Date')).toBeInTheDocument();
-    expect(within(table).getByText('Calories used')).toBeInTheDocument();
+    expect(within(table).getByText('Used')).toBeInTheDocument();
     expect(within(table).getAllByRole('row')).toHaveLength(53); // header + 52 weeks
 
     expect(useAppStore.getState().settings.projection).toMatchObject({
@@ -102,7 +100,7 @@ describe('ProjectionView', () => {
     );
 
     expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(14);
-    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/3 mo/i);
+    expect(screen.getByTestId('projection-chart')).toHaveTextContent(/3 mo/i);
   });
 
   it('uses an explicit end date instead of presets', () => {
@@ -153,7 +151,7 @@ describe('ProjectionView', () => {
 
     await user.click(
       within(screen.getByTestId('projection-horizon-preset')).getByRole('radio', {
-        name: 'Goal weight',
+        name: 'Goal',
       }),
     );
 
@@ -161,7 +159,7 @@ describe('ProjectionView', () => {
     await user.clear(goal);
     await user.type(goal, '65');
 
-    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/Goal/i);
+    expect(screen.getByTestId('projection-chart')).toHaveTextContent(/^Goal$|Goal/i);
     const rows = within(screen.getByTestId('projection-table')).getAllByRole('row');
     expect(rows.length).toBeGreaterThan(2);
     expect(rows.length).toBeLessThan(53);

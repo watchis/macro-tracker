@@ -30,7 +30,7 @@ const HORIZON_PRESETS = [
   { value: '13', label: '3 mo', weeks: 13 },
   { value: '26', label: '6 mo', weeks: 26 },
   { value: '52', label: '1 yr', weeks: 52 },
-  { value: 'goal', label: 'Goal weight' },
+  { value: 'goal', label: 'Goal' },
 ] as const;
 
 type HorizonMode = (typeof HORIZON_PRESETS)[number]['value'];
@@ -291,19 +291,14 @@ export function ProjectionView() {
           : 'Fill in sex, age, height, and intake.';
 
   const fieldClassName =
-    'mt-1 w-full max-w-48 rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none';
+    'mt-1 w-full rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none';
 
   return (
     <section className="grid gap-5" data-testid="projection-view">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Projection</h1>
-        <p className="mt-0.5 text-sm text-muted">
-          Project weight from a steady daily calorie intake.
-        </p>
-      </header>
+      <h1 className="text-xl font-semibold tracking-tight">Projection</h1>
 
-      <article className="card grid gap-5 p-5" data-testid="projection-form">
-        <div className="grid gap-5 sm:grid-cols-2">
+      <article className="card grid gap-6 p-5" data-testid="projection-form">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label
               htmlFor="projection-sex"
@@ -340,7 +335,6 @@ export function ProjectionView() {
             allowEmpty
             placeholder="Required"
             onCommit={(value) => setProjectionProfile({ ageYears: value ?? null })}
-            className="max-w-48"
           />
 
           <NumberField
@@ -357,7 +351,6 @@ export function ProjectionView() {
                 heightCm: value === undefined ? null : toCanonicalCm(value, heightUnit),
               })
             }
-            className="max-w-48"
           />
 
           <div>
@@ -376,16 +369,18 @@ export function ProjectionView() {
                   activity: Number(event.target.value) as ActivityMultiplier,
                 })
               }
-              className="mt-1 w-full rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
+              className={fieldClassName}
             >
               {ACTIVITY_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {option.shortLabel}
                 </option>
               ))}
             </select>
           </div>
+        </div>
 
+        <div className="grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
           <div>
             <label
               htmlFor="projection-start-date"
@@ -431,11 +426,10 @@ export function ProjectionView() {
               allowEmpty
               placeholder={latestWeightKg !== undefined ? 'Latest weigh-in' : 'Required'}
               onCommit={(value) => setStartWeightDisplay(value)}
-              className="max-w-48"
             />
           )}
 
-          <div className="grid gap-2 sm:col-span-2">
+          <div>
             <label
               htmlFor="projection-end-date"
               className="block text-xs font-medium tracking-wide text-muted uppercase"
@@ -451,34 +445,39 @@ export function ProjectionView() {
               onChange={(event) => handleEndDateChange(event.target.value)}
               className={fieldClassName}
             />
-            {!usingEndDate ? (
-              <div className="flex flex-wrap items-end gap-3">
-                <SegmentedControl
-                  label="Projection length"
-                  testId="projection-horizon-preset"
-                  value={horizonMode}
-                  options={horizonOptions}
-                  onChange={setHorizonMode}
-                />
-                {usingGoalWeight ? (
-                  <NumberField
-                    label="Goal weight"
-                    testId="projection-goal-weight"
-                    value={goalWeightDisplay}
-                    unit={weightUnitLabel(weightUnit)}
-                    min={1}
-                    max={weightUnit === 'lb' ? 1000 : 450}
-                    allowEmpty
-                    placeholder="Required"
-                    onCommit={(value) => setGoalWeightDisplay(value)}
-                    className="max-w-48"
-                  />
-                ) : null}
-              </div>
-            ) : null}
           </div>
 
-          <div className="grid gap-2 content-start">
+          {!usingEndDate ? (
+            <div className="grid gap-2">
+              <span className="block text-xs font-medium tracking-wide text-muted uppercase">
+                Horizon
+              </span>
+              <SegmentedControl
+                label="Projection length"
+                testId="projection-horizon-preset"
+                value={horizonMode}
+                options={horizonOptions}
+                onChange={setHorizonMode}
+              />
+              {usingGoalWeight ? (
+                <NumberField
+                  label="Goal weight"
+                  testId="projection-goal-weight"
+                  value={goalWeightDisplay}
+                  unit={weightUnitLabel(weightUnit)}
+                  min={1}
+                  max={weightUnit === 'lb' ? 1000 : 450}
+                  allowEmpty
+                  placeholder="Required"
+                  onCommit={(value) => setGoalWeightDisplay(value)}
+                />
+              ) : null}
+            </div>
+          ) : (
+            <div />
+          )}
+
+          <div className="sm:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-medium tracking-wide text-muted uppercase">
                 Daily intake
@@ -491,7 +490,7 @@ export function ProjectionView() {
                 onChange={setIntakeSource}
               />
             </div>
-            <p data-testid="projection-intake" className="text-sm tabular-nums text-ink">
+            <p data-testid="projection-intake" className="mt-2 text-sm tabular-nums text-ink">
               {intakeFieldValue !== undefined ? `${formatCalories(intakeFieldValue)} kcal` : '—'}
             </p>
           </div>
@@ -501,20 +500,23 @@ export function ProjectionView() {
       {!ready ? (
         <div
           data-testid="projection-incomplete"
-          className="card flex h-32 items-center justify-center p-5 text-sm text-muted"
+          className="card flex items-center justify-center px-5 py-8 text-sm text-muted"
         >
           {incompleteMessage}
         </div>
       ) : result ? (
         <>
-          <article className="card grid gap-3 p-5" data-testid="projection-summary">
-            <h2 className="text-sm font-semibold tracking-tight">Summary</h2>
-            <p className="text-sm text-muted">
-              {formatShortDate(resolvedStartDate)} → {formatShortDate(resolvedEndDate)} ·{' '}
-              {formatCalories(effectiveIntake!)} kcal/day · maintenance{' '}
-              {formatCalories(Math.round(result.startTdeeKcal))} kcal
-            </p>
-            <dl className="grid gap-3 sm:grid-cols-3">
+          <article className="card grid gap-4 p-5" data-testid="projection-chart">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold tracking-tight">Projected weight</h2>
+              <p className="text-xs text-muted" data-testid="projection-summary">
+                {formatShortDate(resolvedStartDate)} → {formatShortDate(resolvedEndDate)} ·{' '}
+                {formatCalories(effectiveIntake!)} kcal/day
+                {actualWeightPoints.length > 0 ? ' · dashed = logged' : ''}
+              </p>
+            </div>
+
+            <dl className="grid grid-cols-3 gap-3">
               <div>
                 <dt className="text-xs font-medium tracking-wide text-muted uppercase">
                   Healthy BMI
@@ -556,15 +558,7 @@ export function ProjectionView() {
                 </dd>
               </div>
             </dl>
-          </article>
 
-          <article className="card grid gap-3 p-4" data-testid="projection-chart">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-sm font-semibold tracking-tight">Projected weight</h2>
-              {actualWeightPoints.length > 0 ? (
-                <p className="text-xs text-muted">Dashed = logged</p>
-              ) : null}
-            </div>
             <LineChart
               testId="projection-weight-chart"
               points={chartPoints}
@@ -594,8 +588,8 @@ export function ProjectionView() {
                   <tr>
                     <th className="px-4 py-2 font-medium">Date</th>
                     <th className="px-4 py-2 font-medium">Weight</th>
-                    <th className="px-4 py-2 font-medium text-right">Calories used</th>
-                    <th className="px-4 py-2 font-medium text-right">Calorie deficit</th>
+                    <th className="px-4 py-2 font-medium text-right">Used</th>
+                    <th className="px-4 py-2 font-medium text-right">Deficit</th>
                   </tr>
                 </thead>
                 <tbody>
