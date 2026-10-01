@@ -53,6 +53,10 @@ describe('ProjectionView', () => {
     expect(
       within(screen.getByTestId('projection-horizon-preset')).getByRole('radio', { name: '1 yr' }),
     ).toHaveAttribute('aria-checked', 'true');
+    // Helper / remnant copy should be gone.
+    expect(screen.queryByText(/Profile fields are saved/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('projection-intake-hint')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('projection-horizon-hint')).not.toBeInTheDocument();
 
     expect(screen.getByTestId('projection-summary')).toBeInTheDocument();
     expect(screen.getByTestId('projection-weight-chart')).toBeInTheDocument();
@@ -81,7 +85,7 @@ describe('ProjectionView', () => {
     });
 
     expect(screen.queryByTestId('projection-weight')).not.toBeInTheDocument();
-    expect(screen.getByTestId('projection-start-weight-hint')).toHaveTextContent(/68/);
+    expect(screen.getByTestId('projection-start-weight')).toHaveTextContent(/68/);
     expect(screen.getByTestId('projection-summary')).toBeInTheDocument();
   });
 
@@ -97,8 +101,8 @@ describe('ProjectionView', () => {
       }),
     );
 
-    expect(screen.getByTestId('projection-horizon-hint')).toHaveTextContent(/3 mo preset/i);
     expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(14);
+    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/3 mo/i);
   });
 
   it('uses an explicit end date instead of presets', () => {
@@ -114,7 +118,6 @@ describe('ProjectionView', () => {
     });
 
     expect(screen.queryByTestId('projection-horizon-preset')).not.toBeInTheDocument();
-    expect(screen.getByTestId('projection-horizon-hint')).toHaveTextContent(/104 weeks/i);
     expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(105);
   });
 
@@ -168,7 +171,6 @@ describe('ProjectionView', () => {
     );
 
     expect(screen.getByTestId('projection-intake')).toHaveTextContent('1,800 kcal');
-    expect(screen.getByTestId('projection-intake-hint')).toHaveTextContent(/2 logged days/i);
-    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/logged average/i);
+    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/1,800/);
   });
 });
