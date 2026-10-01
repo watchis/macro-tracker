@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { STARTER_FOOD_COUNT, STARTER_MANIFEST } from '../../data/starterCatalog';
 import { useStarterFoodPage } from '../../hooks/useStarterFoodPage';
+import { isFoodFavorited } from '../../lib/foodFavorites';
 import { MACROS, formatMacro } from '../../lib/macros';
 import { formatCalories } from '../../lib/totals';
-import { useCustomFoods } from '../../store/selectors';
+import { useCustomFoods, useFoodFavorites } from '../../store/selectors';
 import { useAppStore } from '../../store/useAppStore';
-import type { FoodLibraryItem } from '../../types';
+import type { FoodFavoriteSource, FoodLibraryItem } from '../../types';
 import { ConfirmAction } from './ConfirmAction';
 import { FoodForm } from './FoodForm';
 
@@ -25,9 +26,42 @@ function matchesQuery(item: FoodLibraryItem, query: string): boolean {
   return item.name.toLowerCase().includes(query);
 }
 
+function FavoriteStarButton({
+  source,
+  item,
+  testId,
+}: {
+  source: FoodFavoriteSource;
+  item: FoodLibraryItem;
+  testId: string;
+}) {
+  const favorites = useFoodFavorites();
+  const toggleFoodFavorite = useAppStore((state) => state.toggleFoodFavorite);
+  const favorited = isFoodFavorited(favorites, source, item.name);
+
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      aria-label={favorited ? `Unfavorite ${item.name}` : `Favorite ${item.name}`}
+      aria-pressed={favorited}
+      onClick={() => toggleFoodFavorite(source, item)}
+      className={[
+        'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-base leading-none',
+        favorited
+          ? 'text-accent hover:bg-accent-soft'
+          : 'text-subtle hover:bg-raised hover:text-ink',
+      ].join(' ')}
+    >
+      <span aria-hidden="true">{favorited ? '★' : '☆'}</span>
+    </button>
+  );
+}
+
 /**
  * Custom foods (editable, persisted) plus the bundled whole-foods catalog
- * (read-only, category-filtered, searchable, paginated).
+ * (read-only, category-filtered, searchable, paginated). Star foods to pin them
+ * as Day quick-add favorites.
  */
 export function FoodLibrarySettings() {
   const customFoods = useCustomFoods();
@@ -115,8 +149,13 @@ export function FoodLibrarySettings() {
                     }}
                   />
                 ) : (
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <FavoriteStarButton
+                      source="custom"
+                      item={item}
+                      testId={`food-favorite-${index}`}
+                    />
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-ink">{item.name}</p>
                       <p className="mt-0.5 text-xs text-muted">
                         {formatCalories(item.calories)} kcal per {item.grams} g ·{' '}
@@ -230,13 +269,20 @@ export function FoodLibrarySettings() {
             page.items.map((item) => (
               <li
                 key={`starter-${item.categoryId}-${item.fdcId ?? item.name}`}
-                className="rounded-md px-2 py-2 text-sm hover:bg-raised"
+                className="flex items-start gap-1 rounded-md px-1 py-2 text-sm hover:bg-raised"
               >
-                <p className="font-medium text-ink">{item.name}</p>
-                <p className="text-xs text-muted">
-                  {formatCalories(item.calories)} kcal / {item.grams} g · {macroSummary(item)}
-                  {searching || !categoryId ? ` · ${item.categoryLabel}` : ''}
-                </p>
+                <FavoriteStarButton
+                  source="starter"
+                  item={item}
+                  testId={`starter-favorite-${item.fdcId ?? item.name}`}
+                />
+                <div className="min-w-0 pt-1">
+                  <p className="font-medium text-ink">{item.name}</p>
+                  <p className="text-xs text-muted">
+                    {formatCalories(item.calories)} kcal / {item.grams} g · {macroSummary(item)}
+                    {searching || !categoryId ? ` · ${item.categoryLabel}` : ''}
+                  </p>
+                </div>
               </li>
             ))
           )}

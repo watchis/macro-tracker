@@ -23,6 +23,7 @@ describe('defaults', () => {
     expect(state.version).toBe(STORE_VERSION);
     expect(state.days).toEqual({});
     expect(state.foodLibrary).toEqual([]);
+    expect(state.foodFavorites).toEqual([]);
     expect(state.settings.themeMode).toBe('system');
     expect(state.settings.accent).toBe(DEFAULT_ACCENT);
     expect(state.settings.visibleMacros).toEqual(['protein', 'carbs', 'fat']);
@@ -117,6 +118,46 @@ describe('food library', () => {
     store().updateFood(99, { name: 'Nope' });
     expect(store().foodLibrary).toEqual(before);
   });
+
+  it('manually stars and unstars foods without auto-favoriting customs', () => {
+    store().resetAll();
+    store().addFood({ name: 'Tofu', grams: 100, calories: 76, macros: { protein: 8 } });
+    expect(store().foodFavorites).toEqual([]);
+
+    store().toggleFoodFavorite('custom', store().foodLibrary[0]!);
+    expect(store().foodFavorites).toEqual([
+      expect.objectContaining({ source: 'custom', name: 'Tofu', calories: 76 }),
+    ]);
+
+    store().toggleFoodFavorite('starter', {
+      name: 'Banana',
+      grams: 100,
+      calories: 89,
+      macros: { carbs: 23 },
+    });
+    expect(store().foodFavorites).toHaveLength(2);
+
+    store().updateFood(0, { name: 'Firm tofu', calories: 80 });
+    expect(store().foodFavorites).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: 'custom', name: 'Firm tofu', calories: 80 }),
+        expect.objectContaining({ source: 'starter', name: 'Banana' }),
+      ]),
+    );
+
+    store().removeFood(0);
+    expect(store().foodFavorites).toEqual([
+      expect.objectContaining({ source: 'starter', name: 'Banana' }),
+    ]);
+
+    store().toggleFoodFavorite('starter', {
+      name: 'Banana',
+      grams: 100,
+      calories: 89,
+      macros: { carbs: 23 },
+    });
+    expect(store().foodFavorites).toEqual([]);
+  });
 });
 
 describe('settings', () => {
@@ -192,6 +233,7 @@ describe('persistence', () => {
     expect(persisted.version).toBe(STORE_VERSION);
     expect(Object.keys(persisted.state).sort()).toEqual([
       'days',
+      'foodFavorites',
       'foodLibrary',
       'settings',
       'version',
@@ -287,6 +329,7 @@ describe('export, import and reset', () => {
       macros: {},
     });
     expect(state.foodLibrary).toEqual([]);
+    expect(state.foodFavorites).toEqual([]);
     expect(state.settings.themeMode).toBe('system');
     expect(state.settings.accent).toBe(DEFAULT_ACCENT);
     expect(state.settings.visibleMacros).toEqual(['protein']);
@@ -303,6 +346,7 @@ describe('export, import and reset', () => {
     const defaults = defaultPersistedState();
     expect(store().days).toEqual({});
     expect(store().foodLibrary).toEqual(defaults.foodLibrary);
+    expect(store().foodFavorites).toEqual(defaults.foodFavorites);
     expect(store().settings).toEqual(defaults.settings);
   });
 });
@@ -343,6 +387,7 @@ describe('mergePersistedState', () => {
 
     expect(merged.days).toEqual({});
     expect(merged.foodLibrary).toEqual([]);
+    expect(merged.foodFavorites).toEqual([]);
     expect(merged.settings).toEqual(defaultPersistedState().settings);
   });
 

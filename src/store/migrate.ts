@@ -10,6 +10,8 @@ import type {
   DataRetentionPolicy,
   DateKey,
   FoodEntry,
+  FoodFavorite,
+  FoodFavoriteSource,
   FoodLibraryItem,
   Goals,
   MacroKey,
@@ -73,23 +75,50 @@ function parseWeights(value: unknown): Record<DateKey, number> {
   return weights;
 }
 
+function parseLibraryItem(value: unknown): FoodLibraryItem | null {
+  if (!isRecord(value)) return null;
+  const name = str(value.name, '').trim();
+  if (name === '') return null;
+  const grams = num(value.grams, 100);
+  return {
+    name,
+    grams: grams > 0 ? grams : 100,
+    calories: num(value.calories, 0),
+    macros: normalizeMacros(isRecord(value.macros) ? (value.macros as never) : undefined),
+  };
+}
+
 function parseLibrary(value: unknown): FoodLibraryItem[] {
   if (!Array.isArray(value)) return [];
   const items: FoodLibraryItem[] = [];
   for (const raw of value) {
-    if (!isRecord(raw)) continue;
-    const name = str(raw.name, '').trim();
-    if (name === '') continue;
+    const item = parseLibraryItem(raw);
+    if (!item) continue;
     // Drop the original five seeded defaults so they do not duplicate the
     // bundled starter catalog after upgrade. True custom foods are kept.
-    if (isLegacyStarterName(name)) continue;
-    const grams = num(raw.grams, 100);
-    items.push({
-      name,
-      grams: grams > 0 ? grams : 100,
-      calories: num(raw.calories, 0),
-      macros: normalizeMacros(isRecord(raw.macros) ? (raw.macros as never) : undefined),
-    });
+    if (isLegacyStarterName(item.name)) continue;
+    items.push(item);
+  }
+  return items;
+}
+
+function parseFavoriteSource(value: unknown): FoodFavoriteSource | null {
+  return value === 'custom' || value === 'starter' ? value : null;
+}
+
+function parseFavorites(value: unknown): FoodFavorite[] {
+  if (!Array.isArray(value)) return [];
+  const items: FoodFavorite[] = [];
+  const seen = new Set<string>();
+  for (const raw of value) {
+    if (!isRecord(raw)) continue;
+    const source = parseFavoriteSource(raw.source);
+    const item = parseLibraryItem(raw);
+    if (!source || !item) continue;
+    const key = `${source}:${item.name.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({ ...item, source });
   }
   return items;
 }
@@ -164,6 +193,7 @@ export function parsePersistedState(value: unknown): PersistedState {
     days: parseDays(value.days),
     weights: parseWeights(value.weights),
     foodLibrary: parseLibrary(value.foodLibrary),
+    foodFavorites: parseFavorites(value.foodFavorites),
     settings: parseSettings(value.settings),
   };
 }

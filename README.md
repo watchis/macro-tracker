@@ -27,7 +27,8 @@ and `Escape` cancels it; only the name is required. The footer totals each colum
 and `Quick add` logs a food from your library scaled from its reference weight to the grams you
 enter. An optional **weight** field (lb or kg) records a daily weigh-in for Home's charts.
 
-**Food library** is a searchable whole-foods catalog plus your custom foods; Day's quick-add
+**Food library** is a searchable whole-foods catalog plus your custom foods. Star any food
+to pin it as a favorite; Day's quick-add shows starred foods when the search is empty and
 scales them by grams when you log.
 
 **Settings** covers theme, accent color, weight unit, visible macros, calorie and macro goals, JSON
@@ -89,7 +90,8 @@ The food library ships a curated **whole-foods catalog** (~300 everyday foods wi
 nutrition values primarily from [USDA FoodData Central](https://fdc.nal.usda.gov/)), split into
 category JSON files under `src/data/starter/` and **lazy-loaded** as you browse or search.
 Regenerate with `python3 scripts/build-whole-foods-catalog.py`. Custom foods you add in the Food
-library view are persisted separately and appear first in quick-add.
+library view are persisted separately. Star custom or catalog foods to pin them as favorites for
+Day quick-add (favorites appear when the search field is empty; they are not auto-assigned).
 
 ## Theming
 
