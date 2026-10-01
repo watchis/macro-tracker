@@ -179,7 +179,7 @@ describe('GoalsView', () => {
     expect(screen.getByTestId('projection-series-logged')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('chart-series-logged-formula')).toBeInTheDocument();
     expect(screen.getByTestId('projection-series-legend')).toHaveTextContent(/Logged · Formula/);
-    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/other scenario/);
+    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/Goal · Formula/);
   });
 
   it('overlays from-logs maintenance on the chart when toggled', async () => {

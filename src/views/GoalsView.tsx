@@ -4,13 +4,7 @@ import { MacroSettings } from '../components/settings/MacroSettings';
 import { NumberField } from '../components/settings/NumberField';
 import { SegmentedControl } from '../components/settings/SegmentedControl';
 import { SettingsSection } from '../components/settings/SettingsSection';
-import {
-  ageYearsFromBirthday,
-  formatLongDate,
-  formatShortDate,
-  fromDateKey,
-  todayKey,
-} from '../lib/dates';
+import { ageYearsFromBirthday, formatShortDate, fromDateKey, todayKey } from '../lib/dates';
 import {
   fromCanonicalCm,
   heightUnitForWeightUnit,
@@ -115,13 +109,7 @@ function toChartPoints(
 export function GoalsView() {
   return (
     <div className="grid gap-5" data-testid="goals-view">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Goals</h1>
-        <p className="mt-0.5 text-sm text-muted">
-          Set calorie and macro targets, then project how weight changes if you hold a steady daily
-          intake.
-        </p>
-      </header>
+      <h1 className="text-xl font-semibold tracking-tight">Goals</h1>
 
       <SettingsSection id="goals" title="Goals and macros">
         <MacroSettings />
@@ -362,11 +350,7 @@ function WeightProjectionSection() {
 
   return (
     <section className="grid gap-5" data-testid="projection-section">
-      <SettingsSection
-        id="projection"
-        title="Weight projection"
-        description="Estimate how weight changes under different intake and maintenance assumptions. Toggle Goal, Logged avg, Formula, and From logs on the chart to compare scenarios."
-      >
+      <SettingsSection id="projection" title="Weight projection">
         <div className="grid gap-5" data-testid="projection-form">
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
@@ -491,21 +475,10 @@ function WeightProjectionSection() {
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-subtle" data-testid="projection-activity-hint">
-                Used by Formula scenarios. From logs estimates maintenance from weigh-ins and food
-                days
-                {logMaintenance
-                  ? ` (~${formatCalories(logMaintenance.maintenanceKcal)} kcal/day).`
-                  : '.'}
-              </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-            <p className="text-xs text-subtle">
-              Profile fields are saved with your Goals. Chart toggles compare intake and maintenance
-              scenarios without leaving this page.
-            </p>
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line pt-4">
             <SegmentedControl
               label="Projection length"
               testId="projection-weeks"
@@ -529,20 +502,25 @@ function WeightProjectionSection() {
         <>
           <article className="card grid gap-3 p-5" data-testid="projection-summary">
             <h2 className="text-sm font-semibold tracking-tight">Summary</h2>
-            <p className="text-sm text-muted">
-              Showing <span className="text-ink">{primary.label}</span> from{' '}
-              {formatLongDate(startDate)}, eating {formatCalories(primary.intakeKcal)} kcal/day.
-              Starting maintenance is about{' '}
-              {formatCalories(Math.round(primary.result.startTdeeKcal))} kcal/day
-              {primary.maintenance === 'logs'
-                ? ' (from logs)'
-                : ` (BMR ${formatCalories(Math.round(primary.result.startBmrKcal))} × activity)`}
-              .
-              {scenarios.length > 1
-                ? ` ${scenarios.length - 1} other scenario${scenarios.length === 2 ? '' : 's'} on the chart.`
-                : ''}
-            </p>
             <dl className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-muted uppercase">Scenario</dt>
+                <dd className="mt-1 text-sm text-ink">{primary.label}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-muted uppercase">Intake</dt>
+                <dd className="mt-1 text-sm tabular-nums text-ink">
+                  {formatCalories(primary.intakeKcal)} kcal/day
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium tracking-wide text-muted uppercase">
+                  Starting maintenance
+                </dt>
+                <dd className="mt-1 text-sm tabular-nums text-ink">
+                  {formatCalories(Math.round(primary.result.startTdeeKcal))} kcal/day
+                </dd>
+              </div>
               <div>
                 <dt className="text-xs font-medium tracking-wide text-muted uppercase">
                   Healthy BMI range
@@ -590,10 +568,7 @@ function WeightProjectionSection() {
           </article>
 
           <article className="card grid gap-3 p-4" data-testid="projection-chart">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-sm font-semibold tracking-tight">Projected weight</h2>
-              <p className="text-xs text-muted">Toggle series below to compare paths</p>
-            </div>
+            <h2 className="text-sm font-semibold tracking-tight">Projected weight</h2>
 
             <div className="grid gap-2" data-testid="projection-series-toggles">
               <SeriesToggleGroup label="Intake">
@@ -713,10 +688,6 @@ function WeightProjectionSection() {
           <article className="card overflow-hidden p-0" data-testid="projection-table">
             <div className="border-b border-line px-4 py-3">
               <h2 className="text-sm font-semibold tracking-tight">Weekly table</h2>
-              <p className="mt-0.5 text-xs text-muted">
-                {primary.label}: calories used are maintenance at that week&apos;s weight. Deficit
-                is maintenance minus planned intake.
-              </p>
             </div>
             <div className="max-h-[28rem] overflow-auto">
               <table className="w-full min-w-[28rem] border-collapse text-sm">
