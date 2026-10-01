@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProjectionView } from './ProjectionView';
 import { useAppStore } from '../store/useAppStore';
@@ -31,9 +31,14 @@ describe('ProjectionView', () => {
     await user.clear(height);
     await user.type(height, '70');
 
-    // Starting weight and intake are prefilled from the latest weigh-in and goal.
-    expect(screen.getByTestId('projection-weight')).toHaveValue('200');
-    expect(screen.getByTestId('projection-intake')).toHaveValue('1800');
+    // Start weight comes from the nearest weigh-in; intake from the calorie goal.
+    expect(screen.getByTestId('projection-start-weight-hint')).toHaveTextContent(/200/);
+    expect(screen.getByTestId('projection-intake')).toHaveTextContent('1,800 kcal');
+    expect(screen.getByTestId('projection-start-date')).toBeInTheDocument();
+    expect(screen.getByTestId('projection-end-date')).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Custom' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'From logs' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: '6 mo' })).not.toBeInTheDocument();
 
     expect(screen.getByTestId('projection-summary')).toBeInTheDocument();
     expect(screen.getByTestId('projection-weight-chart')).toBeInTheDocument();
@@ -51,8 +56,7 @@ describe('ProjectionView', () => {
     });
   });
 
-  it('can lengthen the projection to two years', async () => {
-    const user = userEvent.setup();
+  it('uses start and end dates to set the projection horizon', () => {
     useAppStore.getState().setProjectionProfile({
       sex: 'female',
       ageYears: 30,
@@ -65,9 +69,14 @@ describe('ProjectionView', () => {
 
     render(<ProjectionView />);
 
-    await user.click(
-      within(screen.getByTestId('projection-weeks')).getByRole('radio', { name: '2 yr' }),
-    );
+    fireEvent.change(screen.getByTestId('projection-start-date'), {
+      target: { value: '2026-10-01' },
+    });
+    fireEvent.change(screen.getByTestId('projection-end-date'), {
+      target: { value: '2028-09-28' }, // 104 weeks = 728 days after start
+    });
+
+    expect(screen.getByTestId('projection-horizon-hint')).toHaveTextContent(/104 weeks/i);
 
     const rows = within(screen.getByTestId('projection-table')).getAllByRole('row');
     // header + 104 weekly rows
@@ -91,7 +100,7 @@ describe('ProjectionView', () => {
 
     render(<ProjectionView />);
 
-    expect(screen.getByTestId('projection-intake')).toHaveValue('2200');
+    expect(screen.getByTestId('projection-intake')).toHaveTextContent('2,200 kcal');
 
     await user.click(
       within(screen.getByTestId('projection-intake-source')).getByRole('radio', {
@@ -99,39 +108,8 @@ describe('ProjectionView', () => {
       }),
     );
 
-    expect(screen.getByTestId('projection-intake')).toHaveValue('1800');
+    expect(screen.getByTestId('projection-intake')).toHaveTextContent('1,800 kcal');
     expect(screen.getByTestId('projection-intake-hint')).toHaveTextContent(/2 logged days/i);
     expect(screen.getByTestId('projection-summary')).toHaveTextContent(/logged average/i);
-  });
-
-  it('can estimate maintenance from weigh-ins and food logs', async () => {
-    const user = userEvent.setup();
-    const store = useAppStore.getState();
-    store.setProjectionProfile({
-      sex: 'male',
-      ageYears: 35,
-      heightCm: 178,
-      activity: 1.2,
-    });
-    store.setCalorieGoal(1800);
-    store.setWeightUnit('lb');
-    store.setWeight('2026-09-01', 200, 'lb');
-    store.setWeight('2026-09-15', 198, 'lb');
-    for (let day = 1; day <= 15; day += 1) {
-      const key = `2026-09-${String(day).padStart(2, '0')}`;
-      store.addEntry(key, { name: 'Meal', grams: 100, calories: 1800, macros: {} });
-    }
-
-    render(<ProjectionView />);
-
-    await user.click(
-      within(screen.getByTestId('projection-maintenance-source')).getByRole('radio', {
-        name: 'From logs',
-      }),
-    );
-
-    expect(screen.getByTestId('projection-maintenance-hint')).toHaveTextContent(/Estimated/i);
-    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/from logs/i);
-    expect(screen.queryByTestId('projection-activity')).not.toBeInTheDocument();
   });
 });

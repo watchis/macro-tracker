@@ -32,6 +32,27 @@ export function weightSeries(weights: Record<DateKey, number>): DatedPoint[] {
     }));
 }
 
+/**
+ * Weigh-in on `date`, else the latest on or before it, else the earliest after.
+ * Returns `undefined` when there are no weigh-ins at all.
+ */
+export function weightNearDate(
+  weights: Record<DateKey, number>,
+  date: DateKey,
+): DatedPoint | undefined {
+  const series = weightSeries(weights);
+  if (series.length === 0) return undefined;
+
+  const exact = series.find((point) => point.date === date);
+  if (exact) return exact;
+
+  for (let index = series.length - 1; index >= 0; index -= 1) {
+    const point = series[index]!;
+    if (point.date <= date) return point;
+  }
+  return series[0];
+}
+
 /** Daily calorie totals for every day that has at least one food entry. */
 export function calorieSeries(days: Record<DateKey, FoodEntry[]>): DatedPoint[] {
   return Object.keys(days)

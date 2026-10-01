@@ -3,6 +3,7 @@ import {
   addDays,
   addMonths,
   buildMonthGrid,
+  daysBetween,
   daysInMonth,
   fromDateKey,
   isDateKey,
@@ -37,6 +38,13 @@ describe('date keys', () => {
     expect(addDays('2026-09-30', 1)).toBe('2026-10-01');
     expect(addDays('2026-01-01', -1)).toBe('2025-12-31');
     expect(addDays('2024-02-28', 1)).toBe('2024-02-29');
+  });
+
+  it('counts whole calendar days between keys', () => {
+    expect(daysBetween('2026-10-01', '2026-10-01')).toBe(0);
+    expect(daysBetween('2026-10-01', '2026-10-08')).toBe(7);
+    expect(daysBetween('2026-10-08', '2026-10-01')).toBe(-7);
+    expect(daysBetween('2026-10-01', '2027-09-30')).toBe(364);
   });
 });
 

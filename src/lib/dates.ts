@@ -36,6 +36,11 @@ export function addDays(key: DateKey, days: number): DateKey {
   return toDateKey(date);
 }
 
+/** Whole calendar days from `from` to `to` (negative when `to` is earlier). */
+export function daysBetween(from: DateKey, to: DateKey): number {
+  return Math.round((fromDateKey(to).getTime() - fromDateKey(from).getTime()) / 86_400_000);
+}
+
 export function monthKeyOf(key: DateKey): MonthKey {
   return key.slice(0, 7);
 }
