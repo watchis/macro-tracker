@@ -209,17 +209,16 @@ export function LineChart({
                 fill="transparent"
                 className="cursor-pointer"
                 role="img"
+                aria-label={
+                  pointTooltip?.(point) ??
+                  `${formatShortDate(point.date)}: ${valueLabel(point.value)}`
+                }
                 aria-describedby={active ? tooltipId : undefined}
                 onMouseEnter={() => setHovered(point)}
                 onFocus={() => setHovered(point)}
                 onBlur={() => setHovered((current) => (current === point ? null : current))}
                 tabIndex={0}
-              >
-                <title>
-                  {pointTooltip?.(point) ??
-                    `${formatShortDate(point.date)}: ${valueLabel(point.value)}`}
-                </title>
-              </circle>
+              />
             </g>
           );
         })}
