@@ -1,4 +1,5 @@
 import type { FoodLibraryItem, PersistedState, Settings } from '../types';
+import { DEFAULT_ACTIVITY } from '../lib/projection';
 
 /** localStorage key for the whole persisted store. Bump with a migration, never in place. */
 export const STORAGE_KEY = 'macro-tracker/v1';
@@ -19,6 +20,12 @@ export const DEFAULT_SETTINGS: Settings = {
   weekStart: 'sunday',
   autoOptimizeThreshold: 90,
   weightUnit: 'lb',
+  projection: {
+    sex: null,
+    ageYears: null,
+    heightCm: null,
+    activity: DEFAULT_ACTIVITY,
+  },
 };
 
 /**
@@ -45,6 +52,7 @@ export function defaultPersistedState(): PersistedState {
         calories: DEFAULT_SETTINGS.goals.calories,
         macros: { ...DEFAULT_SETTINGS.goals.macros },
       },
+      projection: { ...DEFAULT_SETTINGS.projection },
     },
   };
 }

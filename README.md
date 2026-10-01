@@ -8,8 +8,8 @@ Live at **https://watchis.github.io/macro-tracker/**
 
 ## Using it
 
-Four header views — they are app state rather than routes, so GitHub Pages never has to serve a
-deep link. Opening a day from the calendar is a fifth screen that is not in the nav.
+Five header views — they are app state rather than routes, so GitHub Pages never has to serve a
+deep link. Opening a day from the calendar is a sixth screen that is not in the nav.
 
 **Home** is the landing dashboard: today and last-7-day snapshots, latest weight, a compact month
 calendar (‹ / Today / › to change months; tap a day to select it, tap again to open its log), and
@@ -31,6 +31,14 @@ enter. An optional **weight** field (lb or kg) records a daily weigh-in for Home
 **Food library** is a searchable whole-foods catalog plus your custom foods. Star any food
 to pin it as a favorite; Day's quick-add shows starred foods when the search is empty and
 scales them by grams when you log.
+
+**Projection** estimates future weight from a body profile (sex, age, height, activity) and a planned
+daily calorie intake, using Mifflin–St Jeor maintenance that shrinks as weight changes. Intake can
+come from your calorie goal, a recent logged average, or a custom value; maintenance can use the
+activity formula or be inferred from weigh-ins plus food logs. It shows a summary, a weight chart
+(with logged weigh-ins overlaid), and a weekly table of weight, calories used, and calorie deficit —
+in the spirit of [LoserTown's calculator](https://www.losertown.org/eats/cal.php). Starting weight
+defaults to your latest weigh-in.
 
 **Settings** covers theme, accent color, weight unit, visible macros, calorie and macro goals, JSON
 import/export, local storage usage, and retention for old day logs.
@@ -78,10 +86,10 @@ src/
   App.tsx              app shell: header, active view, budget bar
   components/          AppHeader, BudgetBar, MacroChip
   components/settings/ settings form controls, accent picker, import/export, data retention
-  views/               HomeView, CalendarView, DayView, FoodLibraryView, SettingsView
+  views/               HomeView, CalendarView, DayView, FoodLibraryView, ProjectionView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
   data/                whole-foods catalog (lazy category JSON under starter/)
-  lib/                 date keys, macro metadata, totals, weight conversion, chart series
+  lib/                 date keys, macro metadata, totals, weight conversion, chart series, projection
   components/charts/   SVG line and bar charts for the Home view
   theme/               data-theme + accent application, color helpers
   index.css            palette custom properties and Tailwind theme mapping

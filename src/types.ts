@@ -57,6 +57,28 @@ export type WeekStart = 'sunday' | 'monday';
 /** Preferred unit for entering and charting body weight. Stored weights are always kg. */
 export type WeightUnit = 'lb' | 'kg';
 
+/** Biological sex for the weight-loss projection (Mifflin–St Jeor). */
+export type Sex = 'male' | 'female';
+
+/**
+ * Activity multiplier applied to BMR for TDEE. Matches the common five-level
+ * scale used by calorie-maintenance calculators like LoserTown.
+ */
+export type ActivityMultiplier = 1.2 | 1.375 | 1.55 | 1.725 | 1.9;
+
+/**
+ * Body profile for forward weight projection. Optional fields stay `null` until
+ * the user fills them in; the Projection view prompts for anything missing.
+ */
+export type ProjectionProfile = {
+  sex: Sex | null;
+  /** Whole years; `null` when unset. */
+  ageYears: number | null;
+  /** Height in centimeters; `null` when unset. */
+  heightCm: number | null;
+  activity: ActivityMultiplier;
+};
+
 export type Goals = {
   calories: number;
   macros: MacroAmounts;
@@ -76,6 +98,8 @@ export type Settings = {
   autoOptimizeThreshold: number | null;
   /** Display/entry unit for body weight; persisted values stay in kilograms. */
   weightUnit: WeightUnit;
+  /** Inputs for the LoserTown-style calorie → weight projection. */
+  projection: ProjectionProfile;
 };
 
 export type PersistedState = {
@@ -101,4 +125,4 @@ export type PersistedState = {
  * Views are switched in app state; there is no router (GitHub Pages has no rewrites).
  * `day` is reachable by opening a calendar cell, not from the header nav.
  */
-export type ViewName = 'home' | 'calendar' | 'day' | 'library' | 'settings';
+export type ViewName = 'home' | 'calendar' | 'day' | 'library' | 'projection' | 'settings';

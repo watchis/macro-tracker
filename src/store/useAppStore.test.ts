@@ -183,6 +183,26 @@ describe('settings', () => {
     expect('fiber' in store().settings.goals.macros).toBe(false);
   });
 
+  it('saves a projection profile and rejects out-of-range values', () => {
+    store().setProjectionProfile({
+      sex: 'female',
+      ageYears: 42,
+      heightCm: 170,
+      activity: 1.55,
+    });
+    expect(store().settings.projection).toEqual({
+      sex: 'female',
+      ageYears: 42,
+      heightCm: 170,
+      activity: 1.55,
+    });
+
+    store().setProjectionProfile({ ageYears: 999, heightCm: 10, activity: 3 as never });
+    expect(store().settings.projection.ageYears).toBeNull();
+    expect(store().settings.projection.heightCm).toBeNull();
+    expect(store().settings.projection.activity).toBe(1.55);
+  });
+
   it('clamps a negative calorie goal to zero', () => {
     store().setCalorieGoal(-500);
     expect(store().settings.goals.calories).toBe(0);
