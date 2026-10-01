@@ -90,6 +90,24 @@ export function isToday(key: DateKey, now: Date = new Date()): boolean {
   return key === toDateKey(now);
 }
 
+/**
+ * Whole years of age on `on` (defaults to today), based on a birthday date key.
+ * Returns `null` when the birthday is invalid or in the future relative to `on`.
+ */
+export function ageYearsFromBirthday(birthday: DateKey, on: Date = new Date()): number | null {
+  if (!isDateKey(birthday)) return null;
+  const birth = fromDateKey(birthday);
+  const asOf = new Date(on.getFullYear(), on.getMonth(), on.getDate());
+  if (birth > asOf) return null;
+
+  let age = asOf.getFullYear() - birth.getFullYear();
+  const monthDelta = asOf.getMonth() - birth.getMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && asOf.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
+
 /** e.g. `Thursday, September 17, 2026`. */
 export function formatLongDate(key: DateKey): string {
   return fromDateKey(key).toLocaleDateString(undefined, {

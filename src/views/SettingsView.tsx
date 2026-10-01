@@ -1,7 +1,6 @@
 import { AccentPicker } from '../components/settings/AccentPicker';
 import { DataSettings } from '../components/settings/DataSettings';
 import { ImportExportSettings } from '../components/settings/ImportExportSettings';
-import { MacroSettings } from '../components/settings/MacroSettings';
 import { SegmentedControl } from '../components/settings/SegmentedControl';
 import { SettingsSection } from '../components/settings/SettingsSection';
 import { useAppStore } from '../store/useAppStore';
@@ -34,10 +33,6 @@ export function SettingsView() {
   return (
     <div className="grid gap-5">
       <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
-
-      <SettingsSection id="goals" title="Goals and macros">
-        <MacroSettings />
-      </SettingsSection>
 
       <SettingsSection id="appearance" title="Appearance">
         <div className="grid gap-5">

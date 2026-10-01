@@ -22,7 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   weightUnit: 'lb',
   projection: {
     sex: null,
-    ageYears: null,
+    birthday: null,
     heightCm: null,
     activity: DEFAULT_ACTIVITY,
   },

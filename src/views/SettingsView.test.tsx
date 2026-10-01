@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SettingsView } from './SettingsView';
-import { BudgetBar } from '../components/BudgetBar';
 import { STORAGE_KEY } from '../store/defaults';
 import { useAppStore } from '../store/useAppStore';
 
@@ -65,90 +64,15 @@ describe('SettingsView appearance', () => {
   });
 });
 
-describe('SettingsView goals', () => {
-  it('validates the calorie goal and keeps the last valid value', async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-    const input = screen.getByTestId('calorie-goal-input');
-
-    await user.clear(input);
-    await user.type(input, '1800');
-    expect(state().settings.goals.calories).toBe(1800);
-
-    await user.clear(input);
-    await user.type(input, '-5');
-    expect(screen.getByRole('alert')).toHaveTextContent('Must be 0 or more.');
-    expect(state().settings.goals.calories).toBe(1800);
-  });
-
-  it('sets and clears per-macro goals', async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-
-    const fiber = screen.getByTestId('macro-goal-fiber');
-    await user.type(fiber, '30');
-    expect(state().settings.goals.macros.fiber).toBe(30);
-
-    await user.clear(screen.getByTestId('macro-goal-protein'));
-    expect(state().settings.goals.macros.protein).toBeUndefined();
-  });
-
-  it('rejects a macro goal that is not a number', async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-
-    await user.type(screen.getByTestId('macro-goal-carbs'), 'abc');
-
-    expect(screen.getByRole('alert')).toHaveTextContent('Enter a number.');
-    expect(state().settings.goals.macros.carbs).toBe(200);
-  });
-});
-
-describe('SettingsView macro visibility', () => {
-  it('shows and hides macros, in the canonical order', async () => {
-    const user = userEvent.setup();
-    render(<SettingsView />);
-
-    await user.click(screen.getByTestId('macro-toggle-fiber'));
-    expect(state().settings.visibleMacros).toEqual(['protein', 'carbs', 'fat', 'fiber']);
-
-    await user.click(screen.getByTestId('macro-toggle-carbs'));
-    expect(state().settings.visibleMacros).toEqual(['protein', 'fat', 'fiber']);
-    expect(screen.getByTestId('macro-toggle-carbs')).not.toBeChecked();
-  });
-
-  it('drives which chips the budget bar renders', async () => {
-    const user = userEvent.setup();
-    render(
-      <>
-        <SettingsView />
-        <BudgetBar date="2026-09-17" />
-      </>,
-    );
-
-    expect(screen.getByTestId('macro-chip-carbs')).toBeInTheDocument();
-    expect(screen.queryByTestId('macro-chip-sodium')).not.toBeInTheDocument();
-
-    await user.click(screen.getByTestId('macro-toggle-carbs'));
-    await user.click(screen.getByTestId('macro-toggle-sodium'));
-
-    expect(screen.queryByTestId('macro-chip-carbs')).not.toBeInTheDocument();
-    expect(screen.getByTestId('macro-chip-sodium')).toBeInTheDocument();
-  });
-});
-
 describe('SettingsView section order', () => {
-  it('lists goals, appearance, import/export, then data', () => {
+  it('lists appearance, import/export, then data', () => {
     render(<SettingsView />);
 
-    const goals = screen.getByTestId('settings-section-goals');
     const appearance = screen.getByTestId('settings-section-appearance');
     const importExport = screen.getByTestId('settings-section-import-export');
     const data = screen.getByTestId('settings-section-data');
 
-    expect(
-      goals.compareDocumentPosition(appearance) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(screen.queryByTestId('settings-section-goals')).not.toBeInTheDocument();
     expect(
       appearance.compareDocumentPosition(importExport) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
@@ -269,7 +193,6 @@ describe('SettingsView data', () => {
     expect(state().settings.goals.calories).toBe(1234);
     expect(state().days['2025-01-10']).toBeUndefined();
     expect(state().days['2026-09-17']?.[0]?.name).toBe('New');
-    expect(screen.getByTestId('calorie-goal-input')).toHaveValue('1234');
     expect(screen.getByTestId('data-status')).toHaveTextContent(/Freed|Nothing to remove/);
   });
 });

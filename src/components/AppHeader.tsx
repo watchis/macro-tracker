@@ -8,7 +8,7 @@ const NAV_ITEMS: ReadonlyArray<{ view: ViewName; label: string }> = [
   { view: 'home', label: 'Home' },
   { view: 'calendar', label: 'Calendar' },
   { view: 'library', label: 'Food library' },
-  { view: 'projection', label: 'Projection' },
+  { view: 'goals', label: 'Goals' },
   { view: 'settings', label: 'Settings' },
 ];
 

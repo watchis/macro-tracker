@@ -186,19 +186,23 @@ describe('settings', () => {
   it('saves a projection profile and rejects out-of-range values', () => {
     store().setProjectionProfile({
       sex: 'female',
-      ageYears: 42,
+      birthday: '1984-03-15',
       heightCm: 170,
       activity: 1.55,
     });
     expect(store().settings.projection).toEqual({
       sex: 'female',
-      ageYears: 42,
+      birthday: '1984-03-15',
       heightCm: 170,
       activity: 1.55,
     });
 
-    store().setProjectionProfile({ ageYears: 999, heightCm: 10, activity: 3 as never });
-    expect(store().settings.projection.ageYears).toBeNull();
+    store().setProjectionProfile({
+      birthday: '1800-01-01',
+      heightCm: 10,
+      activity: 3 as never,
+    });
+    expect(store().settings.projection.birthday).toBeNull();
     expect(store().settings.projection.heightCm).toBeNull();
     expect(store().settings.projection.activity).toBe(1.55);
   });
