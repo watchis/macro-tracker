@@ -43,14 +43,13 @@ describe('ProjectionView', () => {
     await user.clear(height);
     await user.type(height, '70');
 
-    // Start weight comes from the nearest weigh-in; intake from the calorie goal.
-    expect(screen.getByTestId('projection-start-weight-hint')).toHaveTextContent(/200/);
+    // No start date → manual starting weight (prefilled from latest weigh-in).
+    expect(screen.getByTestId('projection-start-date')).toHaveValue('');
+    expect(screen.getByTestId('projection-weight')).toHaveValue('200');
     expect(screen.getByTestId('projection-intake')).toHaveTextContent('1,800 kcal');
-    expect(screen.getByTestId('projection-start-date')).toBeInTheDocument();
     expect(screen.getByTestId('projection-end-date')).toHaveValue('');
     expect(screen.queryByRole('radio', { name: 'Custom' })).not.toBeInTheDocument();
     expect(screen.queryByRole('radio', { name: 'From logs' })).not.toBeInTheDocument();
-    // No end date → duration presets are available.
     expect(
       within(screen.getByTestId('projection-horizon-preset')).getByRole('radio', { name: '1 yr' }),
     ).toHaveAttribute('aria-checked', 'true');
@@ -69,6 +68,21 @@ describe('ProjectionView', () => {
       heightCm: 177.8,
       activity: 1.2,
     });
+  });
+
+  it('uses a weigh-in near the start date when a start date is set', () => {
+    seedReadyProfile();
+    useAppStore.getState().setWeight('2026-10-01', 68, 'kg');
+
+    render(<ProjectionView />);
+
+    fireEvent.change(screen.getByTestId('projection-start-date'), {
+      target: { value: '2026-10-01' },
+    });
+
+    expect(screen.queryByTestId('projection-weight')).not.toBeInTheDocument();
+    expect(screen.getByTestId('projection-start-weight-hint')).toHaveTextContent(/68/);
+    expect(screen.getByTestId('projection-summary')).toBeInTheDocument();
   });
 
   it('uses a duration preset when end date is blank', async () => {

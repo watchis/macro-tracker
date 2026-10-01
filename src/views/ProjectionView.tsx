@@ -20,7 +20,7 @@ import {
 } from '../lib/projection';
 import { weightNearDate, weightSeries } from '../lib/series';
 import { formatCalories } from '../lib/totals';
-import { fromCanonicalKg, roundWeight, weightUnitLabel } from '../lib/weight';
+import { fromCanonicalKg, roundWeight, toCanonicalKg, weightUnitLabel } from '../lib/weight';
 import { useAppStore } from '../store/useAppStore';
 import { useGoals, useProjectionProfile, useWeightUnit, useWeights } from '../store/selectors';
 import type { SegmentedOption } from '../components/settings/SegmentedControl';
@@ -64,19 +64,47 @@ export function ProjectionView() {
 
   const heightUnit = heightUnitForWeightUnit(weightUnit);
   const today = todayKey();
+  const latestWeightKg = useMemo(() => weightSeries(weights).at(-1)?.value, [weights]);
 
-  const [startDate, setStartDate] = useState<DateKey>(today);
+  /** Empty = enter starting weight manually and project from today. */
+  const [startDate, setStartDate] = useState<DateKey | ''>('');
   /** Empty = use a duration preset instead of a fixed end date. */
   const [endDate, setEndDate] = useState<DateKey | ''>('');
   const [horizonPreset, setHorizonPreset] = useState<HorizonPreset>('52');
-
-  const loggedIntake = useMemo(
-    () => averageLoggedIntake(days, startDate, LOGGED_INTAKE_LOOKBACK_DAYS),
-    [days, startDate],
+  const [startWeightDisplay, setStartWeightDisplay] = useState<number | undefined>(() =>
+    latestWeightKg !== undefined
+      ? roundWeight(fromCanonicalKg(latestWeightKg, weightUnit), weightUnit)
+      : undefined,
   );
 
-  const startWeightPoint = useMemo(() => weightNearDate(weights, startDate), [weights, startDate]);
-  const startWeightKg = startWeightPoint?.value;
+  // Keep the manual start-weight field in sync when the preferred unit flips.
+  const [lastWeightUnit, setLastWeightUnit] = useState(weightUnit);
+  if (lastWeightUnit !== weightUnit) {
+    setLastWeightUnit(weightUnit);
+    if (startWeightDisplay !== undefined) {
+      const kg = toCanonicalKg(startWeightDisplay, lastWeightUnit);
+      setStartWeightDisplay(roundWeight(fromCanonicalKg(kg, weightUnit), weightUnit));
+    }
+  }
+
+  const usingStartDate = startDate !== '';
+  const resolvedStartDate: DateKey = usingStartDate ? startDate : today;
+
+  const loggedIntake = useMemo(
+    () => averageLoggedIntake(days, resolvedStartDate, LOGGED_INTAKE_LOOKBACK_DAYS),
+    [days, resolvedStartDate],
+  );
+
+  const startWeightPoint = useMemo(
+    () => (usingStartDate ? weightNearDate(weights, startDate) : undefined),
+    [usingStartDate, weights, startDate],
+  );
+
+  const startWeightKg = usingStartDate
+    ? startWeightPoint?.value
+    : startWeightDisplay !== undefined
+      ? toCanonicalKg(startWeightDisplay, weightUnit)
+      : undefined;
 
   const [intakeSource, setIntakeSource] = useState<IntakeSource>(() =>
     goals.calories > 0 ? 'goal' : 'logged',
@@ -107,9 +135,11 @@ export function ProjectionView() {
       : (loggedIntake?.averageKcal ?? undefined);
 
   const usingEndDate = endDate !== '';
-  const weeks = usingEndDate ? weeksBetween(startDate, endDate) : presetWeeks(horizonPreset);
-  const resolvedEndDate = addDays(startDate, weeks * 7);
-  const dateRangeValid = !usingEndDate || daysBetween(startDate, endDate) >= 7;
+  const weeks = usingEndDate
+    ? weeksBetween(resolvedStartDate, endDate)
+    : presetWeeks(horizonPreset);
+  const resolvedEndDate = addDays(resolvedStartDate, weeks * 7);
+  const dateRangeValid = !usingEndDate || daysBetween(resolvedStartDate, endDate) >= 7;
 
   const ready =
     profile.sex !== null &&
@@ -134,7 +164,7 @@ export function ProjectionView() {
       startWeightKg,
       activity: profile.activity,
       intakeKcal: effectiveIntake,
-      startDate,
+      startDate: resolvedStartDate,
       weeks,
     });
   }, [
@@ -145,15 +175,15 @@ export function ProjectionView() {
     profile.activity,
     startWeightKg,
     effectiveIntake,
-    startDate,
+    resolvedStartDate,
     weeks,
   ]);
 
   const chartPoints = useMemo(() => {
     if (!result || startWeightKg === undefined) return [];
     const start = {
-      date: startDate,
-      t: Date.parse(`${startDate}T00:00:00`),
+      date: resolvedStartDate,
+      t: Date.parse(`${resolvedStartDate}T00:00:00`),
       value: fromCanonicalKg(startWeightKg, weightUnit),
     };
     return [
@@ -164,7 +194,7 @@ export function ProjectionView() {
         value: fromCanonicalKg(row.weightKg, weightUnit),
       })),
     ];
-  }, [result, startWeightKg, weightUnit, startDate]);
+  }, [result, startWeightKg, weightUnit, resolvedStartDate]);
 
   const rowByDate = useMemo(() => {
     const map = new Map<DateKey, ProjectionRow>();
@@ -190,7 +220,10 @@ export function ProjectionView() {
       : loggedIntake?.averageKcal;
 
   function handleStartDateChange(value: string) {
-    if (!value) return;
+    if (!value) {
+      setStartDate('');
+      return;
+    }
     const next = value as DateKey;
     setStartDate(next);
     if (endDate !== '' && daysBetween(next, endDate) < 7) {
@@ -205,7 +238,7 @@ export function ProjectionView() {
       return;
     }
     const next = value as DateKey;
-    if (daysBetween(startDate, next) < 7) return;
+    if (daysBetween(resolvedStartDate, next) < 7) return;
     setEndDate(next);
   }
 
@@ -308,7 +341,7 @@ export function ProjectionView() {
             </select>
           </div>
 
-          <div>
+          <div className="grid gap-2">
             <label
               htmlFor="projection-start-date"
               className="block text-xs font-medium tracking-wide text-muted uppercase"
@@ -321,13 +354,28 @@ export function ProjectionView() {
               type="date"
               value={startDate}
               onChange={(event) => handleStartDateChange(event.target.value)}
-              className="mt-1 w-full max-w-48 rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
+              className="w-full max-w-48 rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
             />
-            <p className="mt-1 text-xs text-subtle" data-testid="projection-start-weight-hint">
-              {startWeightPoint
-                ? `Starting weight ${formatDisplayWeight(fromCanonicalKg(startWeightPoint.value, weightUnit), weightUnit)} from ${formatShortDate(startWeightPoint.date)}${startWeightPoint.date === startDate ? '' : ' (nearest weigh-in)'}.`
-                : 'Log a weigh-in to set the starting weight.'}
-            </p>
+            {usingStartDate ? (
+              <p className="text-xs text-subtle" data-testid="projection-start-weight-hint">
+                {startWeightPoint
+                  ? `Starting weight ${formatDisplayWeight(fromCanonicalKg(startWeightPoint.value, weightUnit), weightUnit)} from ${formatShortDate(startWeightPoint.date)}${startWeightPoint.date === startDate ? '' : ' (nearest weigh-in)'}.`
+                  : 'Log a weigh-in to set the starting weight for this date.'}
+              </p>
+            ) : (
+              <NumberField
+                label="Starting weight"
+                testId="projection-weight"
+                value={startWeightDisplay}
+                unit={weightUnitLabel(weightUnit)}
+                min={1}
+                max={weightUnit === 'lb' ? 1000 : 450}
+                allowEmpty
+                placeholder={latestWeightKg !== undefined ? 'Latest weigh-in' : 'Required'}
+                onCommit={(value) => setStartWeightDisplay(value)}
+                className="max-w-48"
+              />
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -342,7 +390,7 @@ export function ProjectionView() {
               data-testid="projection-end-date"
               type="date"
               value={endDate}
-              min={addDays(startDate, 7)}
+              min={addDays(resolvedStartDate, 7)}
               onChange={(event) => handleEndDateChange(event.target.value)}
               className="w-full max-w-48 rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
             />
@@ -359,7 +407,7 @@ export function ProjectionView() {
               {!dateRangeValid
                 ? 'End date must be at least one week after the start.'
                 : usingEndDate
-                  ? `${weeks} week${weeks === 1 ? '' : 's'} · ${daysBetween(startDate, endDate)} days`
+                  ? `${weeks} week${weeks === 1 ? '' : 's'} · ${daysBetween(resolvedStartDate, endDate)} days`
                   : `${presetLabel} preset · through ${formatShortDate(resolvedEndDate)}`}
             </p>
           </div>
@@ -398,8 +446,8 @@ export function ProjectionView() {
 
         <div className="border-t border-line pt-4">
           <p className="text-xs text-subtle">
-            Profile fields are saved with Settings. Starting weight comes from your weigh-ins near
-            the start date. Leave end date blank to use a 3 mo / 6 mo / 1 yr preset.
+            Profile fields are saved with Settings. Leave start date blank to enter starting weight;
+            leave end date blank to use a 3 mo / 6 mo / 1 yr preset.
           </p>
         </div>
       </article>
@@ -412,7 +460,9 @@ export function ProjectionView() {
           {!dateRangeValid
             ? 'Choose an end date at least one week after the start, or clear it to use a preset.'
             : startWeightKg === undefined
-              ? 'Log a weigh-in so the projection has a starting weight.'
+              ? usingStartDate
+                ? 'Log a weigh-in so the projection has a starting weight for this date.'
+                : 'Enter a starting weight, or set a start date with a weigh-in.'
               : intakeSource === 'logged' && !loggedIntake
                 ? 'Log some food days to use a logged average, or switch intake to Goal.'
                 : 'Fill in sex, age, height, and daily intake to see the projection.'}
@@ -422,7 +472,7 @@ export function ProjectionView() {
           <article className="card grid gap-3 p-5" data-testid="projection-summary">
             <h2 className="text-sm font-semibold tracking-tight">Summary</h2>
             <p className="text-sm text-muted">
-              From {formatLongDate(startDate)} to {formatLongDate(resolvedEndDate)}, eating{' '}
+              From {formatLongDate(resolvedStartDate)} to {formatLongDate(resolvedEndDate)}, eating{' '}
               {formatCalories(effectiveIntake!)} kcal/day
               {intakeSource === 'logged' ? ' (logged average)' : ' (calorie goal)'}. Starting
               maintenance is about {formatCalories(Math.round(result.startTdeeKcal))} kcal/day (BMR{' '}
