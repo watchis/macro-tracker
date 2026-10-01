@@ -30,9 +30,10 @@ const HORIZON_PRESETS = [
   { value: '13', label: '3 mo', weeks: 13 },
   { value: '26', label: '6 mo', weeks: 26 },
   { value: '52', label: '1 yr', weeks: 52 },
+  { value: 'goal', label: 'Goal weight' },
 ] as const;
 
-type HorizonPreset = (typeof HORIZON_PRESETS)[number]['value'];
+type HorizonMode = (typeof HORIZON_PRESETS)[number]['value'];
 type IntakeSource = 'goal' | 'logged';
 
 function formatDisplayWeight(value: number, unit: WeightUnit): string {
@@ -45,8 +46,9 @@ function weeksBetween(start: DateKey, end: DateKey): number {
   return Math.max(1, Math.floor(daysBetween(start, end) / 7));
 }
 
-function presetWeeks(preset: HorizonPreset): number {
-  return HORIZON_PRESETS.find((option) => option.value === preset)?.weeks ?? 52;
+function presetWeeks(mode: HorizonMode): number | undefined {
+  const match = HORIZON_PRESETS.find((option) => option.value === mode);
+  return match && 'weeks' in match ? match.weeks : undefined;
 }
 
 /**
@@ -68,22 +70,27 @@ export function ProjectionView() {
 
   /** Empty = enter starting weight manually and project from today. */
   const [startDate, setStartDate] = useState<DateKey | ''>('');
-  /** Empty = use a duration preset instead of a fixed end date. */
+  /** Empty = use a duration preset or goal weight instead of a fixed end date. */
   const [endDate, setEndDate] = useState<DateKey | ''>('');
-  const [horizonPreset, setHorizonPreset] = useState<HorizonPreset>('52');
+  const [horizonMode, setHorizonMode] = useState<HorizonMode>('52');
   const [startWeightDisplay, setStartWeightDisplay] = useState<number | undefined>(() =>
     latestWeightKg !== undefined
       ? roundWeight(fromCanonicalKg(latestWeightKg, weightUnit), weightUnit)
       : undefined,
   );
+  const [goalWeightDisplay, setGoalWeightDisplay] = useState<number | undefined>(undefined);
 
-  // Keep the manual start-weight field in sync when the preferred unit flips.
+  // Keep weight fields in sync when the preferred unit flips.
   const [lastWeightUnit, setLastWeightUnit] = useState(weightUnit);
   if (lastWeightUnit !== weightUnit) {
     setLastWeightUnit(weightUnit);
     if (startWeightDisplay !== undefined) {
       const kg = toCanonicalKg(startWeightDisplay, lastWeightUnit);
       setStartWeightDisplay(roundWeight(fromCanonicalKg(kg, weightUnit), weightUnit));
+    }
+    if (goalWeightDisplay !== undefined) {
+      const kg = toCanonicalKg(goalWeightDisplay, lastWeightUnit);
+      setGoalWeightDisplay(roundWeight(fromCanonicalKg(kg, weightUnit), weightUnit));
     }
   }
 
@@ -115,7 +122,7 @@ export function ProjectionView() {
     { value: 'logged', label: 'Logged avg' },
   ];
 
-  const horizonOptions: ReadonlyArray<SegmentedOption<HorizonPreset>> = HORIZON_PRESETS.map(
+  const horizonOptions: ReadonlyArray<SegmentedOption<HorizonMode>> = HORIZON_PRESETS.map(
     (option) => ({
       value: option.value,
       label: option.label,
@@ -135,11 +142,22 @@ export function ProjectionView() {
       : (loggedIntake?.averageKcal ?? undefined);
 
   const usingEndDate = endDate !== '';
-  const weeks = usingEndDate
+  const usingGoalWeight = !usingEndDate && horizonMode === 'goal';
+  const goalWeightKg =
+    usingGoalWeight && goalWeightDisplay !== undefined
+      ? toCanonicalKg(goalWeightDisplay, weightUnit)
+      : undefined;
+
+  const weeksForEndDate = usingEndDate
     ? weeksBetween(resolvedStartDate, endDate)
-    : presetWeeks(horizonPreset);
-  const resolvedEndDate = addDays(resolvedStartDate, weeks * 7);
+    : presetWeeks(horizonMode);
   const dateRangeValid = !usingEndDate || daysBetween(resolvedStartDate, endDate) >= 7;
+  const goalWeightValid =
+    !usingGoalWeight ||
+    (goalWeightKg !== undefined &&
+      goalWeightKg > 0 &&
+      startWeightKg !== undefined &&
+      Math.abs(goalWeightKg - startWeightKg) >= 0.05);
 
   const ready =
     profile.sex !== null &&
@@ -149,7 +167,8 @@ export function ProjectionView() {
     startWeightKg > 0 &&
     effectiveIntake !== undefined &&
     effectiveIntake > 0 &&
-    dateRangeValid;
+    dateRangeValid &&
+    goalWeightValid;
 
   const result = useMemo(() => {
     if (!ready || !profile.sex || profile.ageYears === null || profile.heightCm === null) {
@@ -165,7 +184,9 @@ export function ProjectionView() {
       activity: profile.activity,
       intakeKcal: effectiveIntake,
       startDate: resolvedStartDate,
-      weeks,
+      ...(usingGoalWeight && goalWeightKg !== undefined
+        ? { goalWeightKg }
+        : { weeks: weeksForEndDate ?? 52 }),
     });
   }, [
     ready,
@@ -176,8 +197,14 @@ export function ProjectionView() {
     startWeightKg,
     effectiveIntake,
     resolvedStartDate,
-    weeks,
+    usingGoalWeight,
+    goalWeightKg,
+    weeksForEndDate,
   ]);
+
+  const resolvedEndDate = result?.rows.length
+    ? result.rows[result.rows.length - 1]!.date
+    : addDays(resolvedStartDate, (weeksForEndDate ?? 52) * 7);
 
   const chartPoints = useMemo(() => {
     if (!result || startWeightKg === undefined) return [];
@@ -242,10 +269,14 @@ export function ProjectionView() {
     setEndDate(next);
   }
 
-  const presetLabel = HORIZON_PRESETS.find((option) => option.value === horizonPreset)?.label;
+  const presetLabel = HORIZON_PRESETS.find((option) => option.value === horizonMode)?.label;
   const endWeightLabel = usingEndDate
     ? formatShortDate(resolvedEndDate)
-    : (presetLabel ?? formatShortDate(resolvedEndDate));
+    : usingGoalWeight
+      ? result?.goalReached
+        ? 'Goal'
+        : 'At cap'
+      : (presetLabel ?? formatShortDate(resolvedEndDate));
 
   const incompleteMessage = !dateRangeValid
     ? 'End date must be at least one week after the start.'
@@ -253,9 +284,11 @@ export function ProjectionView() {
       ? usingStartDate
         ? 'No weigh-in found for the start date.'
         : 'Enter a starting weight.'
-      : intakeSource === 'logged' && !loggedIntake
-        ? 'No recent food logs for Logged avg.'
-        : 'Fill in sex, age, height, and intake.';
+      : !goalWeightValid
+        ? 'Enter a goal weight different from the start.'
+        : intakeSource === 'logged' && !loggedIntake
+          ? 'No recent food logs for Logged avg.'
+          : 'Fill in sex, age, height, and intake.';
 
   const fieldClassName =
     'mt-1 w-full max-w-48 rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none';
@@ -402,7 +435,7 @@ export function ProjectionView() {
             />
           )}
 
-          <div className="grid gap-2">
+          <div className="grid gap-2 sm:col-span-2">
             <label
               htmlFor="projection-end-date"
               className="block text-xs font-medium tracking-wide text-muted uppercase"
@@ -419,13 +452,29 @@ export function ProjectionView() {
               className={fieldClassName}
             />
             {!usingEndDate ? (
-              <SegmentedControl
-                label="Projection length"
-                testId="projection-horizon-preset"
-                value={horizonPreset}
-                options={horizonOptions}
-                onChange={setHorizonPreset}
-              />
+              <div className="flex flex-wrap items-end gap-3">
+                <SegmentedControl
+                  label="Projection length"
+                  testId="projection-horizon-preset"
+                  value={horizonMode}
+                  options={horizonOptions}
+                  onChange={setHorizonMode}
+                />
+                {usingGoalWeight ? (
+                  <NumberField
+                    label="Goal weight"
+                    testId="projection-goal-weight"
+                    value={goalWeightDisplay}
+                    unit={weightUnitLabel(weightUnit)}
+                    min={1}
+                    max={weightUnit === 'lb' ? 1000 : 450}
+                    allowEmpty
+                    placeholder="Required"
+                    onCommit={(value) => setGoalWeightDisplay(value)}
+                    className="max-w-48"
+                  />
+                ) : null}
+              </div>
             ) : null}
           </div>
 

@@ -84,6 +84,7 @@ describe('projectWeightLoss', () => {
     expect(last.maintenanceKcal).toBeLessThan(first.maintenanceKcal);
     expect(last.deficitKcal).toBeLessThan(first.deficitKcal);
     expect(last.deficitKcal).toBeCloseTo(last.maintenanceKcal - 1800, 5);
+    expect(result.goalReached).toBe(false);
   });
 
   it('gains weight when intake exceeds starting TDEE', () => {
@@ -123,6 +124,24 @@ describe('projectWeightLoss', () => {
       5,
     );
     expect(result.healthyWeightKg.min).toBeLessThan(result.healthyWeightKg.max);
+  });
+
+  it('stops when projected weight reaches a goal', () => {
+    const result = projectWeightLoss({
+      sex: 'male',
+      ageYears: 35,
+      heightCm: 178,
+      startWeightKg: 100,
+      activity: 1.2,
+      intakeKcal: 1800,
+      startDate: '2026-10-01',
+      goalWeightKg: 95,
+    });
+
+    expect(result.goalReached).toBe(true);
+    expect(result.rows.length).toBeGreaterThan(0);
+    expect(result.rows.length).toBeLessThan(52);
+    expect(result.rows[result.rows.length - 1]!.weightKg).toBeLessThanOrEqual(95);
   });
 });
 

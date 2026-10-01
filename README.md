@@ -36,9 +36,9 @@ scales them by grams when you log.
 daily calorie intake, using Mifflin–St Jeor maintenance that shrinks as weight changes. Intake comes
 from your calorie goal or a recent logged average. Leave start date blank to enter starting weight
 (defaults to the latest weigh-in), or set a start date to use the nearest weigh-in. Leave end date
-blank for a 3 mo / 6 mo / 1 yr preset, or set an end date for a custom horizon. It shows a summary,
-a weight chart (with hover tooltips and logged weigh-ins overlaid), and a weekly table of weight,
-calories used, and calorie deficit — in the spirit of
+blank for a 3 mo / 6 mo / 1 yr preset or a goal weight, or set an end date for a custom horizon. It
+shows a summary, a weight chart (with hover tooltips and logged weigh-ins overlaid), and a weekly
+table of weight, calories used, and calorie deficit — in the spirit of
 [LoserTown's calculator](https://www.losertown.org/eats/cal.php).
 
 **Settings** covers theme, accent color, weight unit, visible macros, calorie and macro goals, JSON

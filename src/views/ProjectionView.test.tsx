@@ -145,6 +145,28 @@ describe('ProjectionView', () => {
     expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(27);
   });
 
+  it('projects until a goal weight when that horizon is selected', async () => {
+    const user = userEvent.setup();
+    seedReadyProfile();
+
+    render(<ProjectionView />);
+
+    await user.click(
+      within(screen.getByTestId('projection-horizon-preset')).getByRole('radio', {
+        name: 'Goal weight',
+      }),
+    );
+
+    const goal = screen.getByTestId('projection-goal-weight');
+    await user.clear(goal);
+    await user.type(goal, '65');
+
+    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/Goal/i);
+    const rows = within(screen.getByTestId('projection-table')).getAllByRole('row');
+    expect(rows.length).toBeGreaterThan(2);
+    expect(rows.length).toBeLessThan(53);
+  });
+
   it('can drive intake from recent food logs', async () => {
     const user = userEvent.setup();
     const store = useAppStore.getState();
