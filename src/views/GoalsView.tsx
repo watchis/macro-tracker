@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { LineChart } from '../components/charts/LineChart';
+import { MacroSettings } from '../components/settings/MacroSettings';
 import { NumberField } from '../components/settings/NumberField';
 import { SegmentedControl } from '../components/settings/SegmentedControl';
+import { SettingsSection } from '../components/settings/SettingsSection';
 import {
   ageYearsFromBirthday,
   formatLongDate,
@@ -50,11 +52,31 @@ function formatDisplayWeight(value: number, unit: WeightUnit): string {
 }
 
 /**
- * LoserTown-style calorie maintenance / weight projection: enter a profile and
- * planned intake, then see weekly weight, maintenance calories, and deficit.
- * Intake and maintenance can be driven from food logs and weigh-ins.
+ * Goals tab: calorie/macro targets plus a LoserTown-style weight projection
+ * driven by body profile, planned intake, and optional food/weigh-in logs.
  */
-export function ProjectionView() {
+export function GoalsView() {
+  return (
+    <div className="grid gap-5" data-testid="goals-view">
+      <header>
+        <h1 className="text-xl font-semibold tracking-tight">Goals</h1>
+        <p className="mt-0.5 text-sm text-muted">
+          Set calorie and macro targets, then project how weight changes if you hold a steady daily
+          intake.
+        </p>
+      </header>
+
+      <SettingsSection id="goals" title="Goals and macros">
+        <MacroSettings />
+      </SettingsSection>
+
+      <WeightProjectionSection />
+    </div>
+  );
+}
+
+/** Weight-loss projection form, chart, and weekly table. */
+function WeightProjectionSection() {
   const profile = useProjectionProfile();
   const goals = useGoals();
   const weightUnit = useWeightUnit();
@@ -236,209 +258,207 @@ export function ProjectionView() {
         : intakeKcal;
 
   return (
-    <section className="grid gap-5" data-testid="projection-view">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Projection</h1>
-        <p className="mt-0.5 text-sm text-muted">
-          Estimate how weight changes if you hold a steady daily calorie intake. Use your calorie
-          goal, a recent logged average, or maintenance inferred from weigh-ins.
-        </p>
-      </header>
-
-      <article className="card grid gap-5 p-5" data-testid="projection-form">
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="projection-sex"
-              className="block text-xs font-medium tracking-wide text-muted uppercase"
-            >
-              Sex
-            </label>
-            <select
-              id="projection-sex"
-              data-testid="projection-sex"
-              value={profile.sex ?? ''}
-              onChange={(event) => {
-                const value = event.target.value;
-                setProjectionProfile({
-                  sex: value === 'male' || value === 'female' ? value : null,
-                });
-              }}
-              className="mt-1 w-full max-w-xs rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
-            >
-              <option value="">Select…</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
-          </div>
-
-          <div className="max-w-48">
-            <label
-              htmlFor="projection-birthday"
-              className="block text-xs font-medium tracking-wide text-muted uppercase"
-            >
-              Birthday
-            </label>
-            <input
-              id="projection-birthday"
-              type="date"
-              data-testid="projection-birthday"
-              value={profile.birthday ?? ''}
-              max={startDate}
-              onChange={(event) => {
-                const value = event.target.value;
-                setProjectionProfile({ birthday: value ? (value as DateKey) : null });
-              }}
-              className="mt-1 w-full rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
-            />
-            {ageYears !== null ? (
-              <p className="mt-1 text-xs text-subtle" data-testid="projection-age-hint">
-                Age {ageYears}
-              </p>
-            ) : null}
-          </div>
-
-          <NumberField
-            label="Height"
-            testId="projection-height"
-            value={heightDisplay}
-            unit={heightUnitLabel(heightUnit)}
-            min={heightUnit === 'in' ? 20 : 50}
-            max={heightUnit === 'in' ? 108 : 275}
-            allowEmpty
-            placeholder="Required"
-            onCommit={(value) =>
-              setProjectionProfile({
-                heightCm: value === undefined ? null : toCanonicalCm(value, heightUnit),
-              })
-            }
-            className="max-w-48"
-          />
-
-          <NumberField
-            label="Starting weight"
-            testId="projection-weight"
-            value={startWeightDisplay}
-            unit={weightUnitLabel(weightUnit)}
-            min={1}
-            max={weightUnit === 'lb' ? 1000 : 450}
-            allowEmpty
-            placeholder={latestWeightKg !== undefined ? 'Latest weigh-in' : 'Required'}
-            onCommit={(value) => setStartWeightDisplay(value)}
-            className="max-w-48"
-          />
-
-          <div className="grid gap-2 sm:col-span-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-medium tracking-wide text-muted uppercase">
-                Daily calorie intake
-              </span>
-              <SegmentedControl
-                label="Intake source"
-                testId="projection-intake-source"
-                value={intakeSource}
-                options={intakeSourceOptions}
-                onChange={handleIntakeSourceChange}
-              />
+    <section className="grid gap-5" data-testid="projection-section">
+      <SettingsSection
+        id="projection"
+        title="Weight projection"
+        description="Estimate how weight changes if you hold a steady daily calorie intake. Use your calorie goal, a recent logged average, or maintenance inferred from weigh-ins."
+      >
+        <div className="grid gap-5" data-testid="projection-form">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="projection-sex"
+                className="block text-xs font-medium tracking-wide text-muted uppercase"
+              >
+                Sex
+              </label>
+              <select
+                id="projection-sex"
+                data-testid="projection-sex"
+                value={profile.sex ?? ''}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setProjectionProfile({
+                    sex: value === 'male' || value === 'female' ? value : null,
+                  });
+                }}
+                className="mt-1 w-full max-w-xs rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
+              >
+                <option value="">Select…</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
             </div>
+
+            <div className="max-w-48">
+              <label
+                htmlFor="projection-birthday"
+                className="block text-xs font-medium tracking-wide text-muted uppercase"
+              >
+                Birthday
+              </label>
+              <input
+                id="projection-birthday"
+                type="date"
+                data-testid="projection-birthday"
+                value={profile.birthday ?? ''}
+                max={startDate}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setProjectionProfile({ birthday: value ? (value as DateKey) : null });
+                }}
+                className="mt-1 w-full rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
+              />
+              {ageYears !== null ? (
+                <p className="mt-1 text-xs text-subtle" data-testid="projection-age-hint">
+                  Age {ageYears}
+                </p>
+              ) : null}
+            </div>
+
             <NumberField
-              label="Daily calorie intake"
-              labelHidden
-              testId="projection-intake"
-              value={intakeFieldValue}
-              unit="kcal"
-              integer
-              min={1}
-              max={20000}
+              label="Height"
+              testId="projection-height"
+              value={heightDisplay}
+              unit={heightUnitLabel(heightUnit)}
+              min={heightUnit === 'in' ? 20 : 50}
+              max={heightUnit === 'in' ? 108 : 275}
               allowEmpty
-              placeholder={
-                intakeSource === 'logged'
-                  ? loggedIntake
-                    ? 'Logged average'
-                    : 'No recent logs'
-                  : goals.calories > 0
-                    ? 'Calorie goal'
-                    : 'Required'
+              placeholder="Required"
+              onCommit={(value) =>
+                setProjectionProfile({
+                  heightCm: value === undefined ? null : toCanonicalCm(value, heightUnit),
+                })
               }
-              onCommit={handleIntakeCommit}
               className="max-w-48"
             />
-            <p className="text-xs text-subtle" data-testid="projection-intake-hint">
-              {intakeSource === 'logged'
-                ? loggedIntake
-                  ? `Average ${formatCalories(loggedIntake.averageKcal)} kcal across ${loggedIntake.loggedDays} logged day${loggedIntake.loggedDays === 1 ? '' : 's'} in the last ${loggedIntake.lookbackDays}.`
-                  : `No food logged in the last ${LOGGED_INTAKE_LOOKBACK_DAYS} days.`
-                : intakeSource === 'goal'
-                  ? goals.calories > 0
-                    ? `Using your Settings calorie goal (${formatCalories(goals.calories)} kcal).`
-                    : 'Set a calorie goal in Settings, or switch to Logged avg / Custom.'
-                  : 'Custom what-if intake for this chart only.'}
-            </p>
-          </div>
 
-          <div className="grid gap-2 sm:col-span-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-medium tracking-wide text-muted uppercase">
-                Maintenance
-              </span>
-              <SegmentedControl
-                label="Maintenance source"
-                testId="projection-maintenance-source"
-                value={maintenanceSource}
-                options={maintenanceSourceOptions}
-                onChange={setMaintenanceSource}
+            <NumberField
+              label="Starting weight"
+              testId="projection-weight"
+              value={startWeightDisplay}
+              unit={weightUnitLabel(weightUnit)}
+              min={1}
+              max={weightUnit === 'lb' ? 1000 : 450}
+              allowEmpty
+              placeholder={latestWeightKg !== undefined ? 'Latest weigh-in' : 'Required'}
+              onCommit={(value) => setStartWeightDisplay(value)}
+              className="max-w-48"
+            />
+
+            <div className="grid gap-2 sm:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-medium tracking-wide text-muted uppercase">
+                  Daily calorie intake
+                </span>
+                <SegmentedControl
+                  label="Intake source"
+                  testId="projection-intake-source"
+                  value={intakeSource}
+                  options={intakeSourceOptions}
+                  onChange={handleIntakeSourceChange}
+                />
+              </div>
+              <NumberField
+                label="Daily calorie intake"
+                labelHidden
+                testId="projection-intake"
+                value={intakeFieldValue}
+                unit="kcal"
+                integer
+                min={1}
+                max={20000}
+                allowEmpty
+                placeholder={
+                  intakeSource === 'logged'
+                    ? loggedIntake
+                      ? 'Logged average'
+                      : 'No recent logs'
+                    : goals.calories > 0
+                      ? 'Calorie goal'
+                      : 'Required'
+                }
+                onCommit={handleIntakeCommit}
+                className="max-w-48"
               />
-            </div>
-            {maintenanceSource === 'formula' ? (
-              <>
-                <label
-                  htmlFor="projection-activity"
-                  className="block text-xs font-medium tracking-wide text-muted uppercase"
-                >
-                  Activity level
-                </label>
-                <select
-                  id="projection-activity"
-                  data-testid="projection-activity"
-                  value={String(profile.activity)}
-                  onChange={(event) =>
-                    setProjectionProfile({
-                      activity: Number(event.target.value) as ActivityMultiplier,
-                    })
-                  }
-                  className="w-full max-w-xl rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
-                >
-                  {ACTIVITY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </>
-            ) : (
-              <p className="text-sm text-muted" data-testid="projection-maintenance-hint">
-                {logMaintenance
-                  ? `Estimated ${formatCalories(logMaintenance.maintenanceKcal)} kcal/day from ${logMaintenance.loggedDays} logged days and weigh-ins over ${logMaintenance.spanDays} days (${formatShortDate(logMaintenance.startDate)}–${formatShortDate(logMaintenance.endDate)}).`
-                  : 'Need at least two weigh-ins ≥7 days apart and five food-logged days in between.'}
+              <p className="text-xs text-subtle" data-testid="projection-intake-hint">
+                {intakeSource === 'logged'
+                  ? loggedIntake
+                    ? `Average ${formatCalories(loggedIntake.averageKcal)} kcal across ${loggedIntake.loggedDays} logged day${loggedIntake.loggedDays === 1 ? '' : 's'} in the last ${loggedIntake.lookbackDays}.`
+                    : `No food logged in the last ${LOGGED_INTAKE_LOOKBACK_DAYS} days.`
+                  : intakeSource === 'goal'
+                    ? goals.calories > 0
+                      ? `Using your Settings calorie goal (${formatCalories(goals.calories)} kcal).`
+                      : 'Set a calorie goal in Settings, or switch to Logged avg / Custom.'
+                    : 'Custom what-if intake for this chart only.'}
               </p>
-            )}
+            </div>
+
+            <div className="grid gap-2 sm:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-medium tracking-wide text-muted uppercase">
+                  Maintenance
+                </span>
+                <SegmentedControl
+                  label="Maintenance source"
+                  testId="projection-maintenance-source"
+                  value={maintenanceSource}
+                  options={maintenanceSourceOptions}
+                  onChange={setMaintenanceSource}
+                />
+              </div>
+              {maintenanceSource === 'formula' ? (
+                <>
+                  <label
+                    htmlFor="projection-activity"
+                    className="block text-xs font-medium tracking-wide text-muted uppercase"
+                  >
+                    Activity level
+                  </label>
+                  <select
+                    id="projection-activity"
+                    data-testid="projection-activity"
+                    value={String(profile.activity)}
+                    onChange={(event) =>
+                      setProjectionProfile({
+                        activity: Number(event.target.value) as ActivityMultiplier,
+                      })
+                    }
+                    className="w-full max-w-xl rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
+                  >
+                    {ACTIVITY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <p className="text-sm text-muted" data-testid="projection-maintenance-hint">
+                  {logMaintenance
+                    ? `Estimated ${formatCalories(logMaintenance.maintenanceKcal)} kcal/day from ${logMaintenance.loggedDays} logged days and weigh-ins over ${logMaintenance.spanDays} days (${formatShortDate(logMaintenance.startDate)}–${formatShortDate(logMaintenance.endDate)}).`
+                    : 'Need at least two weigh-ins ≥7 days apart and five food-logged days in between.'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+            <p className="text-xs text-subtle">
+              Profile fields are saved with your Goals. Intake and maintenance sources update the
+              chart from your logs when selected.
+            </p>
+            <SegmentedControl
+              label="Projection length"
+              testId="projection-weeks"
+              value={weeks}
+              options={weekOptions}
+              onChange={setWeeks}
+            />
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-          <p className="text-xs text-subtle">
-            Profile fields are saved with Settings. Intake and maintenance sources update the chart
-            from your logs when selected.
-          </p>
-          <SegmentedControl
-            label="Projection length"
-            testId="projection-weeks"
-            value={weeks}
-            options={weekOptions}
-            onChange={setWeeks}
-          />
-        </div>
-      </article>
+      </SettingsSection>
 
       {!ready ? (
         <div

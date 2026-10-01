@@ -1,19 +1,94 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ProjectionView } from './ProjectionView';
+import { BudgetBar } from '../components/BudgetBar';
+import { GoalsView } from './GoalsView';
 import { useAppStore } from '../store/useAppStore';
 
 /** Birthday that yields age 35 on 2026-10-01 (and near that date). */
 const BIRTHDAY_AGE_35 = '1991-03-15';
 
-describe('ProjectionView', () => {
-  it('prompts for missing profile fields before projecting', () => {
-    render(<ProjectionView />);
+function state() {
+  return useAppStore.getState();
+}
 
-    expect(screen.getByRole('heading', { name: 'Projection' })).toBeInTheDocument();
+describe('GoalsView', () => {
+  it('shows goals and macros plus an incomplete projection prompt', () => {
+    render(<GoalsView />);
+
+    expect(screen.getByRole('heading', { name: 'Goals' })).toBeInTheDocument();
+    expect(screen.getByTestId('settings-section-goals')).toBeInTheDocument();
+    expect(screen.getByTestId('calorie-goal-input')).toBeInTheDocument();
     expect(screen.getByTestId('projection-incomplete')).toBeInTheDocument();
     expect(screen.queryByTestId('projection-table')).not.toBeInTheDocument();
+  });
+
+  it('validates the calorie goal and keeps the last valid value', async () => {
+    const user = userEvent.setup();
+    render(<GoalsView />);
+    const input = screen.getByTestId('calorie-goal-input');
+
+    await user.clear(input);
+    await user.type(input, '1800');
+    expect(state().settings.goals.calories).toBe(1800);
+
+    await user.clear(input);
+    await user.type(input, '-5');
+    expect(screen.getByRole('alert')).toHaveTextContent('Must be 0 or more.');
+    expect(state().settings.goals.calories).toBe(1800);
+  });
+
+  it('sets and clears per-macro goals', async () => {
+    const user = userEvent.setup();
+    render(<GoalsView />);
+
+    const fiber = screen.getByTestId('macro-goal-fiber');
+    await user.type(fiber, '30');
+    expect(state().settings.goals.macros.fiber).toBe(30);
+
+    await user.clear(screen.getByTestId('macro-goal-protein'));
+    expect(state().settings.goals.macros.protein).toBeUndefined();
+  });
+
+  it('rejects a macro goal that is not a number', async () => {
+    const user = userEvent.setup();
+    render(<GoalsView />);
+
+    await user.type(screen.getByTestId('macro-goal-carbs'), 'abc');
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a number.');
+    expect(state().settings.goals.macros.carbs).toBe(200);
+  });
+
+  it('shows and hides macros, in the canonical order', async () => {
+    const user = userEvent.setup();
+    render(<GoalsView />);
+
+    await user.click(screen.getByTestId('macro-toggle-fiber'));
+    expect(state().settings.visibleMacros).toEqual(['protein', 'carbs', 'fat', 'fiber']);
+
+    await user.click(screen.getByTestId('macro-toggle-carbs'));
+    expect(state().settings.visibleMacros).toEqual(['protein', 'fat', 'fiber']);
+    expect(screen.getByTestId('macro-toggle-carbs')).not.toBeChecked();
+  });
+
+  it('drives which chips the budget bar renders', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <GoalsView />
+        <BudgetBar date="2026-09-17" />
+      </>,
+    );
+
+    expect(screen.getByTestId('macro-chip-carbs')).toBeInTheDocument();
+    expect(screen.queryByTestId('macro-chip-sodium')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('macro-toggle-carbs'));
+    await user.click(screen.getByTestId('macro-toggle-sodium'));
+
+    expect(screen.queryByTestId('macro-chip-carbs')).not.toBeInTheDocument();
+    expect(screen.getByTestId('macro-chip-sodium')).toBeInTheDocument();
   });
 
   it('projects weekly weight, maintenance, and deficit from a filled form', async () => {
@@ -22,7 +97,7 @@ describe('ProjectionView', () => {
     useAppStore.getState().setWeightUnit('lb');
     useAppStore.getState().setWeight('2026-09-20', 200, 'lb');
 
-    render(<ProjectionView />);
+    render(<GoalsView />);
 
     await user.selectOptions(screen.getByTestId('projection-sex'), 'male');
 
@@ -67,7 +142,7 @@ describe('ProjectionView', () => {
     useAppStore.getState().setWeightUnit('kg');
     useAppStore.getState().setCalorieGoal(1600);
 
-    render(<ProjectionView />);
+    render(<GoalsView />);
 
     await user.click(
       within(screen.getByTestId('projection-weeks')).getByRole('radio', { name: '2 yr' }),
@@ -93,7 +168,7 @@ describe('ProjectionView', () => {
     store.addEntry('2026-09-25', { name: 'Lunch', grams: 100, calories: 1700, macros: {} });
     store.addEntry('2026-09-28', { name: 'Dinner', grams: 100, calories: 1900, macros: {} });
 
-    render(<ProjectionView />);
+    render(<GoalsView />);
 
     expect(screen.getByTestId('projection-intake')).toHaveValue('2200');
 
@@ -126,7 +201,7 @@ describe('ProjectionView', () => {
       store.addEntry(key, { name: 'Meal', grams: 100, calories: 1800, macros: {} });
     }
 
-    render(<ProjectionView />);
+    render(<GoalsView />);
 
     await user.click(
       within(screen.getByTestId('projection-maintenance-source')).getByRole('radio', {

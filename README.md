@@ -32,17 +32,17 @@ enter. An optional **weight** field (lb or kg) records a daily weigh-in for Home
 to pin it as a favorite; Day's quick-add shows starred foods when the search is empty and
 scales them by grams when you log.
 
-**Projection** estimates future weight from a body profile (sex, birthday, height, activity) and a
-planned daily calorie intake, using Mifflin–St Jeor maintenance that shrinks as weight changes.
-Intake can come from your calorie goal, a recent logged average, or a custom value; maintenance can
-use the activity formula or be inferred from weigh-ins plus food logs. Age is derived from your
-birthday. It shows a summary, a weight chart (with logged weigh-ins overlaid), and a weekly table of
-weight, calories used, and calorie deficit — in the spirit of
-[LoserTown's calculator](https://www.losertown.org/eats/cal.php). Starting weight defaults to your
-latest weigh-in.
+**Goals** sets calorie and macro targets (which macros show in tables and chips), and estimates
+future weight from a body profile (sex, birthday, height, activity) and a planned daily calorie
+intake, using Mifflin–St Jeor maintenance that shrinks as weight changes. Intake can come from your
+calorie goal, a recent logged average, or a custom value; maintenance can use the activity formula
+or be inferred from weigh-ins plus food logs. Age is derived from your birthday. It shows a summary,
+a weight chart (with logged weigh-ins overlaid), and a weekly table of weight, calories used, and
+calorie deficit — in the spirit of [LoserTown's calculator](https://www.losertown.org/eats/cal.php).
+Starting weight defaults to your latest weigh-in.
 
-**Settings** covers theme, accent color, weight unit, visible macros, calorie and macro goals, JSON
-import/export, local storage usage, and retention for old day logs.
+**Settings** covers theme, accent color, weight unit, JSON import/export, local storage usage, and
+retention for old day logs.
 
 The **budget bar** is pinned to the bottom of every view. It starts full and depletes as the
 selected day is logged, showing the calories left plus a chip per visible macro. Past the goal it
@@ -87,7 +87,7 @@ src/
   App.tsx              app shell: header, active view, budget bar
   components/          AppHeader, BudgetBar, MacroChip
   components/settings/ settings form controls, accent picker, import/export, data retention
-  views/               HomeView, CalendarView, DayView, FoodLibraryView, ProjectionView, SettingsView
+  views/               HomeView, CalendarView, DayView, FoodLibraryView, GoalsView, SettingsView
   store/               Zustand store, defaults, persistence/migration, selectors
   data/                whole-foods catalog (lazy category JSON under starter/)
   lib/                 date keys, macro metadata, totals, weight conversion, chart series, projection
