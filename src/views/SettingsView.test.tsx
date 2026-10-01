@@ -226,7 +226,6 @@ describe('SettingsView data', () => {
     expect(screen.getByTestId('storage-usage-summary')).toHaveTextContent(/used/);
     expect(screen.getByTestId('storage-usage-bar')).toBeInTheDocument();
     expect(screen.getByTestId('auto-optimize-threshold')).toHaveValue('90');
-    expect(screen.getByTestId('auto-optimize-hint')).toHaveTextContent('90%');
   });
 
   it('updates the auto-optimize threshold and can disable it', async () => {
@@ -241,7 +240,6 @@ describe('SettingsView data', () => {
     await user.click(screen.getByTestId('auto-optimize-disable'));
     expect(state().settings.autoOptimizeThreshold).toBeNull();
     expect(input).toBeDisabled();
-    expect(screen.getByTestId('auto-optimize-hint')).toHaveTextContent('off');
 
     await user.click(screen.getByTestId('auto-optimize-disable'));
     expect(state().settings.autoOptimizeThreshold).toBe(90);

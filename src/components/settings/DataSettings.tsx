@@ -167,13 +167,7 @@ export function DataSettings() {
           <p role="alert" className="mt-1 text-xs text-danger">
             {draftError}
           </p>
-        ) : (
-          <p className="mt-1.5 text-xs text-subtle" data-testid="auto-optimize-hint">
-            {disabled
-              ? 'Automatic cleanup is off. Use Optimize storage when you need space.'
-              : `When usage reaches ${settings.autoOptimizeThreshold}%, oldest logs are removed automatically.`}
-          </p>
-        )}
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
