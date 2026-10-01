@@ -5,12 +5,20 @@ import { DayView } from './views/DayView';
 import { FoodLibraryView } from './views/FoodLibraryView';
 import { HomeView } from './views/HomeView';
 import { SettingsView } from './views/SettingsView';
+import {
+  isStorageCritical,
+  useLocalStorageUsage,
+  useStorageInputLock,
+} from './hooks/useStorageUsage';
 import { useView } from './store/selectors';
 import { useTheme } from './theme/useTheme';
 
 export default function App() {
   useTheme();
   const view = useView();
+  const usage = useLocalStorageUsage();
+  const storageLocked = isStorageCritical(usage);
+  useStorageInputLock(storageLocked);
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-ink">

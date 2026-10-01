@@ -38,19 +38,24 @@ export type FoodEntryInput = Omit<FoodEntry, 'id' | 'createdAt'>;
  */
 export type FoodLibraryItem = Omit<FoodEntry, 'id' | 'createdAt'>;
 
+/** Where a favorited food came from in the food library. */
+export type FoodFavoriteSource = 'custom' | 'starter';
+
+/**
+ * A manually starred food. Snapshots nutrition so Day quick-add can show
+ * favorites without waiting on the catalog. Custom favorites stay in sync when
+ * the matching custom food is edited.
+ */
+export type FoodFavorite = FoodLibraryItem & {
+  source: FoodFavoriteSource;
+};
+
 export type ThemeMode = 'light' | 'dark' | 'system';
 
 export type WeekStart = 'sunday' | 'monday';
 
 /** Preferred unit for entering and charting body weight. Stored weights are always kg. */
 export type WeightUnit = 'lb' | 'kg';
-
-/**
- * Automatic cleanup for logged days. See `src/lib/retention.ts` for the preset
- * catalog and prune behaviour.
- */
-export type DataRetentionPolicy =
-  'forever' | 'retain-6-months' | 'retain-1-year' | 'pressure-90-drop-3-months';
 
 export type Goals = {
   calories: number;
@@ -64,8 +69,11 @@ export type Settings = {
   visibleMacros: MacroKey[];
   goals: Goals;
   weekStart: WeekStart;
-  /** How long day logs are kept, or when storage pressure may trim them. */
-  dataRetention: DataRetentionPolicy;
+  /**
+   * When local storage usage reaches this percent, oldest logs are trimmed
+   * automatically. `null` disables auto-optimization.
+   */
+  autoOptimizeThreshold: number | null;
   /** Display/entry unit for body weight; persisted values stay in kilograms. */
   weightUnit: WeightUnit;
 };
@@ -84,6 +92,8 @@ export type PersistedState = {
    * the app and merged in at read time (see `mergeFoodLibraries`).
    */
   foodLibrary: FoodLibraryItem[];
+  /** Manually starred foods shown first in Day quick-add when the search is empty. */
+  foodFavorites: FoodFavorite[];
   settings: Settings;
 };
 

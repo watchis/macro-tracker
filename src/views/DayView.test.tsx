@@ -294,6 +294,12 @@ describe('DayView quick add', () => {
       calories: 379,
       macros: { protein: 13 },
     });
+    useAppStore.getState().toggleFoodFavorite('custom', {
+      name: 'Test oats',
+      grams: 100,
+      calories: 379,
+      macros: { protein: 13 },
+    });
     render(<DayView date={DATE} />);
 
     const search = screen.getByTestId('quick-add-search');

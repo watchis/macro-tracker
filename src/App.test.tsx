@@ -57,4 +57,19 @@ describe('App shell', () => {
     // Bright accent, so the contrast ink flips to near-black.
     expect(root.style.getPropertyValue('--accent-contrast')).toBe('#0b0b0c');
   });
+
+  it('locks inputs and shows a top-bar warning when storage is nearly full', async () => {
+    const user = userEvent.setup();
+    // 99% of the 5 MB quota (UTF-16: 2 bytes per char).
+    localStorage.setItem('pad', 'x'.repeat(Math.ceil((5 * 1024 * 1024 * 0.99) / 2)));
+
+    render(<App />);
+
+    expect(screen.getByTestId('storage-critical-banner')).toHaveTextContent(/almost full|% full/i);
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(screen.getByTestId('calorie-goal-input')).toBeDisabled();
+    expect(screen.getByTestId('auto-optimize-threshold')).not.toBeDisabled();
+    expect(screen.getByTestId('auto-optimize-disable')).not.toBeDisabled();
+  });
 });

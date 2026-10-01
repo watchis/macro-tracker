@@ -211,4 +211,38 @@ describe('FoodLibraryView', () => {
     expect(screen.getByTestId('food-library-list')).toHaveTextContent('Gym shake');
     expect(screen.queryByText('Trail mix')).not.toBeInTheDocument();
   });
+
+  it('lets the user star custom and catalog foods manually', async () => {
+    const user = userEvent.setup();
+    state().addFood({ name: 'Gym shake', grams: 300, calories: 220, macros: { protein: 40 } });
+    render(<FoodLibraryView />);
+
+    expect(screen.getByTestId('food-favorite-0')).toHaveAttribute('aria-pressed', 'false');
+    await user.click(screen.getByTestId('food-favorite-0'));
+    expect(screen.getByTestId('food-favorite-0')).toHaveAttribute('aria-pressed', 'true');
+    expect(state().foodFavorites).toEqual([
+      expect.objectContaining({ source: 'custom', name: 'Gym shake' }),
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('starter-food-list').textContent).not.toMatch(/Loading/);
+    });
+
+    const catalogList = screen.getByTestId('starter-food-list');
+    const catalogStar = within(catalogList).getAllByRole('button', { name: /^Favorite /i })[0];
+    expect(catalogStar).toBeTruthy();
+    const catalogName = (catalogStar!.getAttribute('aria-label') ?? '').replace(/^Favorite\s+/, '');
+    await user.click(catalogStar!);
+    expect(state().foodFavorites).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: 'custom', name: 'Gym shake' }),
+        expect.objectContaining({ source: 'starter', name: catalogName }),
+      ]),
+    );
+
+    await user.click(screen.getByTestId('food-favorite-0'));
+    expect(state().foodFavorites).toEqual([
+      expect.objectContaining({ source: 'starter', name: catalogName }),
+    ]);
+  });
 });

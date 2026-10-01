@@ -5,6 +5,7 @@ import type { DayBudget, DayTotals } from '../lib/totals';
 import type {
   DateKey,
   FoodEntry,
+  FoodFavorite,
   FoodLibraryItem,
   Goals,
   MacroKey,
@@ -27,6 +28,9 @@ export const selectWeights = (state: AppStore): Record<DateKey, number> => state
 
 /** User-added custom foods only (persisted). */
 export const selectCustomFoods = (state: AppStore): FoodLibraryItem[] => state.foodLibrary;
+
+/** Manually starred foods for Day quick-add. */
+export const selectFoodFavorites = (state: AppStore): FoodFavorite[] => state.foodFavorites;
 
 /**
  * @deprecated Prefer `useCustomFoods` plus `queryStarterFoods`. Returns customs only —
@@ -70,6 +74,11 @@ export function useWeights(): Record<DateKey, number> {
 /** Persisted custom foods only. */
 export function useCustomFoods(): FoodLibraryItem[] {
   return useAppStore(selectCustomFoods);
+}
+
+/** Manually starred foods (custom and catalog). */
+export function useFoodFavorites(): FoodFavorite[] {
+  return useAppStore(selectFoodFavorites);
 }
 
 /**

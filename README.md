@@ -12,14 +12,15 @@ Four header views — they are app state rather than routes, so GitHub Pages nev
 deep link. Opening a day from the calendar is a fifth screen that is not in the nav.
 
 **Home** is the landing dashboard: today and last-7-day snapshots, latest weight, a compact month
-calendar (tap a day to log), and one Trends chart you can switch between weight over time
-(trend + average), calorie intake, and calorie overages/underages. Toggle lb/kg and a 30 / 90 /
-all-time chart range from the page header.
+calendar (‹ / Today / › to change months; tap a day to select it, tap again to open its log), and
+one Trends chart you can switch between weight over time (trend + average), calorie intake, and
+calorie overages/underages. Toggle a 30 / 90 / all-time chart range from the page header.
 
 **Calendar** shows the full month as a grid. A logged day reports its remaining calories, a depleting
 bar and totals for the macros you have switched on; an untouched day stays quiet. Today is circled
-in the accent color, and clicking any day opens it. Arrow keys walk the grid, `Home`/`End` jump to
-the first and last of the month, and `PageUp`/`PageDown` page between months.
+in the accent color. Clicking an inactive day selects it; clicking the active day (or **Today** when
+today is already selected) opens its log. Arrow keys walk the grid, `Home`/`End` jump to the first
+and last of the month, and `PageUp`/`PageDown` page between months.
 
 **Day** (opened from Home or Calendar, not from the header) is the log itself: a table with a column
 per visible macro, an inline row to add food, and Edit/Delete on every entry. `Enter` submits a row
@@ -27,7 +28,8 @@ and `Escape` cancels it; only the name is required. The footer totals each colum
 and `Quick add` logs a food from your library scaled from its reference weight to the grams you
 enter. An optional **weight** field (lb or kg) records a daily weigh-in for Home's charts.
 
-**Food library** is a searchable whole-foods catalog plus your custom foods; Day's quick-add
+**Food library** is a searchable whole-foods catalog plus your custom foods. Star any food
+to pin it as a favorite; Day's quick-add shows starred foods when the search is empty and
 scales them by grams when you log.
 
 **Settings** covers theme, accent color, weight unit, visible macros, calorie and macro goals, JSON
@@ -98,7 +100,8 @@ spellings (aubergine, calamari, garbanzo, sigarillias, coke) and ignores accents
 A short list of household brand foods, such as Heinz ketchup, Coca-Cola, Mountain Dew,
 and Ferrero Rocher, is included from USDA Branded Foods.
 Regenerate with `python3 scripts/build-whole-foods-catalog.py`. Custom foods you add in the Food
-library view are persisted separately and appear first in quick-add.
+library view are persisted separately. Star custom or catalog foods to pin them as favorites for
+Day quick-add (favorites appear when the search field is empty; they are not auto-assigned).
 
 ## Theming
 

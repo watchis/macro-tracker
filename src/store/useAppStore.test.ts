@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { mergePersistedState, useAppStore } from './useAppStore';
+import { mergePersistedState, resetAppStore, useAppStore } from './useAppStore';
 import { DEFAULT_ACCENT, STORAGE_KEY, STORE_VERSION, defaultPersistedState } from './defaults';
+import { LOCAL_STORAGE_QUOTA_BYTES } from '../lib/storage';
 import { parsePersistedState } from './migrate';
 import { sumEntries } from '../lib/totals';
 import type { PersistedState } from '../types';
@@ -9,6 +10,12 @@ const DATE = '2026-09-17';
 
 function store() {
   return useAppStore.getState();
+}
+
+function fillStorageTo(bytes: number, key = 'pad'): void {
+  // UTF-16 accounting: each character is 2 bytes, plus the key itself.
+  const payloadChars = Math.max(0, Math.ceil((bytes - key.length * 2) / 2));
+  localStorage.setItem(key, 'x'.repeat(payloadChars));
 }
 
 function readStorage(): { state: PersistedState; version: number } {
@@ -23,12 +30,13 @@ describe('defaults', () => {
     expect(state.version).toBe(STORE_VERSION);
     expect(state.days).toEqual({});
     expect(state.foodLibrary).toEqual([]);
+    expect(state.foodFavorites).toEqual([]);
     expect(state.settings.themeMode).toBe('system');
     expect(state.settings.accent).toBe(DEFAULT_ACCENT);
     expect(state.settings.visibleMacros).toEqual(['protein', 'carbs', 'fat']);
     expect(state.settings.goals.calories).toBe(2000);
     expect(state.settings.weekStart).toBe('sunday');
-    expect(state.settings.dataRetention).toBe('forever');
+    expect(state.settings.autoOptimizeThreshold).toBe(90);
     expect(state.settings.weightUnit).toBe('lb');
     expect(state.weights).toEqual({});
     expect(state.view).toBe('home');
@@ -92,7 +100,7 @@ describe('day entries', () => {
 
 describe('food library', () => {
   it('adds, updates and removes foods by index', () => {
-    store().resetAll();
+    resetAppStore();
     const initial = store().foodLibrary.length;
 
     store().addFood({ name: ' Tofu ', grams: 100, calories: 76, macros: { protein: 8 } });
@@ -116,6 +124,46 @@ describe('food library', () => {
     const before = store().foodLibrary;
     store().updateFood(99, { name: 'Nope' });
     expect(store().foodLibrary).toEqual(before);
+  });
+
+  it('manually stars and unstars foods without auto-favoriting customs', () => {
+    resetAppStore();
+    store().addFood({ name: 'Tofu', grams: 100, calories: 76, macros: { protein: 8 } });
+    expect(store().foodFavorites).toEqual([]);
+
+    store().toggleFoodFavorite('custom', store().foodLibrary[0]!);
+    expect(store().foodFavorites).toEqual([
+      expect.objectContaining({ source: 'custom', name: 'Tofu', calories: 76 }),
+    ]);
+
+    store().toggleFoodFavorite('starter', {
+      name: 'Banana',
+      grams: 100,
+      calories: 89,
+      macros: { carbs: 23 },
+    });
+    expect(store().foodFavorites).toHaveLength(2);
+
+    store().updateFood(0, { name: 'Firm tofu', calories: 80 });
+    expect(store().foodFavorites).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: 'custom', name: 'Firm tofu', calories: 80 }),
+        expect.objectContaining({ source: 'starter', name: 'Banana' }),
+      ]),
+    );
+
+    store().removeFood(0);
+    expect(store().foodFavorites).toEqual([
+      expect.objectContaining({ source: 'starter', name: 'Banana' }),
+    ]);
+
+    store().toggleFoodFavorite('starter', {
+      name: 'Banana',
+      grams: 100,
+      calories: 89,
+      macros: { carbs: 23 },
+    });
+    expect(store().foodFavorites).toEqual([]);
   });
 });
 
@@ -159,15 +207,21 @@ describe('settings', () => {
     expect(store().settings.visibleMacros).toEqual(['carbs', 'sodium']);
   });
 
-  it('applies a retention policy and prunes matching days', () => {
-    store().addEntry('2024-02-01', { name: 'Old', grams: 10, calories: 10, macros: {} });
+  it('applies auto-optimize when usage crosses the threshold', () => {
+    store().addEntry('2025-01-10', { name: 'Old', grams: 10, calories: 10, macros: {} });
     store().addEntry(DATE, { name: 'New', grams: 10, calories: 10, macros: {} });
+    fillStorageTo(Math.floor(LOCAL_STORAGE_QUOTA_BYTES * 0.95));
 
-    store().setDataRetention('retain-6-months');
+    store().setAutoOptimizeThreshold(90);
 
-    expect(store().settings.dataRetention).toBe('retain-6-months');
-    expect(store().days['2024-02-01']).toBeUndefined();
+    expect(store().settings.autoOptimizeThreshold).toBe(90);
+    expect(store().days['2025-01-10']).toBeUndefined();
     expect(store().days[DATE]?.[0]?.name).toBe('New');
+  });
+
+  it('can disable auto-optimize', () => {
+    store().setAutoOptimizeThreshold(null);
+    expect(store().settings.autoOptimizeThreshold).toBeNull();
   });
 });
 
@@ -192,6 +246,7 @@ describe('persistence', () => {
     expect(persisted.version).toBe(STORE_VERSION);
     expect(Object.keys(persisted.state).sort()).toEqual([
       'days',
+      'foodFavorites',
       'foodLibrary',
       'settings',
       'version',
@@ -215,12 +270,13 @@ describe('body weight', () => {
     expect(store().weights[DATE]).toBeUndefined();
   });
 
-  it('prunes old weigh-ins with the retention policy', () => {
-    store().setWeight('2024-02-01', 80, 'kg');
+  it('prunes old weigh-ins when auto-optimize runs', () => {
+    store().setWeight('2025-01-10', 80, 'kg');
     store().setWeight(DATE, 81, 'kg');
-    store().setDataRetention('retain-6-months');
+    fillStorageTo(Math.floor(LOCAL_STORAGE_QUOTA_BYTES * 0.95));
+    store().setAutoOptimizeThreshold(90);
 
-    expect(store().weights['2024-02-01']).toBeUndefined();
+    expect(store().weights['2025-01-10']).toBeUndefined();
     expect(store().weights[DATE]).toBe(81);
   });
 });
@@ -244,7 +300,7 @@ describe('export, import and reset', () => {
     store().setAccent('#ff0000');
     const json = store().exportJson();
 
-    store().resetAll();
+    resetAppStore();
     expect(store().days).toEqual({});
 
     expect(store().importJson(json)).toEqual({ ok: true });
@@ -287,23 +343,42 @@ describe('export, import and reset', () => {
       macros: {},
     });
     expect(state.foodLibrary).toEqual([]);
+    expect(state.foodFavorites).toEqual([]);
     expect(state.settings.themeMode).toBe('system');
     expect(state.settings.accent).toBe(DEFAULT_ACCENT);
     expect(state.settings.visibleMacros).toEqual(['protein']);
     expect('somethingElse' in state).toBe(false);
   });
 
-  it('resets days, library and settings back to defaults', () => {
-    store().addEntry(DATE, { name: 'Egg', grams: 50, calories: 72, macros: {} });
+  it('optimizes storage by dropping oldest months while keeping settings', () => {
+    store().addEntry('2025-01-10', { name: 'Old', grams: 100, calories: 100, macros: {} });
+    store().addEntry('2025-02-10', { name: 'Mid', grams: 100, calories: 100, macros: {} });
+    store().addEntry(DATE, { name: 'New', grams: 100, calories: 100, macros: {} });
     store().setThemeMode('dark');
-    store().removeFood(0);
+    store().setCalorieGoal(1234);
+    store().addFood({ name: 'Tofu', grams: 100, calories: 76, macros: { protein: 8 } });
+    store().toggleFoodFavorite('custom', store().foodLibrary[0]!);
 
-    store().resetAll();
+    // Force the optimizer past the 70% target without relying on tiny fixture JSON.
+    fillStorageTo(Math.floor(LOCAL_STORAGE_QUOTA_BYTES * 0.85));
 
-    const defaults = defaultPersistedState();
-    expect(store().days).toEqual({});
-    expect(store().foodLibrary).toEqual(defaults.foodLibrary);
-    expect(store().settings).toEqual(defaults.settings);
+    const result = store().optimizeStorage();
+
+    expect(result.monthsDropped).toBeGreaterThan(0);
+    expect(store().days['2025-01-10']).toBeUndefined();
+    expect(store().days[DATE]?.[0]?.name).toBe('New');
+    expect(store().settings.themeMode).toBe('dark');
+    expect(store().settings.goals.calories).toBe(1234);
+    expect(store().foodLibrary).toHaveLength(1);
+    expect(store().foodFavorites).toHaveLength(1);
+  });
+
+  it('reports nothing to free when usage is already under the target', () => {
+    store().addEntry(DATE, { name: 'Egg', grams: 50, calories: 72, macros: {} });
+    const before = store().days;
+
+    expect(store().optimizeStorage()).toEqual({ freedBytes: 0, monthsDropped: 0 });
+    expect(store().days).toEqual(before);
   });
 });
 
@@ -343,6 +418,7 @@ describe('mergePersistedState', () => {
 
     expect(merged.days).toEqual({});
     expect(merged.foodLibrary).toEqual([]);
+    expect(merged.foodFavorites).toEqual([]);
     expect(merged.settings).toEqual(defaultPersistedState().settings);
   });
 
@@ -371,7 +447,7 @@ describe('mergePersistedState', () => {
     expect(merged.settings.visibleMacros).toEqual(['protein']);
     expect(merged.settings.goals.calories).toBe(2000);
     expect(merged.settings.weekStart).toBe('sunday');
-    expect(merged.settings.dataRetention).toBe('forever');
+    expect(merged.settings.autoOptimizeThreshold).toBe(90);
   });
 
   it('strips the old five-item seed from persisted customs', () => {

@@ -2,19 +2,25 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 're
 import { createPortal } from 'react-dom';
 import { matchingAlias, normalizeSearchText } from '../data/foodAliases';
 import { queryStarterFoods, type StarterFood } from '../data/starterCatalog';
+import { foodFavoriteKey, isFoodFavorited } from '../lib/foodFavorites';
 import { formatCalories } from '../lib/totals';
-import { useCustomFoods } from '../store/selectors';
+import { useCustomFoods, useFoodFavorites } from '../store/selectors';
 import type { CSSProperties, KeyboardEvent } from 'react';
-import type { FoodLibraryItem } from '../types';
+import type { FoodFavoriteSource, FoodLibraryItem } from '../types';
 
 export type FoodSearchPick = {
   food: FoodLibraryItem;
-  source: 'custom' | 'starter';
+  source: FoodFavoriteSource;
 };
 
 type SearchableFood = FoodLibraryItem & { aliases?: readonly string[] };
 
-type FoodSearchOption = { food: SearchableFood; source: 'custom' | 'starter'; key: string };
+type FoodSearchOption = {
+  food: SearchableFood;
+  source: FoodFavoriteSource;
+  key: string;
+  favorited: boolean;
+};
 
 export type FoodSearchComboboxProps = {
   value: string;
@@ -35,8 +41,8 @@ export type FoodSearchComboboxProps = {
 };
 
 /**
- * Typeahead over custom foods and the starter catalog. Free-text entry stays
- * valid; picking a suggestion is optional.
+ * Typeahead over custom foods and the starter catalog. Empty focus shows
+ * manually starred favorites; free-text entry stays valid without picking.
  */
 export function FoodSearchCombobox({
   value,
@@ -55,6 +61,7 @@ export function FoodSearchCombobox({
   const listboxId = `${generatedId}-listbox`;
   const resolvedInputId = inputId ?? `${generatedId}-input`;
   const customFoods = useCustomFoods();
+  const foodFavorites = useFoodFavorites();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -64,7 +71,7 @@ export function FoodSearchCombobox({
   const normalizedQuery = value.trim().toLowerCase();
 
   const customMatches = useMemo(() => {
-    if (!normalizedQuery) return customFoods.slice(0, 20);
+    if (!normalizedQuery) return [];
     const needle = normalizeSearchText(normalizedQuery);
     return customFoods.filter((food) => normalizeSearchText(food.name).includes(needle));
   }, [customFoods, normalizedQuery]);
@@ -101,17 +108,41 @@ export function FoodSearchCombobox({
   const loading = Boolean(normalizedQuery) && starterResult.query !== normalizedQuery;
 
   const options = useMemo(() => {
-    const starterMatches =
-      normalizedQuery && starterResult.query === normalizedQuery ? starterResult.items : [];
     const rows: FoodSearchOption[] = [];
-    customMatches.forEach((food, index) => {
-      rows.push({ key: `custom:${index}:${food.name}`, food, source: 'custom' });
+    const seen = new Set<string>();
+    const needle = normalizeSearchText(normalizedQuery);
+
+    const push = (food: SearchableFood, source: FoodFavoriteSource, favorited: boolean) => {
+      const key = foodFavoriteKey(source, food.name);
+      if (seen.has(key)) return;
+      seen.add(key);
+      rows.push({ key, food, source, favorited });
+    };
+
+    if (!normalizedQuery) {
+      foodFavorites.forEach((favorite) => {
+        const { source, ...food } = favorite;
+        push(food, source, true);
+      });
+      return rows;
+    }
+
+    const starterMatches = starterResult.query === normalizedQuery ? starterResult.items : [];
+
+    // Favorites that match the query first, then remaining custom/catalog hits.
+    foodFavorites.forEach((favorite) => {
+      if (!normalizeSearchText(favorite.name).includes(needle)) return;
+      const { source, ...food } = favorite;
+      push(food, source, true);
     });
-    starterMatches.forEach((food, index) => {
-      rows.push({ key: `starter:${index}:${food.name}`, food, source: 'starter' });
+    customMatches.forEach((food) => {
+      push(food, 'custom', isFoodFavorited(foodFavorites, 'custom', food.name));
+    });
+    starterMatches.forEach((food) => {
+      push(food, 'starter', isFoodFavorited(foodFavorites, 'starter', food.name));
     });
     return rows;
-  }, [customMatches, normalizedQuery, starterResult]);
+  }, [customMatches, foodFavorites, normalizedQuery, starterResult]);
 
   const activeIndex = options.length === 0 ? 0 : Math.min(highlight, options.length - 1);
   const showMenu = open && !picked;
@@ -215,7 +246,7 @@ export function FoodSearchCombobox({
               <li className="px-3 py-2 text-sm text-muted">Searching…</li>
             ) : options.length === 0 ? (
               <li className="px-3 py-2 text-sm text-muted">
-                {normalizedQuery ? 'No matches' : 'Type to search'}
+                {normalizedQuery ? 'No matches' : 'Star foods in the library, or type to search'}
               </li>
             ) : (
               options.map((row, index) => {
@@ -240,7 +271,7 @@ export function FoodSearchCombobox({
                     onMouseEnter={() => setHighlight(index)}
                   >
                     <span className="font-medium">
-                      {row.source === 'custom' ? '★ ' : ''}
+                      {row.favorited ? '★ ' : ''}
                       {row.food.name}
                       {alias ? <span className="font-normal text-muted"> · {alias}</span> : null}
                     </span>
