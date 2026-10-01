@@ -12,6 +12,18 @@ function state() {
   return useAppStore.getState();
 }
 
+function seedReadyProfile() {
+  state().setProjectionProfile({
+    sex: 'female',
+    birthday: '1996-06-01',
+    heightCm: 165,
+    activity: 1.375,
+  });
+  state().setWeight('2026-09-20', 70, 'kg');
+  state().setWeightUnit('kg');
+  state().setCalorieGoal(1600);
+}
+
 describe('GoalsView', () => {
   it('shows goals and macros plus an incomplete projection prompt', () => {
     render(<GoalsView />);
@@ -110,18 +122,26 @@ describe('GoalsView', () => {
     await user.clear(height);
     await user.type(height, '70');
 
+    // Default start mode is Weight (not Date).
+    expect(
+      within(screen.getByTestId('projection-start-mode')).getByRole('radio', { name: 'Weight' }),
+    ).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByTestId('projection-weight')).toHaveValue('200');
-    expect(screen.getByTestId('projection-series-goal')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('projection-series-formula')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByTestId('projection-intake')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('projection-series-custom')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('projection-series-logs')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('projection-series-formula')).not.toBeInTheDocument();
 
-    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/Goal · Formula/);
+    expect(screen.getByTestId('projection-series-goal')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('projection-series-legend')).toHaveTextContent(/Goal/);
+    expect(screen.queryByTestId('projection-summary')).not.toBeInTheDocument();
     expect(screen.getByTestId('projection-weight-chart')).toBeInTheDocument();
-    expect(screen.getByTestId('chart-series-goal-formula')).toBeInTheDocument();
+    expect(screen.getByTestId('chart-series-goal')).toBeInTheDocument();
 
     const table = screen.getByTestId('projection-table');
     expect(within(table).getByText('Date')).toBeInTheDocument();
-    expect(within(table).getByText('Calories used')).toBeInTheDocument();
-    expect(within(table).getAllByRole('row').length).toBeGreaterThan(10);
+    expect(within(table).getByText('Used')).toBeInTheDocument();
+    expect(within(table).getAllByRole('row')).toHaveLength(53);
 
     expect(useAppStore.getState().settings.projection).toMatchObject({
       sex: 'male',
@@ -131,27 +151,62 @@ describe('GoalsView', () => {
     });
   });
 
-  it('can lengthen the projection to two years', async () => {
+  it('switches start between weight and date modes', async () => {
     const user = userEvent.setup();
-    useAppStore.getState().setProjectionProfile({
-      sex: 'female',
-      birthday: '1996-06-01',
-      heightCm: 165,
-      activity: 1.375,
-    });
-    useAppStore.getState().setWeight('2026-09-20', 70, 'kg');
-    useAppStore.getState().setWeightUnit('kg');
-    useAppStore.getState().setCalorieGoal(1600);
+    seedReadyProfile();
+    state().setWeight('2026-10-01', 68, 'kg');
 
     render(<GoalsView />);
 
-    await user.click(
-      within(screen.getByTestId('projection-weeks')).getByRole('radio', { name: '2 yr' }),
-    );
+    expect(screen.getByTestId('projection-weight')).toBeInTheDocument();
+    expect(screen.queryByTestId('projection-start-date')).not.toBeInTheDocument();
 
-    const rows = within(screen.getByTestId('projection-table')).getAllByRole('row');
-    // header + 104 weekly rows
-    expect(rows).toHaveLength(105);
+    await user.click(
+      within(screen.getByTestId('projection-start-mode')).getByRole('radio', { name: 'Date' }),
+    );
+    fireEvent.change(screen.getByTestId('projection-start-date'), {
+      target: { value: '2026-10-01' },
+    });
+
+    expect(screen.queryByTestId('projection-weight')).not.toBeInTheDocument();
+    expect(screen.getByTestId('projection-start-weight')).toHaveTextContent(/68/);
+  });
+
+  it('uses end modes for duration, date, and goal weight', async () => {
+    const user = userEvent.setup();
+    seedReadyProfile();
+
+    render(<GoalsView />);
+
+    expect(
+      within(screen.getByTestId('projection-end-mode')).getByRole('radio', { name: '1 yr' }),
+    ).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByTestId('projection-end-date')).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(53);
+
+    await user.click(
+      within(screen.getByTestId('projection-end-mode')).getByRole('radio', { name: '3 mo' }),
+    );
+    expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(14);
+
+    await user.click(
+      within(screen.getByTestId('projection-end-mode')).getByRole('radio', { name: 'Date' }),
+    );
+    fireEvent.change(screen.getByTestId('projection-end-date'), {
+      target: { value: '2028-09-28' },
+    });
+    expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(105);
+
+    await user.click(
+      within(screen.getByTestId('projection-end-mode')).getByRole('radio', { name: 'Goal' }),
+    );
+    const goal = screen.getByTestId('projection-goal-weight');
+    await user.clear(goal);
+    await user.type(goal, '65');
+    expect(screen.getByTestId('projection-chart')).toHaveTextContent(/Goal/i);
+    expect(within(screen.getByTestId('projection-table')).getAllByRole('row').length).toBeLessThan(
+      53,
+    );
   });
 
   it('overlays logged-average intake on the chart when toggled', async () => {
@@ -171,44 +226,13 @@ describe('GoalsView', () => {
 
     render(<GoalsView />);
 
-    expect(screen.getByTestId('chart-series-goal-formula')).toBeInTheDocument();
-    expect(screen.queryByTestId('chart-series-logged-formula')).not.toBeInTheDocument();
+    expect(screen.getByTestId('chart-series-goal')).toBeInTheDocument();
+    expect(screen.queryByTestId('chart-series-logged')).not.toBeInTheDocument();
 
     await user.click(screen.getByTestId('projection-series-logged'));
 
     expect(screen.getByTestId('projection-series-logged')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('chart-series-logged-formula')).toBeInTheDocument();
-    expect(screen.getByTestId('projection-series-legend')).toHaveTextContent(/Logged · Formula/);
-    expect(screen.getByTestId('projection-summary')).toHaveTextContent(/Goal · Formula/);
-  });
-
-  it('overlays from-logs maintenance on the chart when toggled', async () => {
-    const user = userEvent.setup();
-    const store = useAppStore.getState();
-    store.setProjectionProfile({
-      sex: 'male',
-      birthday: BIRTHDAY_AGE_35,
-      heightCm: 178,
-      activity: 1.2,
-    });
-    store.setCalorieGoal(1800);
-    store.setWeightUnit('lb');
-    store.setWeight('2026-09-01', 200, 'lb');
-    store.setWeight('2026-09-15', 198, 'lb');
-    for (let day = 1; day <= 15; day += 1) {
-      const key = `2026-09-${String(day).padStart(2, '0')}`;
-      store.addEntry(key, { name: 'Meal', grams: 100, calories: 1800, macros: {} });
-    }
-
-    render(<GoalsView />);
-
-    expect(screen.getByTestId('projection-activity')).toBeInTheDocument();
-    expect(screen.queryByTestId('chart-series-goal-logs')).not.toBeInTheDocument();
-
-    await user.click(screen.getByTestId('projection-series-logs'));
-
-    expect(screen.getByTestId('projection-series-logs')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('chart-series-goal-logs')).toBeInTheDocument();
-    expect(screen.getByTestId('projection-series-legend')).toHaveTextContent(/Goal · From logs/);
+    expect(screen.getByTestId('chart-series-logged')).toBeInTheDocument();
+    expect(screen.getByTestId('projection-series-legend')).toHaveTextContent(/Logged/);
   });
 });

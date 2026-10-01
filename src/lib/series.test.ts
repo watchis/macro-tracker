@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { calorieDeltaSeries, calorieSeries, linearTrend, weightSeries } from './series';
+import {
+  calorieDeltaSeries,
+  calorieSeries,
+  linearTrend,
+  weightNearDate,
+  weightSeries,
+} from './series';
 import type { FoodEntry } from '../types';
 
 function entry(calories: number): FoodEntry {
@@ -22,6 +28,24 @@ describe('weightSeries', () => {
     });
     expect(series.map((point) => point.date)).toEqual(['2026-09-10', '2026-09-17']);
     expect(series[0]?.value).toBe(81);
+  });
+});
+
+describe('weightNearDate', () => {
+  const weights = {
+    '2026-09-01': 90,
+    '2026-09-15': 88,
+    '2026-09-20': 87,
+  };
+
+  it('prefers an exact weigh-in, else the latest on or before the date', () => {
+    expect(weightNearDate(weights, '2026-09-15')?.value).toBe(88);
+    expect(weightNearDate(weights, '2026-09-18')?.date).toBe('2026-09-15');
+    expect(weightNearDate(weights, '2026-08-01')?.date).toBe('2026-09-01');
+  });
+
+  it('returns undefined when there are no weigh-ins', () => {
+    expect(weightNearDate({}, '2026-09-15')).toBeUndefined();
   });
 });
 

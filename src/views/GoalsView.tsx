@@ -2,9 +2,15 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { LineChart, type ChartSeries } from '../components/charts/LineChart';
 import { MacroSettings } from '../components/settings/MacroSettings';
 import { NumberField } from '../components/settings/NumberField';
-import { SegmentedControl } from '../components/settings/SegmentedControl';
 import { SettingsSection } from '../components/settings/SettingsSection';
-import { ageYearsFromBirthday, formatShortDate, fromDateKey, todayKey } from '../lib/dates';
+import {
+  addDays,
+  ageYearsFromBirthday,
+  daysBetween,
+  formatShortDate,
+  fromDateKey,
+  todayKey,
+} from '../lib/dates';
 import {
   fromCanonicalCm,
   heightUnitForWeightUnit,
@@ -15,35 +21,39 @@ import {
 import {
   ACTIVITY_OPTIONS,
   LOGGED_INTAKE_LOOKBACK_DAYS,
-  activityFromMaintenance,
   averageLoggedIntake,
-  estimateMaintenanceFromLogs,
   projectWeightLoss,
   type ActivityMultiplier,
   type ProjectionResult,
+  type ProjectionRow,
 } from '../lib/projection';
-import { weightSeries, type DatedPoint } from '../lib/series';
+import { weightNearDate, weightSeries, type DatedPoint } from '../lib/series';
 import { formatCalories } from '../lib/totals';
 import { fromCanonicalKg, roundWeight, toCanonicalKg, weightUnitLabel } from '../lib/weight';
 import { useAppStore } from '../store/useAppStore';
 import { useGoals, useProjectionProfile, useWeightUnit, useWeights } from '../store/selectors';
-import type { SegmentedOption } from '../components/settings/SegmentedControl';
 import type { DateKey, WeightUnit } from '../types';
 
-const WEEK_OPTIONS = [
-  { value: '26', label: '6 mo' },
-  { value: '52', label: '1 yr' },
-  { value: '104', label: '2 yr' },
+const START_MODES = [
+  { value: 'weight', label: 'Weight' },
+  { value: 'date', label: 'Date' },
 ] as const;
 
-type WeekSpan = (typeof WEEK_OPTIONS)[number]['value'];
-type IntakeKey = 'goal' | 'logged' | 'custom';
-type MaintenanceKey = 'formula' | 'logs';
+const END_MODES = [
+  { value: '13', label: '3 mo', weeks: 13 },
+  { value: '26', label: '6 mo', weeks: 26 },
+  { value: '52', label: '1 yr', weeks: 52 },
+  { value: 'goal', label: 'Goal' },
+  { value: 'date', label: 'Date' },
+] as const;
+
+type StartMode = (typeof START_MODES)[number]['value'];
+type EndMode = (typeof END_MODES)[number]['value'];
+type IntakeKey = 'goal' | 'logged';
 
 type Scenario = {
   id: string;
   intake: IntakeKey;
-  maintenance: MaintenanceKey;
   label: string;
   intakeKcal: number;
   result: ProjectionResult;
@@ -54,24 +64,14 @@ type Scenario = {
 const INTAKE_META: Record<IntakeKey, { label: string; shortLabel: string }> = {
   goal: { label: 'Goal', shortLabel: 'Goal' },
   logged: { label: 'Logged avg', shortLabel: 'Logged' },
-  custom: { label: 'Custom', shortLabel: 'Custom' },
-};
-
-const MAINTENANCE_META: Record<MaintenanceKey, { label: string }> = {
-  formula: { label: 'Formula' },
-  logs: { label: 'From logs' },
 };
 
 const SCENARIO_STYLE: Record<
   string,
   { className: string; strokeDasharray?: string; showDots?: boolean }
 > = {
-  'goal-formula': { className: 'stroke-accent', showDots: true },
-  'goal-logs': { className: 'stroke-accent', strokeDasharray: '7 4' },
-  'logged-formula': { className: 'stroke-accent-muted' },
-  'logged-logs': { className: 'stroke-accent-muted', strokeDasharray: '7 4' },
-  'custom-formula': { className: 'stroke-ink', strokeDasharray: '2 3' },
-  'custom-logs': { className: 'stroke-muted', strokeDasharray: '2 3' },
+  goal: { className: 'stroke-accent', showDots: true },
+  logged: { className: 'stroke-accent-muted', strokeDasharray: '7 4' },
 };
 
 function formatDisplayWeight(value: number, unit: WeightUnit): string {
@@ -80,17 +80,25 @@ function formatDisplayWeight(value: number, unit: WeightUnit): string {
   })} ${weightUnitLabel(unit)}`;
 }
 
+function weeksBetween(start: DateKey, end: DateKey): number {
+  return Math.max(1, Math.floor(daysBetween(start, end) / 7));
+}
+
+function endModeWeeks(mode: EndMode): number | undefined {
+  const match = END_MODES.find((option) => option.value === mode);
+  return match && 'weeks' in match ? match.weeks : undefined;
+}
+
 function toChartPoints(
   result: ProjectionResult,
-  startWeightDisplay: number,
+  startWeightKg: number,
   weightUnit: WeightUnit,
   startDate: DateKey,
 ): DatedPoint[] {
-  const startKg = toCanonicalKg(startWeightDisplay, weightUnit);
   const start = {
     date: startDate,
     t: Date.parse(`${startDate}T00:00:00`),
-    value: fromCanonicalKg(startKg, weightUnit),
+    value: fromCanonicalKg(startWeightKg, weightUnit),
   };
   return [
     start,
@@ -130,32 +138,23 @@ function WeightProjectionSection() {
   const setProjectionProfile = useAppStore((state) => state.setProjectionProfile);
 
   const heightUnit = heightUnitForWeightUnit(weightUnit);
+  const today = todayKey();
   const latestWeightKg = useMemo(() => weightSeries(weights).at(-1)?.value, [weights]);
-  const startDate = todayKey();
 
-  const loggedIntake = useMemo(
-    () => averageLoggedIntake(days, startDate, LOGGED_INTAKE_LOOKBACK_DAYS),
-    [days, startDate],
-  );
-  const logMaintenance = useMemo(() => estimateMaintenanceFromLogs(weights, days), [weights, days]);
-
+  const [startMode, setStartMode] = useState<StartMode>('weight');
+  const [endMode, setEndMode] = useState<EndMode>('52');
+  const [startDate, setStartDate] = useState<DateKey>(today);
+  const [endDate, setEndDate] = useState<DateKey>(() => addDays(today, 364));
   const [startWeightDisplay, setStartWeightDisplay] = useState<number | undefined>(() =>
     latestWeightKg !== undefined
       ? roundWeight(fromCanonicalKg(latestWeightKg, weightUnit), weightUnit)
       : undefined,
   );
-  const [customIntakeKcal, setCustomIntakeKcal] = useState<number | undefined>(() =>
-    goals.calories > 0 ? goals.calories : loggedIntake?.averageKcal,
-  );
+  const [goalWeightDisplay, setGoalWeightDisplay] = useState<number | undefined>(undefined);
   const [showGoal, setShowGoal] = useState(true);
   const [showLogged, setShowLogged] = useState(false);
-  const [showCustom, setShowCustom] = useState(false);
-  const [showFormula, setShowFormula] = useState(true);
-  const [showLogsMaint, setShowLogsMaint] = useState(false);
   const [showWeighIns, setShowWeighIns] = useState(true);
-  const [weeks, setWeeks] = useState<WeekSpan>('52');
 
-  // Keep the start-weight field in sync when the preferred unit flips.
   const [lastWeightUnit, setLastWeightUnit] = useState(weightUnit);
   if (lastWeightUnit !== weightUnit) {
     setLastWeightUnit(weightUnit);
@@ -163,12 +162,37 @@ function WeightProjectionSection() {
       const kg = toCanonicalKg(startWeightDisplay, lastWeightUnit);
       setStartWeightDisplay(roundWeight(fromCanonicalKg(kg, weightUnit), weightUnit));
     }
+    if (goalWeightDisplay !== undefined) {
+      const kg = toCanonicalKg(goalWeightDisplay, lastWeightUnit);
+      setGoalWeightDisplay(roundWeight(fromCanonicalKg(kg, weightUnit), weightUnit));
+    }
   }
 
-  const weekOptions: ReadonlyArray<SegmentedOption<WeekSpan>> = WEEK_OPTIONS.map((option) => ({
-    value: option.value,
-    label: option.label,
-  }));
+  const usingStartDate = startMode === 'date';
+  const usingEndDate = endMode === 'date';
+  const usingGoalWeight = endMode === 'goal';
+  const resolvedStartDate: DateKey = usingStartDate ? startDate : today;
+
+  const loggedIntake = useMemo(
+    () => averageLoggedIntake(days, resolvedStartDate, LOGGED_INTAKE_LOOKBACK_DAYS),
+    [days, resolvedStartDate],
+  );
+
+  const startWeightPoint = useMemo(
+    () => (usingStartDate ? weightNearDate(weights, startDate) : undefined),
+    [usingStartDate, weights, startDate],
+  );
+
+  const startWeightKg = usingStartDate
+    ? startWeightPoint?.value
+    : startWeightDisplay !== undefined
+      ? toCanonicalKg(startWeightDisplay, weightUnit)
+      : undefined;
+
+  const goalWeightKg =
+    usingGoalWeight && goalWeightDisplay !== undefined
+      ? toCanonicalKg(goalWeightDisplay, weightUnit)
+      : undefined;
 
   const heightDisplay =
     profile.heightCm !== null && profile.heightCm !== undefined
@@ -177,86 +201,74 @@ function WeightProjectionSection() {
 
   const ageYears =
     profile.birthday !== null
-      ? ageYearsFromBirthday(profile.birthday, fromDateKey(startDate))
+      ? ageYearsFromBirthday(profile.birthday, fromDateKey(resolvedStartDate))
       : null;
 
   const goalIntake = goals.calories > 0 ? goals.calories : undefined;
   const loggedIntakeKcal = loggedIntake?.averageKcal;
-  const customIntake =
-    customIntakeKcal !== undefined && customIntakeKcal > 0 ? customIntakeKcal : undefined;
 
   const useGoal = showGoal && goalIntake !== undefined;
   const useLogged = showLogged && loggedIntakeKcal !== undefined;
-  const useCustom = showCustom && customIntake !== undefined;
-  const useFormula = showFormula;
-  const useLogsMaint = showLogsMaint && logMaintenance !== null;
+
+  const dateRangeValid = !usingEndDate || daysBetween(resolvedStartDate, endDate) >= 7;
+  const goalWeightValid =
+    !usingGoalWeight ||
+    (goalWeightKg !== undefined &&
+      goalWeightKg > 0 &&
+      startWeightKg !== undefined &&
+      Math.abs(goalWeightKg - startWeightKg) >= 0.05);
+
+  const weeksForEndDate = usingEndDate
+    ? weeksBetween(resolvedStartDate, endDate)
+    : endModeWeeks(endMode);
 
   const profileReady =
     profile.sex !== null &&
     ageYears !== null &&
     profile.heightCm !== null &&
-    startWeightDisplay !== undefined &&
-    startWeightDisplay > 0;
+    startWeightKg !== undefined &&
+    startWeightKg > 0 &&
+    dateRangeValid &&
+    goalWeightValid;
 
-  const anyIntakeOn = useGoal || useLogged || useCustom;
-  const anyMaintOn = useFormula || useLogsMaint;
-  const ready = profileReady && anyIntakeOn && anyMaintOn;
+  const anyIntakeOn = useGoal || useLogged;
+  const ready = profileReady && anyIntakeOn;
 
   const scenarios = useMemo((): Scenario[] => {
     if (!ready || !profile.sex || ageYears === null || profile.heightCm === null) return [];
-    if (startWeightDisplay === undefined) return [];
+    if (startWeightKg === undefined) return [];
 
-    const startWeightKg = toCanonicalKg(startWeightDisplay, weightUnit);
     const intakes: Array<{ key: IntakeKey; kcal: number }> = [];
     if (useGoal && goalIntake !== undefined) intakes.push({ key: 'goal', kcal: goalIntake });
     if (useLogged && loggedIntakeKcal !== undefined) {
       intakes.push({ key: 'logged', kcal: loggedIntakeKcal });
     }
-    if (useCustom && customIntake !== undefined)
-      intakes.push({ key: 'custom', kcal: customIntake });
-
-    const maintenances: MaintenanceKey[] = [];
-    if (useFormula) maintenances.push('formula');
-    if (useLogsMaint) maintenances.push('logs');
 
     const out: Scenario[] = [];
     for (const intake of intakes) {
-      for (const maintenance of maintenances) {
-        let activity: number = profile.activity;
-        if (maintenance === 'logs' && logMaintenance) {
-          activity = activityFromMaintenance({
-            sex: profile.sex,
-            weightKg: startWeightKg,
-            heightCm: profile.heightCm,
-            ageYears,
-            maintenanceKcal: logMaintenance.maintenanceKcal,
-          });
-        }
+      const result = projectWeightLoss({
+        sex: profile.sex,
+        ageYears,
+        heightCm: profile.heightCm,
+        startWeightKg,
+        activity: profile.activity,
+        intakeKcal: intake.kcal,
+        startDate: resolvedStartDate,
+        ...(usingGoalWeight && goalWeightKg !== undefined
+          ? { goalWeightKg }
+          : { weeks: weeksForEndDate ?? 52 }),
+      });
 
-        const result = projectWeightLoss({
-          sex: profile.sex,
-          ageYears,
-          heightCm: profile.heightCm,
-          startWeightKg,
-          activity,
-          intakeKcal: intake.kcal,
-          startDate,
-          weeks: Number(weeks),
-        });
-
-        const id = `${intake.key}-${maintenance}`;
-        const style = SCENARIO_STYLE[id] ?? { className: 'stroke-accent' };
-        out.push({
-          id,
-          intake: intake.key,
-          maintenance,
-          label: `${INTAKE_META[intake.key].shortLabel} · ${MAINTENANCE_META[maintenance].label}`,
-          intakeKcal: intake.kcal,
-          result,
-          className: style.className,
-          strokeDasharray: style.strokeDasharray,
-        });
-      }
+      const style = SCENARIO_STYLE[intake.key] ?? { className: 'stroke-accent' };
+      out.push({
+        id: intake.key,
+        intake: intake.key,
+        label: INTAKE_META[intake.key].shortLabel,
+        intakeKcal: intake.kcal,
+        result,
+        className: style.className,
+        strokeDasharray: style.strokeDasharray,
+      });
     }
 
     return out;
@@ -266,22 +278,28 @@ function WeightProjectionSection() {
     profile.heightCm,
     profile.activity,
     ageYears,
-    startWeightDisplay,
-    weightUnit,
-    startDate,
-    weeks,
+    startWeightKg,
+    resolvedStartDate,
+    usingGoalWeight,
+    goalWeightKg,
+    weeksForEndDate,
     useGoal,
     useLogged,
-    useCustom,
-    useFormula,
-    useLogsMaint,
     goalIntake,
     loggedIntakeKcal,
-    customIntake,
-    logMaintenance,
   ]);
 
   const primary = scenarios[0] ?? null;
+  const resolvedEndDate = primary?.result.rows.length
+    ? primary.result.rows[primary.result.rows.length - 1]!.date
+    : addDays(resolvedStartDate, (weeksForEndDate ?? 52) * 7);
+
+  const rowByDate = useMemo(() => {
+    const map = new Map<DateKey, ProjectionRow>();
+    if (!primary) return map;
+    for (const row of primary.result.rows) map.set(row.date, row);
+    return map;
+  }, [primary]);
 
   const actualWeightPoints = useMemo(
     () =>
@@ -293,12 +311,12 @@ function WeightProjectionSection() {
   );
 
   const chartSeries = useMemo((): ChartSeries[] => {
-    if (startWeightDisplay === undefined) return [];
+    if (startWeightKg === undefined) return [];
     const series: ChartSeries[] = scenarios.map((scenario) => {
       const style = SCENARIO_STYLE[scenario.id] ?? { className: 'stroke-accent' };
       return {
         id: scenario.id,
-        points: toChartPoints(scenario.result, startWeightDisplay, weightUnit, startDate),
+        points: toChartPoints(scenario.result, startWeightKg, weightUnit, resolvedStartDate),
         className: scenario.className,
         strokeDasharray: scenario.strokeDasharray,
         strokeWidth: scenario === primary ? 2.75 : 2,
@@ -319,40 +337,45 @@ function WeightProjectionSection() {
     return series;
   }, [
     scenarios,
-    startWeightDisplay,
+    startWeightKg,
     weightUnit,
-    startDate,
+    resolvedStartDate,
     showWeighIns,
     actualWeightPoints,
     primary,
   ]);
 
-  function toggleIntake(key: IntakeKey) {
-    if (key === 'goal') setShowGoal((value) => !value);
-    if (key === 'logged') setShowLogged((value) => !value);
-    if (key === 'custom') setShowCustom((value) => !value);
-  }
-
-  function toggleMaintenance(key: MaintenanceKey) {
-    if (key === 'formula') setShowFormula((value) => !value);
-    if (key === 'logs') setShowLogsMaint((value) => !value);
-  }
+  const endWeightLabel = usingEndDate
+    ? formatShortDate(resolvedEndDate)
+    : usingGoalWeight
+      ? primary?.result.goalReached
+        ? 'Goal'
+        : 'At cap'
+      : (END_MODES.find((option) => option.value === endMode)?.label ??
+        formatShortDate(resolvedEndDate));
 
   const incompleteReason = !profileReady
-    ? 'Fill in sex, birthday, height, and starting weight to see the projection.'
+    ? !dateRangeValid
+      ? 'End date must be at least one week after the start.'
+      : startWeightKg === undefined
+        ? usingStartDate
+          ? 'No weigh-in found for the start date.'
+          : 'Enter a starting weight.'
+        : !goalWeightValid
+          ? 'Enter a goal weight different from the start.'
+          : 'Fill in sex, birthday, and height.'
     : !anyIntakeOn
-      ? 'Turn on Goal, Logged avg, or Custom on the chart — Custom needs a calorie intake below.'
-      : !anyMaintOn
-        ? showLogsMaint && !logMaintenance
-          ? 'Turn on Formula, or log more weigh-ins and food days for From logs maintenance.'
-          : 'Turn on Formula or From logs on the chart.'
-        : null;
+      ? 'Turn on Goal or Logged avg on the chart.'
+      : null;
+
+  const fieldClassName =
+    'mt-1 w-full rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none';
 
   return (
     <section className="grid gap-5" data-testid="projection-section">
       <SettingsSection id="projection" title="Weight projection">
-        <div className="grid gap-5" data-testid="projection-form">
-          <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-6" data-testid="projection-form">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label
                 htmlFor="projection-sex"
@@ -370,7 +393,7 @@ function WeightProjectionSection() {
                     sex: value === 'male' || value === 'female' ? value : null,
                   });
                 }}
-                className="mt-1 w-full max-w-xs rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
+                className={fieldClassName}
               >
                 <option value="">Select…</option>
                 <option value="male">Male</option>
@@ -378,7 +401,7 @@ function WeightProjectionSection() {
               </select>
             </div>
 
-            <div className="max-w-48">
+            <div>
               <label
                 htmlFor="projection-birthday"
                 className="block text-xs font-medium tracking-wide text-muted uppercase"
@@ -390,12 +413,12 @@ function WeightProjectionSection() {
                 type="date"
                 data-testid="projection-birthday"
                 value={profile.birthday ?? ''}
-                max={startDate}
+                max={today}
                 onChange={(event) => {
                   const value = event.target.value;
                   setProjectionProfile({ birthday: value ? (value as DateKey) : null });
                 }}
-                className="mt-1 w-full rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
+                className={fieldClassName}
               />
               {ageYears !== null ? (
                 <p className="mt-1 text-xs text-subtle" data-testid="projection-age-hint">
@@ -418,37 +441,6 @@ function WeightProjectionSection() {
                   heightCm: value === undefined ? null : toCanonicalCm(value, heightUnit),
                 })
               }
-              className="max-w-48"
-            />
-
-            <NumberField
-              label="Starting weight"
-              testId="projection-weight"
-              value={startWeightDisplay}
-              unit={weightUnitLabel(weightUnit)}
-              min={1}
-              max={weightUnit === 'lb' ? 1000 : 450}
-              allowEmpty
-              placeholder={latestWeightKg !== undefined ? 'Latest weigh-in' : 'Required'}
-              onCommit={(value) => setStartWeightDisplay(value)}
-              className="max-w-48"
-            />
-
-            <NumberField
-              label="Custom intake"
-              testId="projection-intake"
-              value={customIntakeKcal}
-              unit="kcal"
-              integer
-              min={1}
-              max={20000}
-              allowEmpty
-              placeholder="What-if kcal"
-              onCommit={(value) => {
-                setCustomIntakeKcal(value);
-                if (value !== undefined && value > 0) setShowCustom(true);
-              }}
-              className="max-w-48"
             />
 
             <div>
@@ -456,7 +448,7 @@ function WeightProjectionSection() {
                 htmlFor="projection-activity"
                 className="block text-xs font-medium tracking-wide text-muted uppercase"
               >
-                Activity level
+                Activity
               </label>
               <select
                 id="projection-activity"
@@ -467,25 +459,110 @@ function WeightProjectionSection() {
                     activity: Number(event.target.value) as ActivityMultiplier,
                   })
                 }
-                className="mt-1 w-full max-w-xl rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none"
+                className={fieldClassName}
               >
                 {ACTIVITY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {option.shortLabel}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line pt-4">
-            <SegmentedControl
-              label="Projection length"
-              testId="projection-weeks"
-              value={weeks}
-              options={weekOptions}
-              onChange={setWeeks}
-            />
+          <div className="grid gap-3 border-t border-line pt-5">
+            <div className="grid gap-2 sm:max-w-md">
+              <ModeChipGroup
+                label="Start"
+                testId="projection-start-mode"
+                value={startMode}
+                options={START_MODES}
+                onChange={setStartMode}
+              />
+              {usingStartDate ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    id="projection-start-date"
+                    data-testid="projection-start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={(event) => {
+                      if (!event.target.value) return;
+                      const next = event.target.value as DateKey;
+                      setStartDate(next);
+                      if (usingEndDate && daysBetween(next, endDate) < 7) {
+                        setEndMode('52');
+                      }
+                    }}
+                    className={fieldClassName}
+                  />
+                  <p
+                    data-testid="projection-start-weight"
+                    className="mt-1 shrink-0 text-sm tabular-nums text-ink"
+                  >
+                    {startWeightPoint
+                      ? formatDisplayWeight(
+                          fromCanonicalKg(startWeightPoint.value, weightUnit),
+                          weightUnit,
+                        )
+                      : '—'}
+                  </p>
+                </div>
+              ) : (
+                <NumberField
+                  label="Starting weight"
+                  labelHidden
+                  testId="projection-weight"
+                  value={startWeightDisplay}
+                  unit={weightUnitLabel(weightUnit)}
+                  min={1}
+                  max={weightUnit === 'lb' ? 1000 : 450}
+                  allowEmpty
+                  placeholder={latestWeightKg !== undefined ? 'Latest weigh-in' : 'Required'}
+                  onCommit={(value) => setStartWeightDisplay(value)}
+                />
+              )}
+            </div>
+
+            <div className="grid gap-2 sm:max-w-md">
+              <ModeChipGroup
+                label="End"
+                testId="projection-end-mode"
+                value={endMode}
+                options={END_MODES}
+                onChange={setEndMode}
+              />
+              {usingEndDate ? (
+                <input
+                  id="projection-end-date"
+                  data-testid="projection-end-date"
+                  type="date"
+                  value={endDate}
+                  min={addDays(resolvedStartDate, 7)}
+                  onChange={(event) => {
+                    if (!event.target.value) return;
+                    const next = event.target.value as DateKey;
+                    if (daysBetween(resolvedStartDate, next) < 7) return;
+                    setEndDate(next);
+                  }}
+                  className={fieldClassName}
+                />
+              ) : null}
+              {usingGoalWeight ? (
+                <NumberField
+                  label="Goal weight"
+                  labelHidden
+                  testId="projection-goal-weight"
+                  value={goalWeightDisplay}
+                  unit={weightUnitLabel(weightUnit)}
+                  min={1}
+                  max={weightUnit === 'lb' ? 1000 : 450}
+                  allowEmpty
+                  placeholder="Goal weight"
+                  onCommit={(value) => setGoalWeightDisplay(value)}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
       </SettingsSection>
@@ -493,37 +570,42 @@ function WeightProjectionSection() {
       {!ready || !primary ? (
         <div
           data-testid="projection-incomplete"
-          className="card flex h-40 items-center justify-center p-5 text-sm text-muted"
+          className="card flex items-center justify-center px-5 py-8 text-sm text-muted"
         >
-          {incompleteReason ??
-            'Fill in sex, birthday, height, and starting weight to see the projection.'}
+          {incompleteReason ?? 'Fill in sex, birthday, and height.'}
         </div>
       ) : (
         <>
-          <article className="card grid gap-3 p-5" data-testid="projection-summary">
-            <h2 className="text-sm font-semibold tracking-tight">Summary</h2>
-            <dl className="grid gap-3 sm:grid-cols-3">
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-muted uppercase">Scenario</dt>
-                <dd className="mt-1 text-sm text-ink">{primary.label}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-muted uppercase">Intake</dt>
-                <dd className="mt-1 text-sm tabular-nums text-ink">
-                  {formatCalories(primary.intakeKcal)} kcal/day
-                </dd>
-              </div>
+          <article className="card grid gap-4 p-5" data-testid="projection-chart">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold tracking-tight">Projected weight</h2>
+              <ul
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted"
+                data-testid="projection-series-legend"
+                aria-label="Chart key"
+              >
+                {scenarios.map((scenario) => (
+                  <li key={scenario.id} className="inline-flex items-center gap-1.5">
+                    <SeriesSwatch
+                      className={scenario.className}
+                      dashed={Boolean(scenario.strokeDasharray)}
+                    />
+                    {scenario.label}
+                  </li>
+                ))}
+                {showWeighIns && actualWeightPoints.length >= 2 ? (
+                  <li className="inline-flex items-center gap-1.5">
+                    <SeriesSwatch className="stroke-muted" dashed />
+                    Weigh-ins
+                  </li>
+                ) : null}
+              </ul>
+            </div>
+
+            <dl className="grid grid-cols-3 gap-3">
               <div>
                 <dt className="text-xs font-medium tracking-wide text-muted uppercase">
-                  Starting maintenance
-                </dt>
-                <dd className="mt-1 text-sm tabular-nums text-ink">
-                  {formatCalories(Math.round(primary.result.startTdeeKcal))} kcal/day
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium tracking-wide text-muted uppercase">
-                  Healthy BMI range
+                  Healthy BMI
                 </dt>
                 <dd className="mt-1 text-sm tabular-nums text-ink">
                   {formatDisplayWeight(
@@ -539,7 +621,7 @@ function WeightProjectionSection() {
               </div>
               <div>
                 <dt className="text-xs font-medium tracking-wide text-muted uppercase">
-                  Equilibrium weight
+                  Equilibrium
                 </dt>
                 <dd className="mt-1 text-sm tabular-nums text-ink">
                   {primary.result.equilibriumWeightKg > 0
@@ -547,12 +629,12 @@ function WeightProjectionSection() {
                         fromCanonicalKg(primary.result.equilibriumWeightKg, weightUnit),
                         weightUnit,
                       )
-                    : 'Below zero at this intake'}
+                    : 'Below zero'}
                 </dd>
               </div>
               <div>
                 <dt className="text-xs font-medium tracking-wide text-muted uppercase">
-                  After {weeks === '26' ? '6 months' : weeks === '52' ? '1 year' : '2 years'}
+                  {endWeightLabel}
                 </dt>
                 <dd className="mt-1 text-sm tabular-nums text-ink">
                   {formatDisplayWeight(
@@ -565,10 +647,6 @@ function WeightProjectionSection() {
                 </dd>
               </div>
             </dl>
-          </article>
-
-          <article className="card grid gap-3 p-4" data-testid="projection-chart">
-            <h2 className="text-sm font-semibold tracking-tight">Projected weight</h2>
 
             <div className="grid gap-2" data-testid="projection-series-toggles">
               <SeriesToggleGroup label="Intake">
@@ -582,7 +660,7 @@ function WeightProjectionSection() {
                       ? 'Set a calorie goal above'
                       : `${formatCalories(goalIntake)} kcal/day`
                   }
-                  onClick={() => toggleIntake('goal')}
+                  onClick={() => setShowGoal((value) => !value)}
                 />
                 <SeriesToggle
                   testId="projection-series-logged"
@@ -591,43 +669,10 @@ function WeightProjectionSection() {
                   disabled={loggedIntakeKcal === undefined}
                   title={
                     loggedIntake
-                      ? `Average ${formatCalories(loggedIntake.averageKcal)} kcal across ${loggedIntake.loggedDays} logged day${loggedIntake.loggedDays === 1 ? '' : 's'} in the last ${loggedIntake.lookbackDays}`
+                      ? `${formatCalories(loggedIntake.averageKcal)} kcal/day`
                       : `No food logged in the last ${LOGGED_INTAKE_LOOKBACK_DAYS} days`
                   }
-                  onClick={() => toggleIntake('logged')}
-                />
-                <SeriesToggle
-                  testId="projection-series-custom"
-                  label={INTAKE_META.custom.label}
-                  pressed={showCustom}
-                  disabled={customIntake === undefined}
-                  title={
-                    customIntake === undefined
-                      ? 'Enter a custom intake above'
-                      : `${formatCalories(customIntake)} kcal/day`
-                  }
-                  onClick={() => toggleIntake('custom')}
-                />
-              </SeriesToggleGroup>
-
-              <SeriesToggleGroup label="Maintenance">
-                <SeriesToggle
-                  testId="projection-series-formula"
-                  label={MAINTENANCE_META.formula.label}
-                  pressed={showFormula}
-                  onClick={() => toggleMaintenance('formula')}
-                />
-                <SeriesToggle
-                  testId="projection-series-logs"
-                  label={MAINTENANCE_META.logs.label}
-                  pressed={showLogsMaint}
-                  disabled={logMaintenance === null}
-                  title={
-                    logMaintenance
-                      ? `Estimated ${formatCalories(logMaintenance.maintenanceKcal)} kcal/day from ${logMaintenance.loggedDays} logged days (${formatShortDate(logMaintenance.startDate)}–${formatShortDate(logMaintenance.endDate)})`
-                      : 'Need at least two weigh-ins ≥7 days apart and five food-logged days in between'
-                  }
-                  onClick={() => toggleMaintenance('logs')}
+                  onClick={() => setShowLogged((value) => !value)}
                 />
                 <SeriesToggle
                   testId="projection-series-weigh-ins"
@@ -642,45 +687,25 @@ function WeightProjectionSection() {
                   onClick={() => setShowWeighIns((value) => !value)}
                 />
               </SeriesToggleGroup>
-
-              {scenarios.length > 0 ? (
-                <ul
-                  className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted"
-                  data-testid="projection-series-legend"
-                >
-                  {scenarios.map((scenario) => (
-                    <li key={scenario.id} className="inline-flex items-center gap-1.5">
-                      <span
-                        aria-hidden
-                        className={[
-                          'inline-block h-0.5 w-4 rounded-full',
-                          scenario.className.replace('stroke-', 'bg-'),
-                        ].join(' ')}
-                        style={
-                          scenario.strokeDasharray
-                            ? {
-                                backgroundImage: `repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px)`,
-                              }
-                            : undefined
-                        }
-                      />
-                      {scenario.label}
-                    </li>
-                  ))}
-                  {showWeighIns && actualWeightPoints.length >= 2 ? (
-                    <li className="inline-flex items-center gap-1.5">
-                      <span aria-hidden className="inline-block h-0.5 w-4 rounded-full bg-muted" />
-                      Weigh-ins
-                    </li>
-                  ) : null}
-                </ul>
-              ) : null}
             </div>
 
             <LineChart
               testId="projection-weight-chart"
               series={chartSeries}
               valueLabel={(value) => formatDisplayWeight(value, weightUnit)}
+              pointTooltip={(point, seriesId) => {
+                if (seriesId === 'weigh-ins') {
+                  return `${formatShortDate(point.date)}: ${formatDisplayWeight(point.value, weightUnit)}`;
+                }
+                const row = rowByDate.get(point.date);
+                const weightLine = `${formatShortDate(point.date)}: ${formatDisplayWeight(point.value, weightUnit)}`;
+                if (!row || seriesId !== primary.id) return weightLine;
+                return [
+                  weightLine,
+                  `Used ${formatCalories(Math.round(row.maintenanceKcal))} kcal`,
+                  `Deficit ${row.deficitKcal >= 0 ? '' : '−'}${formatCalories(Math.round(Math.abs(row.deficitKcal)))} kcal`,
+                ].join('\n');
+              }}
               emptyMessage="Nothing to project yet."
             />
           </article>
@@ -695,8 +720,8 @@ function WeightProjectionSection() {
                   <tr>
                     <th className="px-4 py-2 font-medium">Date</th>
                     <th className="px-4 py-2 font-medium">Weight</th>
-                    <th className="px-4 py-2 font-medium text-right">Calories used</th>
-                    <th className="px-4 py-2 font-medium text-right">Calorie deficit</th>
+                    <th className="px-4 py-2 font-medium text-right">Used</th>
+                    <th className="px-4 py-2 font-medium text-right">Deficit</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -727,6 +752,75 @@ function WeightProjectionSection() {
         </>
       )}
     </section>
+  );
+}
+
+function ModeChipGroup<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  testId,
+}: {
+  label: string;
+  value: T;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+  testId?: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="w-10 shrink-0 text-xs font-medium tracking-wide text-muted uppercase">
+        {label}
+      </span>
+      <div
+        role="radiogroup"
+        aria-label={label}
+        data-testid={testId}
+        className="flex flex-wrap gap-1.5"
+      >
+        {options.map((option) => {
+          const selected = option.value === value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => onChange(option.value)}
+              className={[
+                'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
+                selected
+                  ? 'border-accent-border bg-accent-soft text-ink'
+                  : 'border-line bg-raised text-muted hover:border-accent-border hover:text-ink',
+              ].join(' ')}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SeriesSwatch({ className, dashed }: { className: string; dashed?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={['inline-block h-0.5 w-4 rounded-full', className.replace('stroke-', 'bg-')].join(
+        ' ',
+      )}
+      style={
+        dashed
+          ? {
+              backgroundImage:
+                'repeating-linear-gradient(90deg, currentColor 0 3px, transparent 3px 5px)',
+              backgroundColor: 'transparent',
+            }
+          : undefined
+      }
+    />
   );
 }
 

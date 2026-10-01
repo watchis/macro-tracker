@@ -51,8 +51,16 @@ export type ProjectionInput = {
   intakeKcal: number;
   /** Projection start date (`YYYY-MM-DD`). */
   startDate: DateKey;
-  /** How many weekly snapshots to emit (LoserTown runs ~2 years ≈ 104). */
+  /**
+   * How many weekly snapshots to emit. Ignored when `goalWeightKg` is set
+   * (unless used as an explicit cap). Defaults to 104 (~2 years).
+   */
   weeks?: number;
+  /**
+   * Stop when projected weight reaches this target (kg). Runs up to
+   * `MAX_GOAL_WEEKS` if the goal is unreachable at the planned intake.
+   */
+  goalWeightKg?: number;
 };
 
 export type ProjectionRow = {
@@ -74,7 +82,12 @@ export type ProjectionResult = {
   startBmrKcal: number;
   /** TDEE at the starting weight. */
   startTdeeKcal: number;
+  /** True when a `goalWeightKg` was set and crossed within the run. */
+  goalReached: boolean;
 };
+
+/** Safety cap when projecting until a goal weight (~10 years). */
+export const MAX_GOAL_WEEKS = 520;
 
 export type LoggedIntakeAverage = {
   averageKcal: number;
@@ -252,9 +265,17 @@ export function activityFromMaintenance(args: {
 /**
  * Day-by-day energy-balance projection, sampled every 7 days (LoserTown-style).
  * Weight drifts toward the intake/TDEE equilibrium; maintenance falls as mass is lost.
+ * Pass `goalWeightKg` to run until that weight is reached (capped at `MAX_GOAL_WEEKS`).
  */
 export function projectWeightLoss(input: ProjectionInput): ProjectionResult {
-  const weeks = input.weeks ?? 104;
+  const hasGoal =
+    input.goalWeightKg !== undefined &&
+    Number.isFinite(input.goalWeightKg) &&
+    input.goalWeightKg > 0;
+  const maxWeeks = hasGoal ? (input.weeks ?? MAX_GOAL_WEEKS) : (input.weeks ?? 104);
+  const goalWeightKg = hasGoal ? input.goalWeightKg! : undefined;
+  const losing = goalWeightKg !== undefined && input.startWeightKg > goalWeightKg;
+
   const healthyWeightKg = healthyWeightRangeKg(input.heightCm);
   const startBmrKcal = mifflinStJeorBmr({
     sex: input.sex,
@@ -273,8 +294,9 @@ export function projectWeightLoss(input: ProjectionInput): ProjectionResult {
 
   const rows: ProjectionRow[] = [];
   let weightKg = input.startWeightKg;
+  let goalReached = false;
 
-  for (let week = 1; week <= weeks; week += 1) {
+  for (let week = 1; week <= maxWeeks; week += 1) {
     for (let day = 0; day < 7; day += 1) {
       const bmr = mifflinStJeorBmr({
         sex: input.sex,
@@ -300,6 +322,11 @@ export function projectWeightLoss(input: ProjectionInput): ProjectionResult {
       maintenanceKcal,
       deficitKcal: maintenanceKcal - input.intakeKcal,
     });
+
+    if (goalWeightKg !== undefined) {
+      goalReached = losing ? weightKg <= goalWeightKg : weightKg >= goalWeightKg;
+      if (goalReached) break;
+    }
   }
 
   return {
@@ -308,5 +335,6 @@ export function projectWeightLoss(input: ProjectionInput): ProjectionResult {
     healthyWeightKg,
     startBmrKcal,
     startTdeeKcal,
+    goalReached,
   };
 }

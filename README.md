@@ -34,10 +34,9 @@ scales them by grams when you log.
 
 **Goals** sets calorie and macro targets (which macros show in tables and chips), and estimates
 future weight from a body profile (sex, birthday, height, activity). Age is derived from your
-birthday. On the weight chart you can turn Goal, Logged avg, Custom, Formula, From logs, and
-Weigh-ins on or off to compare Mifflin–St Jeor scenarios side by side — in the spirit of
-[LoserTown's calculator](https://www.losertown.org/eats/cal.php). Starting weight defaults to your
-latest weigh-in; the summary and weekly table follow the first enabled scenario.
+birthday. Choose how the projection starts (weight or date) and ends (duration, goal weight, or
+date). The chart can overlay Goal and Logged avg intake series plus weigh-ins — in the spirit of
+[LoserTown's calculator](https://www.losertown.org/eats/cal.php).
 
 **Settings** covers theme, accent color, weight unit, JSON import/export, local storage usage, and
 retention for old day logs.
