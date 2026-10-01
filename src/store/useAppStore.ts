@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { todayKey } from '../lib/dates';
+import {
+  removeCustomFavorite,
+  syncCustomFavorite,
+  toggleFoodFavoriteList,
+} from '../lib/foodFavorites';
 import { createId } from '../lib/id';
 import { normalizeMacros, sortMacros } from '../lib/macros';
 import { applyDataRetentionBundle, sameDayKeys } from '../lib/retention';
@@ -14,6 +19,7 @@ import type {
   DateKey,
   FoodEntry,
   FoodEntryInput,
+  FoodFavoriteSource,
   FoodLibraryItem,
   MacroKey,
   PersistedState,
@@ -62,6 +68,8 @@ export type AppActions = {
   addFood: (item: FoodLibraryItem) => void;
   updateFood: (index: number, patch: Partial<FoodLibraryItem>) => void;
   removeFood: (index: number) => void;
+  /** Star or unstar a custom or catalog food for Day quick-add favorites. */
+  toggleFoodFavorite: (source: FoodFavoriteSource, item: FoodLibraryItem) => void;
 
   // --- settings ------------------------------------------------------------
   updateSettings: (patch: Partial<Settings>) => void;
@@ -284,18 +292,34 @@ export const useAppStore = create<AppStore>()(
           const existing = state.foodLibrary[index];
           if (!existing) return state;
           const merged: FoodLibraryItem = { ...existing, ...patch };
-          const next = [...state.foodLibrary];
-          next[index] = {
+          const nextItem: FoodLibraryItem = {
             name: merged.name.trim(),
             grams: merged.grams > 0 ? merged.grams : 100,
             calories: Number.isFinite(merged.calories) ? merged.calories : 0,
             macros: normalizeMacros(merged.macros),
           };
-          return { foodLibrary: next };
+          const next = [...state.foodLibrary];
+          next[index] = nextItem;
+          return {
+            foodLibrary: next,
+            foodFavorites: syncCustomFavorite(state.foodFavorites, existing.name, nextItem),
+          };
         }),
 
       removeFood: (index) =>
-        set((state) => ({ foodLibrary: state.foodLibrary.filter((_, i) => i !== index) })),
+        set((state) => {
+          const existing = state.foodLibrary[index];
+          if (!existing) return state;
+          return {
+            foodLibrary: state.foodLibrary.filter((_, i) => i !== index),
+            foodFavorites: removeCustomFavorite(state.foodFavorites, existing.name),
+          };
+        }),
+
+      toggleFoodFavorite: (source, item) =>
+        set((state) => ({
+          foodFavorites: toggleFoodFavoriteList(state.foodFavorites, source, item),
+        })),
 
       updateSettings: (patch) =>
         set((state) => {
@@ -373,8 +397,15 @@ export const useAppStore = create<AppStore>()(
         }),
 
       exportJson: () => {
-        const { version, days, weights, foodLibrary, settings } = get();
-        const snapshot: PersistedState = { version, days, weights, foodLibrary, settings };
+        const { version, days, weights, foodLibrary, foodFavorites, settings } = get();
+        const snapshot: PersistedState = {
+          version,
+          days,
+          weights,
+          foodLibrary,
+          foodFavorites,
+          settings,
+        };
         return JSON.stringify(snapshot, null, 2);
       },
 
@@ -395,6 +426,7 @@ export const useAppStore = create<AppStore>()(
           days: retained.days,
           weights: retained.weights,
           foodLibrary: state.foodLibrary,
+          foodFavorites: state.foodFavorites,
           settings: state.settings,
         });
         return { ok: true };
@@ -413,6 +445,7 @@ export const useAppStore = create<AppStore>()(
         days: state.days,
         weights: state.weights,
         foodLibrary: state.foodLibrary,
+        foodFavorites: state.foodFavorites,
         settings: state.settings,
       }),
     },

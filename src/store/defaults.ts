@@ -37,6 +37,7 @@ export function defaultPersistedState(): PersistedState {
     days: {},
     weights: {},
     foodLibrary: [],
+    foodFavorites: [],
     settings: {
       ...DEFAULT_SETTINGS,
       visibleMacros: [...DEFAULT_SETTINGS.visibleMacros],
