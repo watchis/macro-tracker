@@ -23,7 +23,11 @@ import type { DateKey, MacroKey, MonthKey } from '../types';
 export type CalendarViewProps = {
   /** `YYYY-MM` month to open on; defaults to the month of the selected date. */
   month?: MonthKey;
-  /** Day cell click handler; defaults to the store's `openDay`. */
+  /**
+   * Called when the already-active day is clicked again (or Today while today is
+   * active). Defaults to the store's `openDay`. Inactive day clicks only change
+   * the selected date.
+   */
   onOpenDay?: (date: DateKey) => void;
   /**
    * Compact month strip for the Home dashboard: day numbers and a logged-state
@@ -52,8 +56,8 @@ function dateInMonth(month: MonthKey, day: number): DateKey {
 
 /**
  * Month grid of logged days. Each cell carries a compact remaining-calorie
- * readout plus totals for the macros currently switched on in settings, and
- * clicking one opens that day in the day view.
+ * readout plus totals for the macros currently switched on in settings.
+ * Clicking an inactive day selects it; clicking the active day opens its log.
  */
 export function CalendarView({ month, onOpenDay, compact = false }: CalendarViewProps) {
   const selectedDate = useSelectedDate();
@@ -98,10 +102,23 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
     return { logged, calories };
   }, [days, activeMonth]);
 
+  /** Inactive day → select; active day → open the journal. */
+  const handleDayClick = (date: DateKey) => {
+    if (date === selectedDate) {
+      openDay(date);
+      return;
+    }
+    setSelectedDate(date);
+  };
+
   const goToToday = () => {
     const today = todayKey();
-    setSelectedDate(today);
     showMonth(monthKeyOf(today));
+    if (today === selectedDate) {
+      openDay(today);
+      return;
+    }
+    setSelectedDate(today);
   };
 
   const focusDate = (date: DateKey) => {
@@ -223,7 +240,7 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
                 date={date}
                 month={activeMonth}
                 selected={date === selectedDate}
-                onOpen={openDay}
+                onOpen={handleDayClick}
               />
             ) : (
               <CalendarDayCell
@@ -232,7 +249,7 @@ export function CalendarView({ month, onOpenDay, compact = false }: CalendarView
                 month={activeMonth}
                 visibleMacros={visibleMacros}
                 selected={date === selectedDate}
-                onOpen={openDay}
+                onOpen={handleDayClick}
               />
             ),
           )}

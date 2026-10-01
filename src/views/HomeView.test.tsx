@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { addMonths, formatMonthYear, monthKeyOf, todayKey } from '../lib/dates';
+import {
+  addDays,
+  addMonths,
+  dayOfMonth,
+  formatMonthYear,
+  monthKeyOf,
+  todayKey,
+} from '../lib/dates';
 import { HomeView } from './HomeView';
 import { useAppStore } from '../store/useAppStore';
 
@@ -40,7 +47,9 @@ describe('HomeView', () => {
   it('lets the mini calendar step months and jump back to today', async () => {
     const user = userEvent.setup();
     const today = todayKey();
-    useAppStore.getState().setSelectedDate(today);
+    // Stay in the current month so Previous/Next assertions stay relative to it.
+    const otherInMonth = dayOfMonth(today) > 1 ? addDays(today, -1) : addDays(today, 1);
+    useAppStore.getState().setSelectedDate(otherInMonth);
     render(<HomeView />);
 
     const mini = screen.getByTestId('home-mini-calendar');
@@ -57,6 +66,23 @@ describe('HomeView', () => {
     await user.click(within(mini).getByRole('button', { name: 'Today' }));
     expect(monthLabel()).toHaveTextContent(formatMonthYear(currentMonth));
     expect(useAppStore.getState().selectedDate).toBe(today);
+    expect(useAppStore.getState().view).not.toBe('day');
+  });
+
+  it('selects an inactive mini-calendar day, then opens it on a second click', async () => {
+    const user = userEvent.setup();
+    const today = todayKey();
+    const other = addDays(today, -2);
+    useAppStore.getState().setSelectedDate(today);
+    render(<HomeView />);
+
+    const mini = screen.getByTestId('home-mini-calendar');
+    await user.click(within(mini).getByTestId(`mini-calendar-day-${other}`));
+    expect(useAppStore.getState().selectedDate).toBe(other);
+    expect(useAppStore.getState().view).toBe('home');
+
+    await user.click(within(mini).getByTestId(`mini-calendar-day-${other}`));
+    expect(useAppStore.getState().view).toBe('day');
   });
 
   it('switches charts using the Settings weight unit and opens today from the today card', async () => {

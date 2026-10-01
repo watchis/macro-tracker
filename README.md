@@ -12,14 +12,15 @@ Four header views — they are app state rather than routes, so GitHub Pages nev
 deep link. Opening a day from the calendar is a fifth screen that is not in the nav.
 
 **Home** is the landing dashboard: today and last-7-day snapshots, latest weight, a compact month
-calendar (‹ / Today / › to change months, tap a day to log), and one Trends chart you can switch
-between weight over time (trend + average), calorie intake, and calorie overages/underages. Toggle
-a 30 / 90 / all-time chart range from the page header.
+calendar (‹ / Today / › to change months; tap a day to select it, tap again to open its log), and
+one Trends chart you can switch between weight over time (trend + average), calorie intake, and
+calorie overages/underages. Toggle a 30 / 90 / all-time chart range from the page header.
 
 **Calendar** shows the full month as a grid. A logged day reports its remaining calories, a depleting
 bar and totals for the macros you have switched on; an untouched day stays quiet. Today is circled
-in the accent color, and clicking any day opens it. Arrow keys walk the grid, `Home`/`End` jump to
-the first and last of the month, and `PageUp`/`PageDown` page between months.
+in the accent color. Clicking an inactive day selects it; clicking the active day (or **Today** when
+today is already selected) opens its log. Arrow keys walk the grid, `Home`/`End` jump to the first
+and last of the month, and `PageUp`/`PageDown` page between months.
 
 **Day** (opened from Home or Calendar, not from the header) is the log itself: a table with a column
 per visible macro, an inline row to add food, and Edit/Delete on every entry. `Enter` submits a row
