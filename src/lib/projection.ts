@@ -2,9 +2,16 @@ import { addDays } from './dates';
 import { weightSeries } from './series';
 import { sumEntries } from './totals';
 import { KG_PER_LB } from './weight';
-import type { ActivityMultiplier, DateKey, FoodEntry, Sex } from '../types';
+import type {
+  ActivityMultiplier,
+  DateKey,
+  FoodEntry,
+  ProjectionEndMode,
+  ProjectionStartMode,
+  Sex,
+} from '../types';
 
-export type { ActivityMultiplier, Sex } from '../types';
+export type { ActivityMultiplier, ProjectionEndMode, ProjectionStartMode, Sex } from '../types';
 
 export type ActivityOption = {
   value: ActivityMultiplier;
@@ -21,6 +28,23 @@ export const ACTIVITY_OPTIONS: readonly ActivityOption[] = [
 ] as const;
 
 export const DEFAULT_ACTIVITY: ActivityMultiplier = 1.2;
+
+export const PROJECTION_START_MODES = [
+  { value: 'weight', label: 'Weight' },
+  { value: 'date', label: 'Date' },
+] as const satisfies ReadonlyArray<{ value: ProjectionStartMode; label: string }>;
+
+export const PROJECTION_END_MODES = [
+  { value: '13', label: '3 mo', weeks: 13 },
+  { value: '26', label: '6 mo', weeks: 26 },
+  { value: '52', label: '1 yr', weeks: 52 },
+  { value: 'goal', label: 'Goal' },
+  { value: 'date', label: 'Date' },
+] as const satisfies ReadonlyArray<{
+  value: ProjectionEndMode;
+  label: string;
+  weeks?: number;
+}>;
 
 /** Default lookback when averaging logged calorie intake. */
 export const LOGGED_INTAKE_LOOKBACK_DAYS = 14;
@@ -115,6 +139,20 @@ export function isSex(value: unknown): value is Sex {
 
 export function isActivityMultiplier(value: unknown): value is ActivityMultiplier {
   return value === 1.2 || value === 1.375 || value === 1.55 || value === 1.725 || value === 1.9;
+}
+
+export function isProjectionStartMode(value: unknown): value is ProjectionStartMode {
+  return value === 'weight' || value === 'date';
+}
+
+export function isProjectionEndMode(value: unknown): value is ProjectionEndMode {
+  return value === '13' || value === '26' || value === '52' || value === 'goal' || value === 'date';
+}
+
+/** Week count for duration end-modes; `undefined` for goal/date. */
+export function weeksForEndMode(mode: ProjectionEndMode): number | undefined {
+  const match = PROJECTION_END_MODES.find((option) => option.value === mode);
+  return match && 'weeks' in match ? match.weeks : undefined;
 }
 
 /**

@@ -25,6 +25,12 @@ export const DEFAULT_SETTINGS: Settings = {
     birthday: null,
     heightCm: null,
     activity: DEFAULT_ACTIVITY,
+    startMode: 'weight',
+    endMode: '52',
+    startDate: null,
+    endDate: null,
+    startWeightKg: null,
+    goalWeightKg: null,
   },
 };
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BudgetBar } from '../components/BudgetBar';
+import { daysBetween, todayKey } from '../lib/dates';
 import { GoalsView } from './GoalsView';
 import { useAppStore } from '../store/useAppStore';
 
@@ -148,7 +149,49 @@ describe('GoalsView', () => {
       birthday: BIRTHDAY_AGE_35,
       heightCm: 177.8,
       activity: 1.2,
+      startMode: 'weight',
+      endMode: '52',
     });
+  });
+
+  it('retains start and end projection settings after remount', async () => {
+    const user = userEvent.setup();
+    seedReadyProfile();
+    state().setWeight('2026-10-01', 68, 'kg');
+
+    const { unmount } = render(<GoalsView />);
+
+    await user.click(
+      within(screen.getByTestId('projection-start-mode')).getByRole('radio', { name: 'Date' }),
+    );
+    fireEvent.change(screen.getByTestId('projection-start-date'), {
+      target: { value: '2026-10-01' },
+    });
+    await user.click(
+      within(screen.getByTestId('projection-end-mode')).getByRole('radio', { name: 'Goal' }),
+    );
+    const goal = screen.getByTestId('projection-goal-weight');
+    await user.clear(goal);
+    await user.type(goal, '65');
+
+    expect(state().settings.projection).toMatchObject({
+      startMode: 'date',
+      endMode: 'goal',
+      startDate: '2026-10-01',
+      goalWeightKg: 65,
+    });
+
+    unmount();
+    render(<GoalsView />);
+
+    expect(
+      within(screen.getByTestId('projection-start-mode')).getByRole('radio', { name: 'Date' }),
+    ).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('projection-start-date')).toHaveValue('2026-10-01');
+    expect(
+      within(screen.getByTestId('projection-end-mode')).getByRole('radio', { name: 'Goal' }),
+    ).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('projection-goal-weight')).toHaveValue('65');
   });
 
   it('switches start between weight and date modes', async () => {
@@ -195,7 +238,10 @@ describe('GoalsView', () => {
     fireEvent.change(screen.getByTestId('projection-end-date'), {
       target: { value: '2028-09-28' },
     });
-    expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(105);
+    const endDateWeeks = Math.max(1, Math.floor(daysBetween(todayKey(), '2028-09-28') / 7));
+    expect(within(screen.getByTestId('projection-table')).getAllByRole('row')).toHaveLength(
+      endDateWeeks + 1,
+    );
 
     await user.click(
       within(screen.getByTestId('projection-end-mode')).getByRole('radio', { name: 'Goal' }),
@@ -204,6 +250,8 @@ describe('GoalsView', () => {
     await user.clear(goal);
     await user.type(goal, '65');
     expect(screen.getByTestId('projection-chart')).toHaveTextContent(/Goal/i);
+    expect(screen.getByTestId('projection-end-stat')).toHaveTextContent(/[A-Za-z]{3}\s+\d{1,2}/);
+    expect(screen.getByTestId('projection-end-stat')).not.toHaveTextContent(/kg|lb/i);
     expect(within(screen.getByTestId('projection-table')).getAllByRole('row').length).toBeLessThan(
       53,
     );

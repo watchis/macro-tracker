@@ -66,9 +66,19 @@ export type Sex = 'male' | 'female';
  */
 export type ActivityMultiplier = 1.2 | 1.375 | 1.55 | 1.725 | 1.9;
 
+/** How the weight projection chooses its starting point. */
+export type ProjectionStartMode = 'weight' | 'date';
+
 /**
- * Body profile for forward weight projection. Optional fields stay `null` until
- * the user fills them in; the Goals view prompts for anything missing.
+ * How the weight projection chooses its horizon.
+ * Numeric strings are week presets (`13` / `26` / `52`).
+ */
+export type ProjectionEndMode = '13' | '26' | '52' | 'goal' | 'date';
+
+/**
+ * Body profile and horizon settings for forward weight projection. Optional
+ * body fields stay `null` until the user fills them in; the Goals view prompts
+ * for anything missing. Start/end modes and values persist across sessions.
  */
 export type ProjectionProfile = {
   sex: Sex | null;
@@ -77,6 +87,21 @@ export type ProjectionProfile = {
   /** Height in centimeters; `null` when unset. */
   heightCm: number | null;
   activity: ActivityMultiplier;
+  /** Start from a manual weight or a weigh-in near a date. */
+  startMode: ProjectionStartMode;
+  /** End after a duration, at a goal weight, or on a date. */
+  endMode: ProjectionEndMode;
+  /** Start date when `startMode === 'date'`; ignored otherwise. */
+  startDate: DateKey | null;
+  /** End date when `endMode === 'date'`; ignored otherwise. */
+  endDate: DateKey | null;
+  /**
+   * Manual starting weight in kilograms when `startMode === 'weight'`.
+   * `null` falls back to the latest weigh-in.
+   */
+  startWeightKg: number | null;
+  /** Target weight in kilograms when `endMode === 'goal'`. */
+  goalWeightKg: number | null;
 };
 
 export type Goals = {

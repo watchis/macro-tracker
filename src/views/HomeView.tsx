@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { BarChart } from '../components/charts/BarChart';
 import { LineChart } from '../components/charts/LineChart';
+import { ProjectionWeeklyTable } from '../components/ProjectionWeeklyTable';
 import { SegmentedControl } from '../components/settings/SegmentedControl';
+import { useWeightProjection } from '../hooks/useWeightProjection';
 import { addDays, formatLongDate, formatShortDate, todayKey } from '../lib/dates';
 import { calorieDeltaSeries, calorieSeries, linearTrend, weightSeries } from '../lib/series';
 import { formatCalories, sumEntries } from '../lib/totals';
@@ -30,8 +32,14 @@ const CHART_OPTIONS = [
   { value: 'delta', label: 'Over / under' },
 ] as const;
 
+const PROJECTION_VIEW_OPTIONS = [
+  { value: 'chart', label: 'Chart' },
+  { value: 'weekly', label: 'Weekly' },
+] as const;
+
 type RangeKey = (typeof RANGE_OPTIONS)[number]['value'];
 type ChartKey = (typeof CHART_OPTIONS)[number]['value'];
+type ProjectionViewKey = (typeof PROJECTION_VIEW_OPTIONS)[number]['value'];
 
 function filterByRange<T extends { date: string }>(points: readonly T[], range: RangeKey): T[] {
   if (range === 'all' || points.length === 0) return [...points];
@@ -57,9 +65,34 @@ export function HomeView() {
   const goals = useGoals();
   const weightUnit = useWeightUnit();
   const openDay = useAppStore((state) => state.openDay);
+  const projection = useWeightProjection();
   const [range, setRange] = useState<RangeKey>('90');
   const [chart, setChart] = useState<ChartKey>('weight');
+  const [projectionView, setProjectionView] = useState<ProjectionViewKey>('chart');
   const today = todayKey();
+
+  const projectionChartPoints = useMemo(() => {
+    if (!projection.ready || projection.startWeightKg === undefined) return [];
+    const start = {
+      date: projection.resolvedStartDate,
+      t: Date.parse(`${projection.resolvedStartDate}T00:00:00`),
+      value: fromCanonicalKg(projection.startWeightKg, weightUnit),
+    };
+    return [
+      start,
+      ...projection.primaryRows.map((row) => ({
+        date: row.date,
+        t: Date.parse(`${row.date}T00:00:00`),
+        value: fromCanonicalKg(row.weightKg, weightUnit),
+      })),
+    ];
+  }, [
+    projection.ready,
+    projection.startWeightKg,
+    projection.resolvedStartDate,
+    projection.primaryRows,
+    weightUnit,
+  ]);
 
   const weightPoints = useMemo(() => {
     const series = weightSeries(weights).map((point) => ({
@@ -92,6 +125,12 @@ export function HomeView() {
     value: option.value,
     label: option.label,
   }));
+
+  const projectionViewOptions: ReadonlyArray<SegmentedOption<ProjectionViewKey>> =
+    PROJECTION_VIEW_OPTIONS.map((option) => ({
+      value: option.value,
+      label: option.label,
+    }));
 
   return (
     <section className="grid gap-5">
@@ -202,6 +241,37 @@ export function HomeView() {
           </>
         ) : null}
       </article>
+
+      {projection.ready && projection.primaryRows.length > 0 ? (
+        <article className="card grid gap-3 p-4" data-testid="home-projection">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold tracking-tight">Projected weight</h2>
+            <SegmentedControl
+              label="Projection view"
+              testId="home-projection-view"
+              value={projectionView}
+              options={projectionViewOptions}
+              onChange={setProjectionView}
+            />
+          </div>
+
+          {projectionView === 'chart' ? (
+            <LineChart
+              testId="home-projection-chart"
+              points={projectionChartPoints}
+              valueLabel={(value) => formatDisplayWeight(value, weightUnit)}
+              emptyMessage="Nothing to project yet."
+            />
+          ) : (
+            <ProjectionWeeklyTable
+              rows={projection.primaryRows}
+              weightUnit={weightUnit}
+              testId="home-projection-table"
+              embedded
+            />
+          )}
+        </article>
+      ) : null}
     </section>
   );
 }
