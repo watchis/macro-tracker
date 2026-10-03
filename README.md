@@ -15,7 +15,8 @@ deep link. Opening a day from the calendar is a sixth screen that is not in the 
 calendar (‹ / Today / › to change months; tap a day to select it, tap again to open its log), and
 one Trends chart you can switch between weight over time (trend + average), calorie intake, and
 calorie overages/underages. Toggle a 30 / 90 / all-time chart range from the page header. When a
-weight projection is configured on Goals, its weekly table also appears at the bottom.
+weight projection is configured on Goals, a projected-weight section appears at the bottom with a
+Chart / Weekly toggle (chart by default).
 
 **Calendar** shows the full month as a grid. A logged day reports its remaining calories, a depleting
 bar and totals for the macros you have switched on; an untouched day stays quiet. Today is circled

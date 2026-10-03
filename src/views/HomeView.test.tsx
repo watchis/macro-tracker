@@ -117,7 +117,8 @@ describe('HomeView', () => {
     expect(useAppStore.getState().view).toBe('day');
   });
 
-  it('shows the projected weight table when the Goals profile is ready', () => {
+  it('defaults projected weight to the chart and toggles to the weekly table', async () => {
+    const user = userEvent.setup();
     const store = useAppStore.getState();
     store.setProjectionProfile({
       sex: 'female',
@@ -133,14 +134,26 @@ describe('HomeView', () => {
 
     render(<HomeView />);
 
+    expect(screen.getByTestId('home-projection')).toBeInTheDocument();
+    expect(screen.getByTestId('home-projection-chart')).toBeInTheDocument();
+    expect(screen.queryByTestId('home-projection-table')).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('home-projection-view')).getByRole('radio', { name: 'Chart' }),
+    ).toHaveAttribute('aria-checked', 'true');
+
+    await user.click(
+      within(screen.getByTestId('home-projection-view')).getByRole('radio', { name: 'Weekly' }),
+    );
+
+    expect(screen.queryByTestId('home-projection-chart')).not.toBeInTheDocument();
     const table = screen.getByTestId('home-projection-table');
-    expect(within(table).getByRole('heading', { name: 'Projected weight' })).toBeInTheDocument();
     expect(within(table).getByText('Date')).toBeInTheDocument();
     expect(within(table).getAllByRole('row').length).toBeGreaterThan(1);
   });
 
-  it('hides the projected weight table when the profile is incomplete', () => {
+  it('hides the projected weight section when the profile is incomplete', () => {
     render(<HomeView />);
+    expect(screen.queryByTestId('home-projection')).not.toBeInTheDocument();
     expect(screen.queryByTestId('home-projection-table')).not.toBeInTheDocument();
   });
 });
