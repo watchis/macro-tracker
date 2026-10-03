@@ -14,7 +14,8 @@ deep link. Opening a day from the calendar is a sixth screen that is not in the 
 **Home** is the landing dashboard: today and last-7-day snapshots, latest weight, a compact month
 calendar (‹ / Today / › to change months; tap a day to select it, tap again to open its log), and
 one Trends chart you can switch between weight over time (trend + average), calorie intake, and
-calorie overages/underages. Toggle a 30 / 90 / all-time chart range from the page header.
+calorie overages/underages. Toggle a 30 / 90 / all-time chart range from the page header. When a
+weight projection is configured on Goals, its weekly table also appears at the bottom.
 
 **Calendar** shows the full month as a grid. A logged day reports its remaining calories, a depleting
 bar and totals for the macros you have switched on; an untouched day stays quiet. Today is circled
@@ -35,7 +36,8 @@ scales them by grams when you log.
 **Goals** sets calorie and macro targets (which macros show in tables and chips), and estimates
 future weight from a body profile (sex, birthday, height, activity). Age is derived from your
 birthday. Choose how the projection starts (weight or date) and ends (duration, goal weight, or
-date). The chart can overlay Goal and Logged avg intake series plus weigh-ins — in the spirit of
+date); those start/end choices are saved with your profile. The chart can overlay Goal and Logged
+avg intake series plus weigh-ins — in the spirit of
 [LoserTown's calculator](https://www.losertown.org/eats/cal.php).
 
 **Settings** covers theme, accent color, weight unit, JSON import/export, local storage usage, and

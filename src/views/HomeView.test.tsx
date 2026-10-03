@@ -116,4 +116,31 @@ describe('HomeView', () => {
     await user.click(screen.getByTestId('home-today-card'));
     expect(useAppStore.getState().view).toBe('day');
   });
+
+  it('shows the projected weight table when the Goals profile is ready', () => {
+    const store = useAppStore.getState();
+    store.setProjectionProfile({
+      sex: 'female',
+      birthday: '1996-06-01',
+      heightCm: 165,
+      activity: 1.375,
+      startMode: 'weight',
+      endMode: '13',
+      startWeightKg: 70,
+    });
+    store.setCalorieGoal(1600);
+    store.setWeightUnit('kg');
+
+    render(<HomeView />);
+
+    const table = screen.getByTestId('home-projection-table');
+    expect(within(table).getByRole('heading', { name: 'Projected weight' })).toBeInTheDocument();
+    expect(within(table).getByText('Date')).toBeInTheDocument();
+    expect(within(table).getAllByRole('row').length).toBeGreaterThan(1);
+  });
+
+  it('hides the projected weight table when the profile is incomplete', () => {
+    render(<HomeView />);
+    expect(screen.queryByTestId('home-projection-table')).not.toBeInTheDocument();
+  });
 });

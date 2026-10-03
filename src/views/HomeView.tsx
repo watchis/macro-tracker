@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { BarChart } from '../components/charts/BarChart';
 import { LineChart } from '../components/charts/LineChart';
+import { ProjectionWeeklyTable } from '../components/ProjectionWeeklyTable';
 import { SegmentedControl } from '../components/settings/SegmentedControl';
+import { useWeightProjection } from '../hooks/useWeightProjection';
 import { addDays, formatLongDate, formatShortDate, todayKey } from '../lib/dates';
 import { calorieDeltaSeries, calorieSeries, linearTrend, weightSeries } from '../lib/series';
 import { formatCalories, sumEntries } from '../lib/totals';
@@ -57,6 +59,7 @@ export function HomeView() {
   const goals = useGoals();
   const weightUnit = useWeightUnit();
   const openDay = useAppStore((state) => state.openDay);
+  const projection = useWeightProjection();
   const [range, setRange] = useState<RangeKey>('90');
   const [chart, setChart] = useState<ChartKey>('weight');
   const today = todayKey();
@@ -202,6 +205,15 @@ export function HomeView() {
           </>
         ) : null}
       </article>
+
+      {projection.ready && projection.primaryRows.length > 0 ? (
+        <ProjectionWeeklyTable
+          rows={projection.primaryRows}
+          weightUnit={weightUnit}
+          title="Projected weight"
+          testId="home-projection-table"
+        />
+      ) : null}
     </section>
   );
 }

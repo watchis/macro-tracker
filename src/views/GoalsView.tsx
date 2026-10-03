@@ -1,16 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { LineChart, type ChartSeries } from '../components/charts/LineChart';
+import { ProjectionWeeklyTable } from '../components/ProjectionWeeklyTable';
 import { MacroSettings } from '../components/settings/MacroSettings';
 import { NumberField } from '../components/settings/NumberField';
 import { SettingsSection } from '../components/settings/SettingsSection';
-import {
-  addDays,
-  ageYearsFromBirthday,
-  daysBetween,
-  formatShortDate,
-  fromDateKey,
-  todayKey,
-} from '../lib/dates';
+import { addDays, daysBetween, formatShortDate, todayKey } from '../lib/dates';
 import {
   fromCanonicalCm,
   heightUnitForWeightUnit,
@@ -22,44 +16,20 @@ import {
   ACTIVITY_OPTIONS,
   LOGGED_INTAKE_LOOKBACK_DAYS,
   averageLoggedIntake,
-  projectWeightLoss,
+  PROJECTION_END_MODES,
+  PROJECTION_START_MODES,
   type ActivityMultiplier,
-  type ProjectionResult,
   type ProjectionRow,
 } from '../lib/projection';
 import { weightNearDate, weightSeries, type DatedPoint } from '../lib/series';
 import { formatCalories } from '../lib/totals';
 import { fromCanonicalKg, roundWeight, toCanonicalKg, weightUnitLabel } from '../lib/weight';
+import { useWeightProjection } from '../hooks/useWeightProjection';
 import { useAppStore } from '../store/useAppStore';
-import { useGoals, useProjectionProfile, useWeightUnit, useWeights } from '../store/selectors';
-import type { DateKey, WeightUnit } from '../types';
+import { useProjectionProfile, useWeightUnit, useWeights } from '../store/selectors';
+import type { DateKey, ProjectionEndMode, ProjectionStartMode, WeightUnit } from '../types';
 
-const START_MODES = [
-  { value: 'weight', label: 'Weight' },
-  { value: 'date', label: 'Date' },
-] as const;
-
-const END_MODES = [
-  { value: '13', label: '3 mo', weeks: 13 },
-  { value: '26', label: '6 mo', weeks: 26 },
-  { value: '52', label: '1 yr', weeks: 52 },
-  { value: 'goal', label: 'Goal' },
-  { value: 'date', label: 'Date' },
-] as const;
-
-type StartMode = (typeof START_MODES)[number]['value'];
-type EndMode = (typeof END_MODES)[number]['value'];
 type IntakeKey = 'goal' | 'logged';
-
-type Scenario = {
-  id: string;
-  intake: IntakeKey;
-  label: string;
-  intakeKcal: number;
-  result: ProjectionResult;
-  className: string;
-  strokeDasharray?: string;
-};
 
 const INTAKE_META: Record<IntakeKey, { label: string; shortLabel: string }> = {
   goal: { label: 'Goal', shortLabel: 'Goal' },
@@ -80,17 +50,8 @@ function formatDisplayWeight(value: number, unit: WeightUnit): string {
   })} ${weightUnitLabel(unit)}`;
 }
 
-function weeksBetween(start: DateKey, end: DateKey): number {
-  return Math.max(1, Math.floor(daysBetween(start, end) / 7));
-}
-
-function endModeWeeks(mode: EndMode): number | undefined {
-  const match = END_MODES.find((option) => option.value === mode);
-  return match && 'weeks' in match ? match.weeks : undefined;
-}
-
 function toChartPoints(
-  result: ProjectionResult,
+  result: { rows: ProjectionRow[] },
   startWeightKg: number,
   weightUnit: WeightUnit,
   startDate: DateKey,
@@ -131,67 +92,45 @@ export function GoalsView() {
 /** Weight-loss projection form, multi-series chart, and weekly table. */
 function WeightProjectionSection() {
   const profile = useProjectionProfile();
-  const goals = useGoals();
   const weightUnit = useWeightUnit();
   const weights = useWeights();
   const days = useAppStore((state) => state.days);
   const setProjectionProfile = useAppStore((state) => state.setProjectionProfile);
 
-  const heightUnit = heightUnitForWeightUnit(weightUnit);
-  const today = todayKey();
-  const latestWeightKg = useMemo(() => weightSeries(weights).at(-1)?.value, [weights]);
-
-  const [startMode, setStartMode] = useState<StartMode>('weight');
-  const [endMode, setEndMode] = useState<EndMode>('52');
-  const [startDate, setStartDate] = useState<DateKey>(today);
-  const [endDate, setEndDate] = useState<DateKey>(() => addDays(today, 364));
-  const [startWeightDisplay, setStartWeightDisplay] = useState<number | undefined>(() =>
-    latestWeightKg !== undefined
-      ? roundWeight(fromCanonicalKg(latestWeightKg, weightUnit), weightUnit)
-      : undefined,
-  );
-  const [goalWeightDisplay, setGoalWeightDisplay] = useState<number | undefined>(undefined);
   const [showGoal, setShowGoal] = useState(true);
   const [showLogged, setShowLogged] = useState(false);
   const [showWeighIns, setShowWeighIns] = useState(true);
 
-  const [lastWeightUnit, setLastWeightUnit] = useState(weightUnit);
-  if (lastWeightUnit !== weightUnit) {
-    setLastWeightUnit(weightUnit);
-    if (startWeightDisplay !== undefined) {
-      const kg = toCanonicalKg(startWeightDisplay, lastWeightUnit);
-      setStartWeightDisplay(roundWeight(fromCanonicalKg(kg, weightUnit), weightUnit));
-    }
-    if (goalWeightDisplay !== undefined) {
-      const kg = toCanonicalKg(goalWeightDisplay, lastWeightUnit);
-      setGoalWeightDisplay(roundWeight(fromCanonicalKg(kg, weightUnit), weightUnit));
-    }
-  }
+  const projection = useWeightProjection({ showGoal, showLogged });
 
+  const heightUnit = heightUnitForWeightUnit(weightUnit);
+  const today = todayKey();
+  const latestWeightKg = useMemo(() => weightSeries(weights).at(-1)?.value, [weights]);
+
+  const startMode = profile.startMode;
+  const endMode = profile.endMode;
   const usingStartDate = startMode === 'date';
   const usingEndDate = endMode === 'date';
   const usingGoalWeight = endMode === 'goal';
-  const resolvedStartDate: DateKey = usingStartDate ? startDate : today;
 
-  const loggedIntake = useMemo(
-    () => averageLoggedIntake(days, resolvedStartDate, LOGGED_INTAKE_LOOKBACK_DAYS),
-    [days, resolvedStartDate],
-  );
+  const startDate = profile.startDate ?? today;
+  const endDate = profile.endDate ?? addDays(today, 364);
 
   const startWeightPoint = useMemo(
     () => (usingStartDate ? weightNearDate(weights, startDate) : undefined),
     [usingStartDate, weights, startDate],
   );
 
-  const startWeightKg = usingStartDate
-    ? startWeightPoint?.value
-    : startWeightDisplay !== undefined
-      ? toCanonicalKg(startWeightDisplay, weightUnit)
-      : undefined;
+  const startWeightDisplay =
+    profile.startWeightKg !== null
+      ? roundWeight(fromCanonicalKg(profile.startWeightKg, weightUnit), weightUnit)
+      : latestWeightKg !== undefined
+        ? roundWeight(fromCanonicalKg(latestWeightKg, weightUnit), weightUnit)
+        : undefined;
 
-  const goalWeightKg =
-    usingGoalWeight && goalWeightDisplay !== undefined
-      ? toCanonicalKg(goalWeightDisplay, weightUnit)
+  const goalWeightDisplay =
+    profile.goalWeightKg !== null
+      ? roundWeight(fromCanonicalKg(profile.goalWeightKg, weightUnit), weightUnit)
       : undefined;
 
   const heightDisplay =
@@ -199,100 +138,23 @@ function WeightProjectionSection() {
       ? roundHeight(fromCanonicalCm(profile.heightCm, heightUnit), heightUnit)
       : undefined;
 
-  const ageYears =
-    profile.birthday !== null
-      ? ageYearsFromBirthday(profile.birthday, fromDateKey(resolvedStartDate))
-      : null;
+  const loggedIntake = useMemo(
+    () => averageLoggedIntake(days, projection.resolvedStartDate, LOGGED_INTAKE_LOOKBACK_DAYS),
+    [days, projection.resolvedStartDate],
+  );
 
-  const goalIntake = goals.calories > 0 ? goals.calories : undefined;
-  const loggedIntakeKcal = loggedIntake?.averageKcal;
-
-  const useGoal = showGoal && goalIntake !== undefined;
-  const useLogged = showLogged && loggedIntakeKcal !== undefined;
-
-  const dateRangeValid = !usingEndDate || daysBetween(resolvedStartDate, endDate) >= 7;
-  const goalWeightValid =
-    !usingGoalWeight ||
-    (goalWeightKg !== undefined &&
-      goalWeightKg > 0 &&
-      startWeightKg !== undefined &&
-      Math.abs(goalWeightKg - startWeightKg) >= 0.05);
-
-  const weeksForEndDate = usingEndDate
-    ? weeksBetween(resolvedStartDate, endDate)
-    : endModeWeeks(endMode);
-
-  const profileReady =
-    profile.sex !== null &&
-    ageYears !== null &&
-    profile.heightCm !== null &&
-    startWeightKg !== undefined &&
-    startWeightKg > 0 &&
-    dateRangeValid &&
-    goalWeightValid;
-
-  const anyIntakeOn = useGoal || useLogged;
-  const ready = profileReady && anyIntakeOn;
-
-  const scenarios = useMemo((): Scenario[] => {
-    if (!ready || !profile.sex || ageYears === null || profile.heightCm === null) return [];
-    if (startWeightKg === undefined) return [];
-
-    const intakes: Array<{ key: IntakeKey; kcal: number }> = [];
-    if (useGoal && goalIntake !== undefined) intakes.push({ key: 'goal', kcal: goalIntake });
-    if (useLogged && loggedIntakeKcal !== undefined) {
-      intakes.push({ key: 'logged', kcal: loggedIntakeKcal });
-    }
-
-    const out: Scenario[] = [];
-    for (const intake of intakes) {
-      const result = projectWeightLoss({
-        sex: profile.sex,
-        ageYears,
-        heightCm: profile.heightCm,
-        startWeightKg,
-        activity: profile.activity,
-        intakeKcal: intake.kcal,
-        startDate: resolvedStartDate,
-        ...(usingGoalWeight && goalWeightKg !== undefined
-          ? { goalWeightKg }
-          : { weeks: weeksForEndDate ?? 52 }),
-      });
-
-      const style = SCENARIO_STYLE[intake.key] ?? { className: 'stroke-accent' };
-      out.push({
-        id: intake.key,
-        intake: intake.key,
-        label: INTAKE_META[intake.key].shortLabel,
-        intakeKcal: intake.kcal,
-        result,
-        className: style.className,
-        strokeDasharray: style.strokeDasharray,
-      });
-    }
-
-    return out;
-  }, [
+  const {
     ready,
-    profile.sex,
-    profile.heightCm,
-    profile.activity,
-    ageYears,
-    startWeightKg,
+    primary,
+    scenarios,
+    incompleteReason,
     resolvedStartDate,
-    usingGoalWeight,
-    goalWeightKg,
-    weeksForEndDate,
-    useGoal,
-    useLogged,
+    resolvedEndDate,
+    startWeightKg,
+    ageYears,
     goalIntake,
     loggedIntakeKcal,
-  ]);
-
-  const primary = scenarios[0] ?? null;
-  const resolvedEndDate = primary?.result.rows.length
-    ? primary.result.rows[primary.result.rows.length - 1]!.date
-    : addDays(resolvedStartDate, (weeksForEndDate ?? 52) * 7);
+  } = projection;
 
   const rowByDate = useMemo(() => {
     const map = new Map<DateKey, ProjectionRow>();
@@ -317,8 +179,8 @@ function WeightProjectionSection() {
       return {
         id: scenario.id,
         points: toChartPoints(scenario.result, startWeightKg, weightUnit, resolvedStartDate),
-        className: scenario.className,
-        strokeDasharray: scenario.strokeDasharray,
+        className: style.className,
+        strokeDasharray: style.strokeDasharray,
         strokeWidth: scenario === primary ? 2.75 : 2,
         showDots: style.showDots === true && scenario === primary,
       };
@@ -345,31 +207,45 @@ function WeightProjectionSection() {
     primary,
   ]);
 
-  const endWeightLabel = usingEndDate
+  const endStatLabel = usingEndDate
     ? formatShortDate(resolvedEndDate)
     : usingGoalWeight
       ? primary?.result.goalReached
         ? 'Goal'
         : 'At cap'
-      : (END_MODES.find((option) => option.value === endMode)?.label ??
+      : (PROJECTION_END_MODES.find((option) => option.value === endMode)?.label ??
         formatShortDate(resolvedEndDate));
 
-  const incompleteReason = !profileReady
-    ? !dateRangeValid
-      ? 'End date must be at least one week after the start.'
-      : startWeightKg === undefined
-        ? usingStartDate
-          ? 'No weigh-in found for the start date.'
-          : 'Enter a starting weight.'
-        : !goalWeightValid
-          ? 'Enter a goal weight different from the start.'
-          : 'Fill in sex, birthday, and height.'
-    : !anyIntakeOn
-      ? 'Turn on Goal or Logged avg on the chart.'
-      : null;
+  const endStatValue = usingGoalWeight
+    ? formatShortDate(resolvedEndDate)
+    : primary
+      ? formatDisplayWeight(
+          fromCanonicalKg(
+            primary.result.rows[primary.result.rows.length - 1]!.weightKg,
+            weightUnit,
+          ),
+          weightUnit,
+        )
+      : '—';
 
   const fieldClassName =
     'mt-1 w-full rounded-md border border-line bg-raised px-2.5 py-1.5 text-sm text-ink focus:border-accent-border focus:outline-none';
+
+  const setStartMode = (mode: ProjectionStartMode) => {
+    const patch: Partial<typeof profile> = { startMode: mode };
+    if (mode === 'date' && profile.startDate === null) {
+      patch.startDate = today;
+    }
+    setProjectionProfile(patch);
+  };
+
+  const setEndMode = (mode: ProjectionEndMode) => {
+    const patch: Partial<typeof profile> = { endMode: mode };
+    if (mode === 'date' && profile.endDate === null) {
+      patch.endDate = addDays(resolvedStartDate, 364);
+    }
+    setProjectionProfile(patch);
+  };
 
   return (
     <section className="grid gap-5" data-testid="projection-section">
@@ -476,7 +352,7 @@ function WeightProjectionSection() {
                 label="Start"
                 testId="projection-start-mode"
                 value={startMode}
-                options={START_MODES}
+                options={PROJECTION_START_MODES}
                 onChange={setStartMode}
               />
               {usingStartDate ? (
@@ -489,10 +365,11 @@ function WeightProjectionSection() {
                     onChange={(event) => {
                       if (!event.target.value) return;
                       const next = event.target.value as DateKey;
-                      setStartDate(next);
+                      const patch: Partial<typeof profile> = { startDate: next };
                       if (usingEndDate && daysBetween(next, endDate) < 7) {
-                        setEndMode('52');
+                        patch.endMode = '52';
                       }
+                      setProjectionProfile(patch);
                     }}
                     className={fieldClassName}
                   />
@@ -519,7 +396,11 @@ function WeightProjectionSection() {
                   max={weightUnit === 'lb' ? 1000 : 450}
                   allowEmpty
                   placeholder={latestWeightKg !== undefined ? 'Latest weigh-in' : 'Required'}
-                  onCommit={(value) => setStartWeightDisplay(value)}
+                  onCommit={(value) =>
+                    setProjectionProfile({
+                      startWeightKg: value === undefined ? null : toCanonicalKg(value, weightUnit),
+                    })
+                  }
                 />
               )}
             </div>
@@ -529,7 +410,7 @@ function WeightProjectionSection() {
                 label="End"
                 testId="projection-end-mode"
                 value={endMode}
-                options={END_MODES}
+                options={PROJECTION_END_MODES}
                 onChange={setEndMode}
               />
               {usingEndDate ? (
@@ -543,7 +424,7 @@ function WeightProjectionSection() {
                     if (!event.target.value) return;
                     const next = event.target.value as DateKey;
                     if (daysBetween(resolvedStartDate, next) < 7) return;
-                    setEndDate(next);
+                    setProjectionProfile({ endDate: next });
                   }}
                   className={fieldClassName}
                 />
@@ -559,7 +440,11 @@ function WeightProjectionSection() {
                   max={weightUnit === 'lb' ? 1000 : 450}
                   allowEmpty
                   placeholder="Goal weight"
-                  onCommit={(value) => setGoalWeightDisplay(value)}
+                  onCommit={(value) =>
+                    setProjectionProfile({
+                      goalWeightKg: value === undefined ? null : toCanonicalKg(value, weightUnit),
+                    })
+                  }
                 />
               ) : null}
             </div>
@@ -587,8 +472,8 @@ function WeightProjectionSection() {
                 {scenarios.map((scenario) => (
                   <li key={scenario.id} className="inline-flex items-center gap-1.5">
                     <SeriesSwatch
-                      className={scenario.className}
-                      dashed={Boolean(scenario.strokeDasharray)}
+                      className={SCENARIO_STYLE[scenario.id]?.className ?? 'stroke-accent'}
+                      dashed={Boolean(SCENARIO_STYLE[scenario.id]?.strokeDasharray)}
                     />
                     {scenario.label}
                   </li>
@@ -634,16 +519,13 @@ function WeightProjectionSection() {
               </div>
               <div>
                 <dt className="text-xs font-medium tracking-wide text-muted uppercase">
-                  {endWeightLabel}
+                  {endStatLabel}
                 </dt>
-                <dd className="mt-1 text-sm tabular-nums text-ink">
-                  {formatDisplayWeight(
-                    fromCanonicalKg(
-                      primary.result.rows[primary.result.rows.length - 1]!.weightKg,
-                      weightUnit,
-                    ),
-                    weightUnit,
-                  )}
+                <dd
+                  className="mt-1 text-sm tabular-nums text-ink"
+                  data-testid="projection-end-stat"
+                >
+                  {endStatValue}
                 </dd>
               </div>
             </dl>
@@ -710,45 +592,7 @@ function WeightProjectionSection() {
             />
           </article>
 
-          <article className="card overflow-hidden p-0" data-testid="projection-table">
-            <div className="border-b border-line px-4 py-3">
-              <h2 className="text-sm font-semibold tracking-tight">Weekly table</h2>
-            </div>
-            <div className="max-h-[28rem] overflow-auto">
-              <table className="w-full min-w-[28rem] border-collapse text-sm">
-                <thead className="sticky top-0 bg-surface text-left text-xs tracking-wide text-muted uppercase">
-                  <tr>
-                    <th className="px-4 py-2 font-medium">Date</th>
-                    <th className="px-4 py-2 font-medium">Weight</th>
-                    <th className="px-4 py-2 font-medium text-right">Used</th>
-                    <th className="px-4 py-2 font-medium text-right">Deficit</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {primary.result.rows.map((row) => (
-                    <tr key={row.date} className="border-t border-line tabular-nums">
-                      <td className="px-4 py-1.5 text-ink">{formatShortDate(row.date)}</td>
-                      <td className="px-4 py-1.5 text-ink">
-                        {formatDisplayWeight(fromCanonicalKg(row.weightKg, weightUnit), weightUnit)}
-                      </td>
-                      <td className="px-4 py-1.5 text-right text-ink">
-                        {formatCalories(Math.round(row.maintenanceKcal))}
-                      </td>
-                      <td
-                        className={[
-                          'px-4 py-1.5 text-right',
-                          row.deficitKcal >= 0 ? 'text-ink' : 'text-danger',
-                        ].join(' ')}
-                      >
-                        {row.deficitKcal >= 0 ? '' : '−'}
-                        {formatCalories(Math.round(Math.abs(row.deficitKcal)))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </article>
+          <ProjectionWeeklyTable rows={primary.result.rows} weightUnit={weightUnit} />
         </>
       )}
     </section>

@@ -10,6 +10,8 @@ import { normalizeMacros, sortMacros } from '../lib/macros';
 import {
   DEFAULT_ACTIVITY,
   isActivityMultiplier,
+  isProjectionEndMode,
+  isProjectionStartMode,
   isSex,
   type ActivityMultiplier,
 } from '../lib/projection';
@@ -25,7 +27,9 @@ import type {
   Goals,
   MacroKey,
   PersistedState,
+  ProjectionEndMode,
   ProjectionProfile,
+  ProjectionStartMode,
   Settings,
   Sex,
   ThemeMode,
@@ -170,6 +174,26 @@ function parseActivity(value: unknown): ActivityMultiplier {
   return isActivityMultiplier(value) ? value : DEFAULT_ACTIVITY;
 }
 
+function parseStartMode(value: unknown): ProjectionStartMode {
+  return isProjectionStartMode(value) ? value : DEFAULT_SETTINGS.projection.startMode;
+}
+
+function parseEndMode(value: unknown): ProjectionEndMode {
+  return isProjectionEndMode(value) ? value : DEFAULT_SETTINGS.projection.endMode;
+}
+
+function parseOptionalDateKey(value: unknown): DateKey | null {
+  return isDateKey(value) ? value : null;
+}
+
+/** Positive finite body weight in kg, or `null` when unset/invalid. */
+function parseOptionalWeightKg(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = num(value, Number.NaN);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 500) return null;
+  return parsed;
+}
+
 function parseBirthday(value: unknown, legacyAgeYears: unknown): DateKey | null {
   if (isDateKey(value)) {
     const age = ageYearsFromBirthday(value);
@@ -203,6 +227,12 @@ function parseProjection(value: unknown): ProjectionProfile {
     birthday: parseBirthday(value.birthday, value.ageYears),
     heightCm,
     activity: parseActivity(value.activity),
+    startMode: parseStartMode(value.startMode),
+    endMode: parseEndMode(value.endMode),
+    startDate: parseOptionalDateKey(value.startDate),
+    endDate: parseOptionalDateKey(value.endDate),
+    startWeightKg: parseOptionalWeightKg(value.startWeightKg),
+    goalWeightKg: parseOptionalWeightKg(value.goalWeightKg),
   };
 }
 

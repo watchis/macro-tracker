@@ -449,6 +449,52 @@ export const useAppStore = create<AppStore>()(
                 ? activity
                 : current.activity;
           }
+          if (patch.startMode !== undefined) {
+            next.startMode =
+              patch.startMode === 'weight' || patch.startMode === 'date'
+                ? patch.startMode
+                : current.startMode;
+          }
+          if (patch.endMode !== undefined) {
+            next.endMode =
+              patch.endMode === '13' ||
+              patch.endMode === '26' ||
+              patch.endMode === '52' ||
+              patch.endMode === 'goal' ||
+              patch.endMode === 'date'
+                ? patch.endMode
+                : current.endMode;
+          }
+          if (patch.startDate !== undefined) {
+            next.startDate =
+              patch.startDate === null
+                ? null
+                : isDateKey(patch.startDate)
+                  ? patch.startDate
+                  : current.startDate;
+          }
+          if (patch.endDate !== undefined) {
+            next.endDate =
+              patch.endDate === null
+                ? null
+                : isDateKey(patch.endDate)
+                  ? patch.endDate
+                  : current.endDate;
+          }
+          if (patch.startWeightKg !== undefined) {
+            const weight = patch.startWeightKg;
+            next.startWeightKg =
+              weight === null || !Number.isFinite(weight) || weight <= 0 || weight > 500
+                ? null
+                : weight;
+          }
+          if (patch.goalWeightKg !== undefined) {
+            const weight = patch.goalWeightKg;
+            next.goalWeightKg =
+              weight === null || !Number.isFinite(weight) || weight <= 0 || weight > 500
+                ? null
+                : weight;
+          }
 
           return {
             settings: {

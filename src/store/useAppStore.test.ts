@@ -195,6 +195,12 @@ describe('settings', () => {
       birthday: '1984-03-15',
       heightCm: 170,
       activity: 1.55,
+      startMode: 'weight',
+      endMode: '52',
+      startDate: null,
+      endDate: null,
+      startWeightKg: null,
+      goalWeightKg: null,
     });
 
     store().setProjectionProfile({
@@ -205,6 +211,38 @@ describe('settings', () => {
     expect(store().settings.projection.birthday).toBeNull();
     expect(store().settings.projection.heightCm).toBeNull();
     expect(store().settings.projection.activity).toBe(1.55);
+  });
+
+  it('persists projection start and end horizon settings', () => {
+    store().setProjectionProfile({
+      startMode: 'date',
+      endMode: 'goal',
+      startDate: '2026-09-01',
+      endDate: '2027-09-01',
+      startWeightKg: 90,
+      goalWeightKg: 80,
+    });
+    expect(store().settings.projection).toMatchObject({
+      startMode: 'date',
+      endMode: 'goal',
+      startDate: '2026-09-01',
+      endDate: '2027-09-01',
+      startWeightKg: 90,
+      goalWeightKg: 80,
+    });
+
+    store().setProjectionProfile({
+      startMode: 'nope' as never,
+      endMode: 'forever' as never,
+      startDate: 'not-a-date',
+      startWeightKg: -5,
+      goalWeightKg: 9999,
+    });
+    expect(store().settings.projection.startMode).toBe('date');
+    expect(store().settings.projection.endMode).toBe('goal');
+    expect(store().settings.projection.startDate).toBe('2026-09-01');
+    expect(store().settings.projection.startWeightKg).toBeNull();
+    expect(store().settings.projection.goalWeightKg).toBeNull();
   });
 
   it('clamps a negative calorie goal to zero', () => {
