@@ -16,7 +16,8 @@ calendar (‹ / Today / › to change months; tap a day to select it, tap again 
 one Trends chart you can switch between weight over time (trend + average), calorie intake, and
 calorie overages/underages. Toggle a 30 / 90 / all-time chart range from the page header. When a
 weight projection is configured on Goals, a projected-weight section appears at the bottom with a
-Chart / Weekly toggle (chart by default).
+Chart / Weekly toggle (chart by default). The chart always shows the Goal projection and weigh-ins
+when at least two weigh-ins exist.
 
 **Calendar** shows the full month as a grid. A logged day reports its remaining calories, a depleting
 bar and totals for the macros you have switched on; an untouched day stays quiet. Today is circled
@@ -37,8 +38,8 @@ scales them by grams when you log.
 **Goals** sets calorie and macro targets (which macros show in tables and chips), and estimates
 future weight from a body profile (sex, birthday, height, activity). Age is derived from your
 birthday. Choose how the projection starts (weight or date) and ends (duration, goal weight, or
-date); those start/end choices are saved with your profile. The chart can overlay Goal and Logged
-avg intake series plus weigh-ins — in the spirit of
+date); those start/end choices are saved with your profile. The chart always shows the Goal
+calorie projection with weigh-ins overlaid — in the spirit of
 [LoserTown's calculator](https://www.losertown.org/eats/cal.php).
 
 **Settings** covers theme, accent color, weight unit, JSON import/export, local storage usage, and

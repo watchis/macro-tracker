@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { LineChart, type ChartSeries } from '../components/charts/LineChart';
 import { ProjectionWeeklyTable } from '../components/ProjectionWeeklyTable';
 import { MacroSettings } from '../components/settings/MacroSettings';
@@ -14,8 +14,6 @@ import {
 } from '../lib/height';
 import {
   ACTIVITY_OPTIONS,
-  LOGGED_INTAKE_LOOKBACK_DAYS,
-  averageLoggedIntake,
   PROJECTION_END_MODES,
   PROJECTION_START_MODES,
   type ActivityMultiplier,
@@ -29,19 +27,11 @@ import { useAppStore } from '../store/useAppStore';
 import { useProjectionProfile, useWeightUnit, useWeights } from '../store/selectors';
 import type { DateKey, ProjectionEndMode, ProjectionStartMode, WeightUnit } from '../types';
 
-type IntakeKey = 'goal' | 'logged';
-
-const INTAKE_META: Record<IntakeKey, { label: string; shortLabel: string }> = {
-  goal: { label: 'Goal', shortLabel: 'Goal' },
-  logged: { label: 'Logged avg', shortLabel: 'Logged' },
-};
-
 const SCENARIO_STYLE: Record<
   string,
   { className: string; strokeDasharray?: string; showDots?: boolean }
 > = {
   goal: { className: 'stroke-accent', showDots: true },
-  logged: { className: 'stroke-accent-muted', strokeDasharray: '7 4' },
 };
 
 function formatDisplayWeight(value: number, unit: WeightUnit): string {
@@ -73,7 +63,7 @@ function toChartPoints(
 
 /**
  * Goals tab: calorie/macro targets plus a LoserTown-style weight projection
- * driven by body profile, planned intake, and optional food/weigh-in logs.
+ * driven by body profile, calorie goal, and optional weigh-in logs.
  */
 export function GoalsView() {
   return (
@@ -89,19 +79,14 @@ export function GoalsView() {
   );
 }
 
-/** Weight-loss projection form, multi-series chart, and weekly table. */
+/** Weight-loss projection form, chart (goal + weigh-ins), and weekly table. */
 function WeightProjectionSection() {
   const profile = useProjectionProfile();
   const weightUnit = useWeightUnit();
   const weights = useWeights();
-  const days = useAppStore((state) => state.days);
   const setProjectionProfile = useAppStore((state) => state.setProjectionProfile);
 
-  const [showGoal, setShowGoal] = useState(true);
-  const [showLogged, setShowLogged] = useState(false);
-  const [showWeighIns, setShowWeighIns] = useState(true);
-
-  const projection = useWeightProjection({ showGoal, showLogged });
+  const projection = useWeightProjection();
 
   const heightUnit = heightUnitForWeightUnit(weightUnit);
   const today = todayKey();
@@ -138,11 +123,6 @@ function WeightProjectionSection() {
       ? roundHeight(fromCanonicalCm(profile.heightCm, heightUnit), heightUnit)
       : undefined;
 
-  const loggedIntake = useMemo(
-    () => averageLoggedIntake(days, projection.resolvedStartDate, LOGGED_INTAKE_LOOKBACK_DAYS),
-    [days, projection.resolvedStartDate],
-  );
-
   const {
     ready,
     primary,
@@ -152,8 +132,6 @@ function WeightProjectionSection() {
     resolvedEndDate,
     startWeightKg,
     ageYears,
-    goalIntake,
-    loggedIntakeKcal,
   } = projection;
 
   const rowByDate = useMemo(() => {
@@ -186,7 +164,7 @@ function WeightProjectionSection() {
       };
     });
 
-    if (showWeighIns && actualWeightPoints.length >= 2) {
+    if (actualWeightPoints.length >= 2) {
       series.push({
         id: 'weigh-ins',
         points: actualWeightPoints,
@@ -197,15 +175,7 @@ function WeightProjectionSection() {
     }
 
     return series;
-  }, [
-    scenarios,
-    startWeightKg,
-    weightUnit,
-    resolvedStartDate,
-    showWeighIns,
-    actualWeightPoints,
-    primary,
-  ]);
+  }, [scenarios, startWeightKg, weightUnit, resolvedStartDate, actualWeightPoints, primary]);
 
   const endStatLabel = usingEndDate
     ? formatShortDate(resolvedEndDate)
@@ -478,7 +448,7 @@ function WeightProjectionSection() {
                     {scenario.label}
                   </li>
                 ))}
-                {showWeighIns && actualWeightPoints.length >= 2 ? (
+                {actualWeightPoints.length >= 2 ? (
                   <li className="inline-flex items-center gap-1.5">
                     <SeriesSwatch className="stroke-muted" dashed />
                     Weigh-ins
@@ -529,47 +499,6 @@ function WeightProjectionSection() {
                 </dd>
               </div>
             </dl>
-
-            <div className="grid gap-2" data-testid="projection-series-toggles">
-              <SeriesToggleGroup label="Intake">
-                <SeriesToggle
-                  testId="projection-series-goal"
-                  label={INTAKE_META.goal.label}
-                  pressed={showGoal}
-                  disabled={goalIntake === undefined}
-                  title={
-                    goalIntake === undefined
-                      ? 'Set a calorie goal above'
-                      : `${formatCalories(goalIntake)} kcal/day`
-                  }
-                  onClick={() => setShowGoal((value) => !value)}
-                />
-                <SeriesToggle
-                  testId="projection-series-logged"
-                  label={INTAKE_META.logged.label}
-                  pressed={showLogged}
-                  disabled={loggedIntakeKcal === undefined}
-                  title={
-                    loggedIntake
-                      ? `${formatCalories(loggedIntake.averageKcal)} kcal/day`
-                      : `No food logged in the last ${LOGGED_INTAKE_LOOKBACK_DAYS} days`
-                  }
-                  onClick={() => setShowLogged((value) => !value)}
-                />
-                <SeriesToggle
-                  testId="projection-series-weigh-ins"
-                  label="Weigh-ins"
-                  pressed={showWeighIns}
-                  disabled={actualWeightPoints.length < 2}
-                  title={
-                    actualWeightPoints.length < 2
-                      ? 'Log at least two weigh-ins'
-                      : 'Logged weigh-ins overlay'
-                  }
-                  onClick={() => setShowWeighIns((value) => !value)}
-                />
-              </SeriesToggleGroup>
-            </div>
 
             <LineChart
               testId="projection-weight-chart"
@@ -665,53 +594,5 @@ function SeriesSwatch({ className, dashed }: { className: string; dashed?: boole
           : undefined
       }
     />
-  );
-}
-
-function SeriesToggleGroup({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="w-24 shrink-0 text-xs font-medium tracking-wide text-muted uppercase">
-        {label}
-      </span>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
-    </div>
-  );
-}
-
-function SeriesToggle({
-  label,
-  pressed,
-  disabled,
-  title,
-  onClick,
-  testId,
-}: {
-  label: string;
-  pressed: boolean;
-  disabled?: boolean;
-  title?: string;
-  onClick: () => void;
-  testId: string;
-}) {
-  return (
-    <button
-      type="button"
-      data-testid={testId}
-      aria-pressed={pressed}
-      disabled={disabled}
-      title={title}
-      onClick={onClick}
-      className={[
-        'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
-        disabled
-          ? 'cursor-not-allowed border-line text-subtle opacity-60'
-          : pressed
-            ? 'border-accent-border bg-accent-soft text-ink'
-            : 'border-line bg-raised text-muted hover:border-accent-border hover:text-ink',
-      ].join(' ')}
-    >
-      {label}
-    </button>
   );
 }

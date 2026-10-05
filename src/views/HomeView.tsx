@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { BarChart } from '../components/charts/BarChart';
-import { LineChart } from '../components/charts/LineChart';
+import { LineChart, type ChartSeries } from '../components/charts/LineChart';
 import { ProjectionWeeklyTable } from '../components/ProjectionWeeklyTable';
 import { SegmentedControl } from '../components/settings/SegmentedControl';
 import { useWeightProjection } from '../hooks/useWeightProjection';
@@ -71,36 +71,63 @@ export function HomeView() {
   const [projectionView, setProjectionView] = useState<ProjectionViewKey>('chart');
   const today = todayKey();
 
-  const projectionChartPoints = useMemo(() => {
+  const actualWeightPoints = useMemo(
+    () =>
+      weightSeries(weights).map((point) => ({
+        ...point,
+        value: fromCanonicalKg(point.value, weightUnit),
+      })),
+    [weights, weightUnit],
+  );
+
+  const projectionChartSeries = useMemo((): ChartSeries[] => {
     if (!projection.ready || projection.startWeightKg === undefined) return [];
     const start = {
       date: projection.resolvedStartDate,
       t: Date.parse(`${projection.resolvedStartDate}T00:00:00`),
       value: fromCanonicalKg(projection.startWeightKg, weightUnit),
     };
-    return [
-      start,
-      ...projection.primaryRows.map((row) => ({
-        date: row.date,
-        t: Date.parse(`${row.date}T00:00:00`),
-        value: fromCanonicalKg(row.weightKg, weightUnit),
-      })),
+    const series: ChartSeries[] = [
+      {
+        id: 'goal',
+        points: [
+          start,
+          ...projection.primaryRows.map((row) => ({
+            date: row.date,
+            t: Date.parse(`${row.date}T00:00:00`),
+            value: fromCanonicalKg(row.weightKg, weightUnit),
+          })),
+        ],
+        className: 'stroke-accent',
+        strokeWidth: 2.75,
+        showDots: true,
+      },
     ];
+
+    if (actualWeightPoints.length >= 2) {
+      series.push({
+        id: 'weigh-ins',
+        points: actualWeightPoints,
+        className: 'stroke-muted',
+        strokeDasharray: '2 4',
+        strokeWidth: 1.75,
+      });
+    }
+
+    return series;
   }, [
     projection.ready,
     projection.startWeightKg,
     projection.resolvedStartDate,
     projection.primaryRows,
     weightUnit,
+    actualWeightPoints,
   ]);
 
-  const weightPoints = useMemo(() => {
-    const series = weightSeries(weights).map((point) => ({
-      ...point,
-      value: fromCanonicalKg(point.value, weightUnit),
-    }));
-    return filterByRange(series, range);
-  }, [weights, weightUnit, range]);
+  const weightPoints = useMemo(
+    () => filterByRange(actualWeightPoints, range),
+    [actualWeightPoints, range],
+  );
 
   const caloriePoints = useMemo(() => filterByRange(calorieSeries(days), range), [days, range]);
 
@@ -246,19 +273,47 @@ export function HomeView() {
         <article className="card grid gap-3 p-4" data-testid="home-projection">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold tracking-tight">Projected weight</h2>
-            <SegmentedControl
-              label="Projection view"
-              testId="home-projection-view"
-              value={projectionView}
-              options={projectionViewOptions}
-              onChange={setProjectionView}
-            />
+            <div className="flex flex-wrap items-center gap-3">
+              {projectionChartSeries.length > 0 ? (
+                <ul
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted"
+                  data-testid="home-projection-legend"
+                  aria-label="Chart key"
+                >
+                  <li className="inline-flex items-center gap-1.5">
+                    <span aria-hidden className="inline-block h-0.5 w-4 rounded-full bg-accent" />
+                    Goal
+                  </li>
+                  {actualWeightPoints.length >= 2 ? (
+                    <li className="inline-flex items-center gap-1.5 text-muted">
+                      <span
+                        aria-hidden
+                        className="inline-block h-0.5 w-4 rounded-full"
+                        style={{
+                          backgroundImage:
+                            'repeating-linear-gradient(90deg, currentColor 0 3px, transparent 3px 5px)',
+                          backgroundColor: 'transparent',
+                        }}
+                      />
+                      Weigh-ins
+                    </li>
+                  ) : null}
+                </ul>
+              ) : null}
+              <SegmentedControl
+                label="Projection view"
+                testId="home-projection-view"
+                value={projectionView}
+                options={projectionViewOptions}
+                onChange={setProjectionView}
+              />
+            </div>
           </div>
 
           {projectionView === 'chart' ? (
             <LineChart
               testId="home-projection-chart"
-              points={projectionChartPoints}
+              series={projectionChartSeries}
               valueLabel={(value) => formatDisplayWeight(value, weightUnit)}
               emptyMessage="Nothing to project yet."
             />
