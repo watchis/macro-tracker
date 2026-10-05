@@ -1,19 +1,16 @@
 import { useMemo } from 'react';
 import { addDays, ageYearsFromBirthday, daysBetween, fromDateKey, todayKey } from '../lib/dates';
 import {
-  LOGGED_INTAKE_LOOKBACK_DAYS,
-  averageLoggedIntake,
   projectWeightLoss,
   weeksForEndMode,
   type ProjectionResult,
   type ProjectionRow,
 } from '../lib/projection';
 import { weightNearDate, weightSeries } from '../lib/series';
-import { useAppStore } from '../store/useAppStore';
 import { useGoals, useProjectionProfile, useWeights } from '../store/selectors';
 import type { DateKey } from '../types';
 
-export type ProjectionIntakeKey = 'goal' | 'logged';
+export type ProjectionIntakeKey = 'goal';
 
 export type ProjectionScenario = {
   id: ProjectionIntakeKey;
@@ -21,11 +18,6 @@ export type ProjectionScenario = {
   label: string;
   intakeKcal: number;
   result: ProjectionResult;
-};
-
-const INTAKE_LABEL: Record<ProjectionIntakeKey, string> = {
-  goal: 'Goal',
-  logged: 'Logged',
 };
 
 function weeksBetween(start: DateKey, end: DateKey): number {
@@ -44,7 +36,6 @@ export type WeightProjectionModel = {
   usingEndDate: boolean;
   usingGoalWeight: boolean;
   ageYears: number | null;
-  loggedIntakeKcal: number | undefined;
   goalIntake: number | undefined;
   scenarios: ProjectionScenario[];
   primary: ProjectionScenario | null;
@@ -52,22 +43,13 @@ export type WeightProjectionModel = {
 };
 
 /**
- * Shared weight-projection model driven by the persisted profile + food/weight
- * logs. Used by Goals (chart + table) and Home (table).
+ * Shared weight-projection model driven by the persisted profile + calorie goal.
+ * Used by Goals (chart + table) and Home (chart + table).
  */
-export function useWeightProjection(options?: {
-  /** When false, skips the Goal intake series even if a calorie goal exists. */
-  showGoal?: boolean;
-  /** When true and logged intake exists, includes the Logged avg series. */
-  showLogged?: boolean;
-}): WeightProjectionModel {
-  const showGoal = options?.showGoal !== false;
-  const showLogged = options?.showLogged === true;
-
+export function useWeightProjection(): WeightProjectionModel {
   const profile = useProjectionProfile();
   const goals = useGoals();
   const weights = useWeights();
-  const days = useAppStore((state) => state.days);
   const today = todayKey();
 
   const usingStartDate = profile.startMode === 'date';
@@ -79,11 +61,6 @@ export function useWeightProjection(options?: {
   const resolvedStartDate: DateKey = usingStartDate ? startDate : today;
 
   const latestWeightKg = useMemo(() => weightSeries(weights).at(-1)?.value, [weights]);
-
-  const loggedIntake = useMemo(
-    () => averageLoggedIntake(days, resolvedStartDate, LOGGED_INTAKE_LOOKBACK_DAYS),
-    [days, resolvedStartDate],
-  );
 
   const startWeightPoint = useMemo(
     () => (usingStartDate ? weightNearDate(weights, startDate) : undefined),
@@ -102,10 +79,6 @@ export function useWeightProjection(options?: {
       : null;
 
   const goalIntake = goals.calories > 0 ? goals.calories : undefined;
-  const loggedIntakeKcal = loggedIntake?.averageKcal;
-
-  const useGoal = showGoal && goalIntake !== undefined;
-  const useLogged = showLogged && loggedIntakeKcal !== undefined;
 
   const dateRangeValid = !usingEndDate || daysBetween(resolvedStartDate, endDate) >= 7;
   const goalWeightValid =
@@ -128,41 +101,34 @@ export function useWeightProjection(options?: {
     dateRangeValid &&
     goalWeightValid;
 
-  const anyIntakeOn = useGoal || useLogged;
-  const ready = profileReady && anyIntakeOn;
+  const ready = profileReady && goalIntake !== undefined;
 
   const scenarios = useMemo((): ProjectionScenario[] => {
     if (!ready || !profile.sex || ageYears === null || profile.heightCm === null) return [];
-    if (startWeightKg === undefined) return [];
+    if (startWeightKg === undefined || goalIntake === undefined) return [];
 
-    const intakes: Array<{ key: ProjectionIntakeKey; kcal: number }> = [];
-    if (useGoal && goalIntake !== undefined) intakes.push({ key: 'goal', kcal: goalIntake });
-    if (useLogged && loggedIntakeKcal !== undefined) {
-      intakes.push({ key: 'logged', kcal: loggedIntakeKcal });
-    }
-
-    return intakes.map((intake) => {
-      const result = projectWeightLoss({
-        sex: profile.sex!,
-        ageYears,
-        heightCm: profile.heightCm!,
-        startWeightKg,
-        activity: profile.activity,
-        intakeKcal: intake.kcal,
-        startDate: resolvedStartDate,
-        ...(usingGoalWeight && goalWeightKg !== undefined
-          ? { goalWeightKg }
-          : { weeks: weeksForHorizon ?? 52 }),
-      });
-
-      return {
-        id: intake.key,
-        intake: intake.key,
-        label: INTAKE_LABEL[intake.key],
-        intakeKcal: intake.kcal,
-        result,
-      };
+    const result = projectWeightLoss({
+      sex: profile.sex,
+      ageYears,
+      heightCm: profile.heightCm,
+      startWeightKg,
+      activity: profile.activity,
+      intakeKcal: goalIntake,
+      startDate: resolvedStartDate,
+      ...(usingGoalWeight && goalWeightKg !== undefined
+        ? { goalWeightKg }
+        : { weeks: weeksForHorizon ?? 52 }),
     });
+
+    return [
+      {
+        id: 'goal',
+        intake: 'goal',
+        label: 'Goal',
+        intakeKcal: goalIntake,
+        result,
+      },
+    ];
   }, [
     ready,
     profile.sex,
@@ -174,10 +140,7 @@ export function useWeightProjection(options?: {
     usingGoalWeight,
     goalWeightKg,
     weeksForHorizon,
-    useGoal,
-    useLogged,
     goalIntake,
-    loggedIntakeKcal,
   ]);
 
   const primary = scenarios[0] ?? null;
@@ -195,8 +158,8 @@ export function useWeightProjection(options?: {
         : !goalWeightValid
           ? 'Enter a goal weight different from the start.'
           : 'Fill in sex, birthday, and height.'
-    : !anyIntakeOn
-      ? 'Turn on Goal or Logged avg on the chart.'
+    : goalIntake === undefined
+      ? 'Set a calorie goal above.'
       : null;
 
   return {
@@ -211,7 +174,6 @@ export function useWeightProjection(options?: {
     usingEndDate,
     usingGoalWeight,
     ageYears,
-    loggedIntakeKcal,
     goalIntake,
     scenarios,
     primary,

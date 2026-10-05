@@ -136,6 +136,7 @@ describe('HomeView', () => {
 
     expect(screen.getByTestId('home-projection')).toBeInTheDocument();
     expect(screen.getByTestId('home-projection-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('chart-series-goal')).toBeInTheDocument();
     expect(screen.queryByTestId('home-projection-table')).not.toBeInTheDocument();
     expect(
       within(screen.getByTestId('home-projection-view')).getByRole('radio', { name: 'Chart' }),
@@ -149,6 +150,30 @@ describe('HomeView', () => {
     const table = screen.getByTestId('home-projection-table');
     expect(within(table).getByText('Date')).toBeInTheDocument();
     expect(within(table).getAllByRole('row').length).toBeGreaterThan(1);
+  });
+
+  it('overlays weigh-ins on the projected weight chart when present', () => {
+    const store = useAppStore.getState();
+    store.setProjectionProfile({
+      sex: 'female',
+      birthday: '1996-06-01',
+      heightCm: 165,
+      activity: 1.375,
+      startMode: 'weight',
+      endMode: '13',
+      startWeightKg: 70,
+    });
+    store.setCalorieGoal(1600);
+    store.setWeightUnit('kg');
+    store.setWeight('2026-09-10', 70, 'kg');
+    store.setWeight('2026-09-20', 69, 'kg');
+
+    render(<HomeView />);
+
+    expect(screen.getByTestId('home-projection-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('chart-series-goal')).toBeInTheDocument();
+    expect(screen.getByTestId('chart-series-weigh-ins')).toBeInTheDocument();
+    expect(screen.getByTestId('home-projection-legend')).toHaveTextContent(/Weigh-ins/);
   });
 
   it('hides the projected weight section when the profile is incomplete', () => {

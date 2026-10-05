@@ -129,11 +129,11 @@ describe('GoalsView', () => {
     ).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByTestId('projection-weight')).toHaveValue('200');
     expect(screen.queryByTestId('projection-intake')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('projection-series-custom')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('projection-series-logs')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('projection-series-formula')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('projection-series-toggles')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('projection-series-goal')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('projection-series-logged')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('projection-series-weigh-ins')).not.toBeInTheDocument();
 
-    expect(screen.getByTestId('projection-series-goal')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('projection-series-legend')).toHaveTextContent(/Goal/);
     expect(screen.queryByTestId('projection-summary')).not.toBeInTheDocument();
     expect(screen.getByTestId('projection-weight-chart')).toBeInTheDocument();
@@ -257,8 +257,7 @@ describe('GoalsView', () => {
     );
   });
 
-  it('overlays logged-average intake on the chart when toggled', async () => {
-    const user = userEvent.setup();
+  it('always overlays weigh-ins on the chart when at least two exist', () => {
     const store = useAppStore.getState();
     store.setProjectionProfile({
       sex: 'male',
@@ -269,18 +268,12 @@ describe('GoalsView', () => {
     store.setCalorieGoal(2200);
     store.setWeight('2026-09-01', 200, 'lb');
     store.setWeight('2026-09-20', 198, 'lb');
-    store.addEntry('2026-09-25', { name: 'Lunch', grams: 100, calories: 1700, macros: {} });
-    store.addEntry('2026-09-28', { name: 'Dinner', grams: 100, calories: 1900, macros: {} });
 
     render(<GoalsView />);
 
     expect(screen.getByTestId('chart-series-goal')).toBeInTheDocument();
+    expect(screen.getByTestId('chart-series-weigh-ins')).toBeInTheDocument();
+    expect(screen.getByTestId('projection-series-legend')).toHaveTextContent(/Weigh-ins/);
     expect(screen.queryByTestId('chart-series-logged')).not.toBeInTheDocument();
-
-    await user.click(screen.getByTestId('projection-series-logged'));
-
-    expect(screen.getByTestId('projection-series-logged')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('chart-series-logged')).toBeInTheDocument();
-    expect(screen.getByTestId('projection-series-legend')).toHaveTextContent(/Logged/);
   });
 });
